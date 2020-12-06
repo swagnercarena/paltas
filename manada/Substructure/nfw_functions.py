@@ -28,7 +28,7 @@ def host_scaling_function_DG_19(host_m200, z_lens, k1=0.88, k2=1.7):
 		Default values of k1 and k2 are derived from galacticus.
 	"""
 	# Equation from DG_19
-	log_f = k1 * np.log10(host_m200/1e-13) + k2 * np.log10(z_lens+0.5)
+	log_f = k1 * np.log10(host_m200/1e13) + k2 * np.log10(z_lens+0.5)
 	return 10**log_f
 
 
@@ -49,8 +49,8 @@ def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
 	"""
 
 	# Check that we have all the parameters we need
-	if not all(elem in draw_nfw_masses_DG_19_parameters for elem in
-		subhalo_parameters.keys()):
+	if not all(elem in subhalo_parameters.keys() for
+		elem in draw_nfw_masses_DG_19_parameters):
 		raise ValueError('Not all of the required parameters for the DG_19' +
 			'parameterization are present.')
 
@@ -72,10 +72,14 @@ def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
 	# sigma_sub, and the area of interest.
 	f_host = host_scaling_function_DG_19(host_m200,z_lens)
 
-	# In DG_19 subhalos are rendered up until 3*theta_E
-	r_E = (cosmo.angularDiameterDistance(z_lens)*
-		main_deflector_parameters['theta_E'])
-	dA = np.pi * r_E**2
+	# In DG_19 subhalos are rendered up until 3*theta_E.
+	# Colossus return in MPC per h per radian so must be converted to kpc per
+	# arc second
+	h = cosmo.H0/100
+	kpc_per_arcsecond = (cosmo.angularDiameterDistance(z_lens) *
+		np.pi/180/3600 * h * 1e3)
+	r_E = (kpc_per_arcsecond*main_deflector_parameters['theta_E'])
+	dA = np.pi * (3*r_E)**2
 
 	# We can also fold in the pivot mass into the norm for simplicity (then
 	# all we have to do is sample from a power law).
