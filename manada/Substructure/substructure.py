@@ -12,9 +12,10 @@ from colossus.cosmology import cosmology
 
 def draw_subhalos(subhalo_parameters,main_deflector_parameters,
 	cosmology_parameters):
-	""" Given the parameters of the subhalo mass distribution the main
-		deflector lens parameters draw masses, concentrations,and positions for
-		the subhalos of a main lens halo.
+	"""
+	Given the parameters of the subhalo mass distribution the main deflector
+	lens parameters draw masses, concentrations,and positions for the
+	subhalos of a main lens halo.
 
 	Parameters:
 		subhalo_parameters (dict): A dictionary containing the type of

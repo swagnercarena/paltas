@@ -2,10 +2,15 @@ import unittest
 from manada.Substructure import nfw_functions
 from manada.Utils import power_law
 import numpy as np
+from scipy.integrate import quad
 from colossus.cosmology import cosmology
 
 
 class NFWFunctionsTests(unittest.TestCase):
+
+	def setUp(self):
+		# Fix the random seed to be able to have reliable tests
+		np.random.seed(10)
 
 	def test_host_scaling_function_DG_19(self):
 		# Just test that the function agrees with some pre-computed values
@@ -72,3 +77,48 @@ class NFWFunctionsTests(unittest.TestCase):
 			total_subs += len(masses)
 		self.assertGreater(total_subs//n_loops,50)
 		self.assertLess(total_subs//n_loops,200)
+
+	def test_cored_nfw_integral(self):
+		# Test that the cored nfw integral returns values that agree with the
+		# numerical integral.
+		r_tidal = 0.5
+		r_scale = 2
+		rho_nfw = 1
+		r_upper = np.linspace(0,4,100)
+		analytic_values = nfw_functions.cored_nfw_integral(r_tidal,rho_nfw,
+			r_scale,r_upper)
+
+		def cored_nfw_func(r,r_tidal,rho_nfw,r_scale):
+			if r<r_tidal:
+				x_tidal = r_tidal/r_scale
+				return rho_nfw/(x_tidal*(1+x_tidal)**2)
+			else:
+				x = r/r_scale
+				return rho_nfw/(x*(1+x)**2)
+
+		for i in range(len(r_upper)):
+			self.assertAlmostEqual(analytic_values[i],quad(cored_nfw_func,0,
+				r_upper[i],args=(r_tidal,rho_nfw,r_scale))[0])
+
+	def test_cored_nfw_draws(self):
+		# Test that the draws follow the desired distribution
+		r_tidal = 0.5
+		r_scale = 2
+		rho_nfw = 1.5
+		r_max = 4
+		n_subs = int(1e5)
+		r_draws = nfw_functions.cored_nfw_draws(r_tidal,rho_nfw,r_scale,
+			r_max,n_subs)
+
+		n_test_points = 100
+		r_test = np.linspace(0,r_max,n_test_points)
+		analytic_integral = nfw_functions.cored_nfw_integral(r_tidal,rho_nfw,
+			r_scale,r_test)
+
+		for i in range(n_test_points):
+			self.assertAlmostEqual(np.mean(r_draws<r_test[i]),
+				analytic_integral[i]/np.max(analytic_integral),places=2)
+
+	def test_r_200_from_m(self):
+		# TODO!
+		return

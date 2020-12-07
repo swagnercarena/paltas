@@ -5,10 +5,13 @@ Draw from and integrate power laws
 Useful equations to draw from and integrate power law distributions.
 """
 import numpy as np
+import numba
 
 
+@numba.njit()
 def power_law_integrate(p_min,p_max,slope):
-	""" Integrate a power law
+	"""
+	Integrate a power law
 
 	Parameters:
 		p_min (float): The lower bound of the power law
@@ -23,8 +26,10 @@ def power_law_integrate(p_min,p_max,slope):
 	return upper_bound-lower_bound
 
 
+@numba.njit()
 def power_law_draw(p_min,p_max,slope,norm):
-	""" Sample from a power law
+	"""
+	Sample from a power law
 
 	Parameters:
 		p_min (float): The lower bound of the power law

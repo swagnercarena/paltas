@@ -8,14 +8,21 @@ NFW subhalos.
 """
 import numpy as np
 from manada.Utils import power_law
+import numba
+from scipy.interpolate import interp1d
+from colossus.halo.concentration import peaks
 
 draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
 	'm_min','m_max']
 
 
+# -------------------------------Mass Functions-------------------------------
+
+@numba.njit()
 def host_scaling_function_DG_19(host_m200, z_lens, k1=0.88, k2=1.7):
-	""" Scaling for the subhalo mass function based on the mass of the host
-		halo. Derived from galacticus in https://arxiv.org/pdf/1909.02573.pdf.
+	"""
+	Scaling for the subhalo mass function based on the mass of the host
+	halo. Derived from galacticus in https://arxiv.org/pdf/1909.02573.pdf.
 
 	Parameters:
 		host_m200 (float): The mass of the host halo in units of M_sun
@@ -33,8 +40,9 @@ def host_scaling_function_DG_19(host_m200, z_lens, k1=0.88, k2=1.7):
 
 
 def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
-	""" Draw from the https://arxiv.org/pdf/1909.02573.pdf mass function and
-		return a list of the masses.
+	"""
+	Draw from the https://arxiv.org/pdf/1909.02573.pdf mass function and
+	return an array of the masses.
 
 	Parameters:
 		subhalo_parameters (dict): A dictionary containing the type of
@@ -42,10 +50,9 @@ def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
 		main_deflector_parameters (dict): A dictionary containing the type of
 			main deflector and the value for each of its parameters.
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
-			colossus cosmology object that will be used to calculate redshift
-			dependent quantities.
+			colossus cosmology object.
 	Returns:
-		(list): The masses of the drawn halos
+		(np.array): The masses of the drawn halos
 	"""
 
 	# Check that we have all the parameters we need
@@ -88,3 +95,212 @@ def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
 	# Draw from our power law and return the masses.
 	masses = power_law.power_law_draw(m_min,m_max,shmf_plaw_index,norm)
 	return masses
+
+
+def mass_concentration_DG_19(subhalo_parameters,z,m_200,cosmo):
+	"""
+	Return the concentration of halos at a certain mass given the
+	parameterization of DG_19.
+
+	Parameters:
+		subhalo_parameters (dict): A dictionary containing the type of
+			subhalo distribution and the value for each of its parameters.
+		z (float): The redshift of the nfw halo
+		m_200 (float): M_200 of the nfw halo units of M_sun
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+	"""
+	# Get the concentration parameters
+	c_0 = subhalo_parameters['c_0']
+	xi = subhalo_parameters['conc_xi']
+	beta = subhalo_parameters['conc_beta']
+	m_ref = subhalo_parameters['conc_m_ref']
+	dex_scatter = subhalo_parameters['conc_m_ref']
+
+	# The peak calculation is done by colossus. The cosmology must have
+	# already been set. Note it expect M_sun/h
+	h = cosmo.H0/100
+	peak_heights = peaks.peak_height(m_200/h,z)
+	peak_height_ref = peaks.peak_height(m_ref/h,0)
+
+	# Now get the concentrations and add scatter
+	concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(-beta)
+	conc_scatter = np.random.randn(len(concentrations))*dex_scatter
+	concentrations = 10**(np.log10(concentrations)+conc_scatter)
+
+	return concentrations
+
+
+# -----------------------------Position Functions-----------------------------
+
+@numba.njit()
+def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
+	"""
+	Integrate the cored nfw profile from 0 to r_upper
+
+	Parameters:
+		r_tidal (float): The tidal radius within which the NFW profile
+			will be replaced by a uniform profile.
+		rho_nfw (float): The amplitude of the nfw density outside the
+			cored radius.
+		r_scale (float): The scale radius of the nfw
+		r_upper (np.array): An array containing the upper bounds
+			to be evaluated.
+	Returns:
+		(np.array): The value of the integral for each r_upper given.
+	"""
+	# Convert to natural units for NFW
+	x_tidal = r_tidal / r_scale
+	x_upper = r_upper / r_scale
+
+	# Get the value of the NFW in the core region
+	uniform_value = rho_nfw/(x_tidal*(1+x_tidal)**2)
+
+	# Array to save the integral outputs to
+	integral_values = np.zeros(r_upper.shape)
+
+	# Add the cored component
+	integral_values += uniform_value * np.minimum(r_tidal,r_upper)
+
+	# Add the nfw component where x_upper > x_tidal
+	lower_bound = 1/(x_tidal+1) + np.log(x_tidal) - np.log(x_tidal+1)
+	upper_bound = 1/(x_upper+1) + np.log(x_upper) - np.log(x_upper+1)
+	nfw_integral = upper_bound - lower_bound
+	add_nfw = r_upper > r_tidal
+	integral_values[add_nfw] += nfw_integral[add_nfw]*rho_nfw*r_scale
+
+	return integral_values
+
+
+def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
+	"""
+	Return radial samples from a cored nfw profile
+
+	Parameters:
+		r_tidal (float): The tidal radius within which the NFW profile
+			will be replaced by a uniform profile.
+		rho_nfw (float): The amplitude of the nfw density outside the
+			cored radius.
+		r_scale (float): The scale radius of the nfw
+		r_max (float): The maximum value of r to sample
+		n_subs (int): The number of subhalo positions to sample
+		n_cdf_samps (int): The number of samples to use to numerically
+			invert the cdf for sampling.
+	Returns:
+		(np.array): A n_subs array giving sampled radii.
+	"""
+	# First we have to numerically calculate the inverse cdf
+	r_values = np.linspace(0,r_max,n_cdf_samps)
+	cdf_values = cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_values)
+	# Normalize
+	cdf_values /= np.max(cdf_values)
+	# Use scipy to create our inverse cdf
+	inverse_cdf = interp1d(cdf_values,r_values)
+
+	# Now draw from the inverse cdf
+	cdf_draws = np.random.rand(n_subs)
+	r_draws = inverse_cdf(cdf_draws)
+
+	return r_draws
+
+
+def r_200_from_m(m_200,cosmo):
+	"""
+	Calculate r_200 for our NFW profile given our m_200 mass.
+
+	Parameters:
+		m_200 (float): The mass contained within r_200
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+	Returns:
+		(float): The r_200 radius corresponding to the given mass.
+	"""
+	# Get the critical density
+	h = cosmo.H0/100
+	# rho_c is returned in units of M_sun*h^2/kpc^3
+	rho_c = cosmo.rho_c(0)/h**2
+
+	# Return r_200 given that critical density
+	return (3*m_200/(4*np.pi*rho_c*200))**(1./3.)
+
+
+def rho_nfw_from_m_c(m_200,c,r_scale,cosmo):
+	"""
+	Calculate the amplitude of the nfw profile given the physical parameters.
+
+	Parameters:
+		m_200 (float): The mass of the nfw halo in units of M_sun
+		c (float): The concentration of the nfw_halo
+		r_scale (float): The scale radius in units of kpc
+		rho_0 (float): The amplitude of the nfw
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+	Returns:
+		(float): The amplitude for the nfw.
+	Notes:
+		This function assumes you've already calculated r_scale so
+		it's wasteful to not just pass it in. Technically it is fixed
+		by the other three parameters.
+	"""
+
+
+def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
+	main_deflector_parameters,cosmo,n_subs):
+	"""
+	Given the a tidal radius that defines a core region and the parameters
+	of the main deflector, sample positions for NFW subhalos bounded
+	as described in https://arxiv.org/pdf/1909.02573.pdf
+
+	Parameters:
+		r_tidal (float): The tidal radius within which the NFW profile will
+			be replaced by a uniform profile.
+		subhalo_parameters (dict): A dictionary containing the type of
+			subhalo distribution and the value for each of its parameters.
+		main_deflector_parameters (dict): A dictionary containing the type of
+			main deflector and the value for each of its parameters.
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+		n_subs (int): The number of subhalo positions to sample
+	Returns:
+		(np.array): A n_subs x 3 array giving the x,y,z position of the
+		subhalos in units of kpc.
+	Notes:
+		The code works through rejection sampling, which can be inneficient
+		for certain configurations. If this is a major issue, it may be worth
+		introducing more analytical components.
+	"""
+
+	# TODO add a parameter check
+
+	host_m200 = main_deflector_parameters['M200']
+	z_lens = main_deflector_parameters['z_lens']
+	host_c = mass_concentration_DG_19(subhalo_parameters,z_lens,host_m200,
+		cosmo)
+	host_r_200 = r_200_from_m(host_m200,cosmo)
+	host_r_scale = host_r_200/host_c
+
+	# Tranform the einstein radius to physical units (TODO this should
+	# be a function). Multiply by 3 since that's what's relevant for
+	# DG_19 parameterization.
+	h = cosmo.H0/100
+	kpc_per_arcsecond = (cosmo.angularDiameterDistance(z_lens) *
+		np.pi/180/3600 * h * 1e3)
+	r_3E = (kpc_per_arcsecond*main_deflector_parameters['theta_E'])*3
+
+	# The largest radius we should bother sampling is set by the diagonal of
+	# our cylinder.
+	r_max = np.sqrt(r_3E**2+host_r_200**2)
+
+	n_accepted_draws = 0
+	while n_accepted_draws<n_subs:
+		r_subs = cored_nfw_draws(r_tidal,rho_nfw,host_r_scale,r_max,n_subs)
+
+	# Draw theta and phi for the samples and then reject all of the samples
+	# that either have too large a z coordinate or too large an r_2d
+	# coordinate. Calculate the rejection rate and then scale the next
+	# sample to that size.
+
+	# Return all of the positions
+
+	# Draw
+	return
