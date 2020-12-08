@@ -1,7 +1,9 @@
 import unittest
-from manada.Utils import power_law
+from manada.Utils import power_law, cosmology_utils
 from scipy.integrate import quad
 import numpy as np
+from colossus.cosmology import cosmology
+from astropy import units as u
 
 
 class PowerLawTest(unittest.TestCase):
@@ -69,3 +71,18 @@ class PowerLawTest(unittest.TestCase):
 				power_law.power_law_integrate(p_min,test_point,slope)/
 				power_law.power_law_integrate(p_min,p_max,slope),
 				places=2)
+
+
+class CosmologyTest(unittest.TestCase):
+
+	def test_kpc_per_arcsecond(self):
+		# Just check that the calculation agree with what we would expect using
+		# astropy.
+		cosmo = cosmology.setCosmology('planck18')
+		h = cosmo.H0/100
+		for z_test in np.linspace(0.2,0.8,20):
+			dd = cosmo.comovingDistance(z_max=z_test)/(1+z_test)
+			dd *= h * u.Mpc.to(u.kpc)/u.radian.to(u.arcsecond)
+			# print(dd)
+			self.assertAlmostEqual(cosmology_utils.kpc_per_arcsecond(z_test,
+				cosmo),dd,places=4)

@@ -7,7 +7,7 @@ subhalo distributions into masses, concentrations, and positions for those
 NFW subhalos.
 """
 import numpy as np
-from manada.Utils import power_law
+from manada.Utils import power_law, cosmology_utils
 import numba
 from scipy.interpolate import interp1d
 from colossus.halo.concentration import peaks
@@ -82,9 +82,7 @@ def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
 	# In DG_19 subhalos are rendered up until 3*theta_E.
 	# Colossus return in MPC per h per radian so must be converted to kpc per
 	# arc second
-	h = cosmo.H0/100
-	kpc_per_arcsecond = (cosmo.angularDiameterDistance(z_lens) *
-		np.pi/180/3600 * h * 1e3)
+	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z_lens,cosmo)
 	r_E = (kpc_per_arcsecond*main_deflector_parameters['theta_E'])
 	dA = np.pi * (3*r_E)**2
 
@@ -106,7 +104,7 @@ def mass_concentration_DG_19(subhalo_parameters,z,m_200,cosmo):
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
 		z (float): The redshift of the nfw halo
-		m_200 (float): M_200 of the nfw halo units of M_sun
+		m_200 (np.array): array of M_200 of the nfw halo units of M_sun
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
 	"""
@@ -115,13 +113,13 @@ def mass_concentration_DG_19(subhalo_parameters,z,m_200,cosmo):
 	xi = subhalo_parameters['conc_xi']
 	beta = subhalo_parameters['conc_beta']
 	m_ref = subhalo_parameters['conc_m_ref']
-	dex_scatter = subhalo_parameters['conc_m_ref']
+	dex_scatter = subhalo_parameters['dex_scatter']
 
 	# The peak calculation is done by colossus. The cosmology must have
 	# already been set. Note it expect M_sun/h
-	h = cosmo.H0/100
-	peak_heights = peaks.peak_height(m_200/h,z)
-	peak_height_ref = peaks.peak_height(m_ref/h,0)
+	h = cosmo.h
+	peak_heights = peaks.peakHeight(m_200/h,z)
+	peak_height_ref = peaks.peakHeight(m_ref/h,0)
 
 	# Now get the concentrations and add scatter
 	concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(-beta)
@@ -216,32 +214,36 @@ def r_200_from_m(m_200,cosmo):
 		(float): The r_200 radius corresponding to the given mass.
 	"""
 	# Get the critical density
-	h = cosmo.H0/100
+	h = cosmo.h
 	# rho_c is returned in units of M_sun*h^2/kpc^3
 	rho_c = cosmo.rho_c(0)/h**2
 
 	# Return r_200 given that critical density
-	return (3*m_200/(4*np.pi*rho_c*200))**(1./3.)
+	return (3*m_200/(4*np.pi*rho_c*200))**(1.0/3.0)
 
 
-def rho_nfw_from_m_c(m_200,c,r_scale,cosmo):
+def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None):
 	"""
 	Calculate the amplitude of the nfw profile given the physical parameters.
 
 	Parameters:
 		m_200 (float): The mass of the nfw halo in units of M_sun
 		c (float): The concentration of the nfw_halo
-		r_scale (float): The scale radius in units of kpc
-		rho_0 (float): The amplitude of the nfw
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
+		r_scale (float): The scale radius in units of kpc
 	Returns:
 		(float): The amplitude for the nfw.
-	Notes:
-		This function assumes you've already calculated r_scale so
-		it's wasteful to not just pass it in. Technically it is fixed
-		by the other three parameters.
 	"""
+	# If r_scale is not provided, calculate it
+	if r_scale is None:
+		r_200 = r_200_from_m(m_200,cosmo)
+		r_scale = r_200/c
+
+	# Calculate the density to match the mass and concentration.
+	rho_0 = m_200/(4*np.pi*r_scale**3*(np.log(1+c)-c/(1+c)))
+
+	return rho_0
 
 
 def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
@@ -278,13 +280,13 @@ def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
 		cosmo)
 	host_r_200 = r_200_from_m(host_m200,cosmo)
 	host_r_scale = host_r_200/host_c
+	host_rho_nfw = rho_nfw_from_m_c(host_m200,host_c,cosmo,
+		r_scale=host_r_scale)
 
 	# Tranform the einstein radius to physical units (TODO this should
 	# be a function). Multiply by 3 since that's what's relevant for
 	# DG_19 parameterization.
-	h = cosmo.H0/100
-	kpc_per_arcsecond = (cosmo.angularDiameterDistance(z_lens) *
-		np.pi/180/3600 * h * 1e3)
+	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z_lens,cosmo)
 	r_3E = (kpc_per_arcsecond*main_deflector_parameters['theta_E'])*3
 
 	# The largest radius we should bother sampling is set by the diagonal of
@@ -293,7 +295,8 @@ def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
 
 	n_accepted_draws = 0
 	while n_accepted_draws<n_subs:
-		r_subs = cored_nfw_draws(r_tidal,rho_nfw,host_r_scale,r_max,n_subs)
+		r_subs = cored_nfw_draws(r_tidal,host_rho_nfw,host_r_scale,r_max,
+			n_subs)
 
 	# Draw theta and phi for the samples and then reject all of the samples
 	# that either have too large a z coordinate or too large an r_2d

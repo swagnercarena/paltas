@@ -4,9 +4,11 @@ from manada.Utils import power_law
 import numpy as np
 from scipy.integrate import quad
 from colossus.cosmology import cosmology
+from colossus.halo.concentration import peaks
+from colossus.halo import profile_nfw
 
 
-class NFWFunctionsTests(unittest.TestCase):
+class NFWMassFunctionsTests(unittest.TestCase):
 
 	def setUp(self):
 		# Fix the random seed to be able to have reliable tests
@@ -78,6 +80,40 @@ class NFWFunctionsTests(unittest.TestCase):
 		self.assertGreater(total_subs//n_loops,50)
 		self.assertLess(total_subs//n_loops,200)
 
+	def test_mass_concentration_DG_19(self):
+		# Test that the mass concentration relationship has thr right scatter
+		subhalo_parameters = {'c_0':18, 'conc_xi':-0.2, 'conc_beta':0.8,
+			'conc_m_ref': 1e8, 'dex_scatter': 0.0}
+		z = 0.2
+		m_200 = np.logspace(6,10,10000)
+		cosmo = cosmology.setCosmology('planck18')
+		concentrations = nfw_functions.mass_concentration_DG_19(
+			subhalo_parameters,z,m_200,cosmo)
+
+		h = cosmo.h
+		peak_heights = peaks.peakHeight(m_200/h,z)
+		peak_heights_ref = peaks.peakHeight(1e8/h,0)
+		np.testing.assert_almost_equal(concentrations,18*1.2**(-0.2)*(
+			peak_heights/peak_heights_ref)**(-0.8))
+
+		# Test that scatter works as desired
+		subhalo_parameters['dex_scatter'] = 0.1
+		m_200 = np.logspace(6,10,10000)
+		concentrations = nfw_functions.mass_concentration_DG_19(
+			subhalo_parameters,z,m_200,cosmo)
+		scatter = np.log10(concentrations) - np.log10(18*1.2**(-0.2)*(
+			peak_heights/peak_heights_ref)**(-0.8))
+		self.assertAlmostEqual(np.std(scatter),
+			subhalo_parameters['dex_scatter'],places=2)
+		self.assertAlmostEqual(np.mean(scatter),0.0,places=2)
+
+
+class NFWPosFunctionsTests(unittest.TestCase):
+
+	def setUp(self):
+		# Fix the random seed to be able to have reliable tests
+		np.random.seed(10)
+
 	def test_cored_nfw_integral(self):
 		# Test that the cored nfw integral returns values that agree with the
 		# numerical integral.
@@ -120,5 +156,32 @@ class NFWFunctionsTests(unittest.TestCase):
 				analytic_integral[i]/np.max(analytic_integral),places=2)
 
 	def test_r_200_from_m(self):
-		# TODO!
-		return
+		# Compare the calculation from our function to the colossus output
+		cosmo = cosmology.setCosmology('planck18')
+		m_200 = np.logspace(7,10,20)
+		c = 2.9
+
+		# Colossus calculation
+		h = cosmo.h
+		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200/h,
+			c=c,z=0,mdef='200c')
+
+		# manada calculation
+		r_200 = nfw_functions.r_200_from_m(m_200,cosmo)
+
+		np.testing.assert_almost_equal(r_200/c,rs*h)
+
+	def test_rho_nfw_from_m_c(self):
+		# Compare the calculation from our function to the colossus output
+		cosmo = cosmology.setCosmology('planck18')
+		m_200 = np.logspace(7,10,20)
+		c = 2.9
+
+		h = cosmo.h
+		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200/h,
+			c=c,z=0,mdef='200c')
+
+		# manada calculation
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo)
+
+		np.testing.assert_almost_equal(rho_nfw,rhos/h**2)
