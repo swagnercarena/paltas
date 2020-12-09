@@ -41,11 +41,14 @@ class NFWMassFunctionsTests(unittest.TestCase):
 				main_deflector_parameters,cosmo)
 
 		# Add the parameter we need
-		subhalo_parameters['m_max'] = 1e9
+		subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
+			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
+			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'dex_scatter': 0.0}
 
 		# Calculate the norm by hand and make sure the statistics agree
 		kpc_per_arcsecond = (cosmo.angularDiameterDistance(
-			main_deflector_parameters['z_lens']) * cosmo.H0/100 * 1000
+			main_deflector_parameters['z_lens']) / cosmo.h * 1000
 			*  np.pi/180/3600)
 		r_E = kpc_per_arcsecond*main_deflector_parameters['theta_E']
 		dA = np.pi * (3*r_E)**2
@@ -77,8 +80,8 @@ class NFWMassFunctionsTests(unittest.TestCase):
 			masses = nfw_functions.draw_nfw_masses_DG_19(subhalo_parameters,
 				main_deflector_parameters,cosmo)
 			total_subs += len(masses)
-		self.assertGreater(total_subs//n_loops,50)
-		self.assertLess(total_subs//n_loops,200)
+		self.assertGreater(total_subs//n_loops,100)
+		self.assertLess(total_subs//n_loops,500)
 
 	def test_mass_concentration_DG_19(self):
 		# Test that the mass concentration relationship has thr right scatter
@@ -91,8 +94,8 @@ class NFWMassFunctionsTests(unittest.TestCase):
 			subhalo_parameters,z,m_200,cosmo)
 
 		h = cosmo.h
-		peak_heights = peaks.peakHeight(m_200/h,z)
-		peak_heights_ref = peaks.peakHeight(1e8/h,0)
+		peak_heights = peaks.peakHeight(m_200*h,z)
+		peak_heights_ref = peaks.peakHeight(1e8*h,0)
 		np.testing.assert_almost_equal(concentrations,18*1.2**(-0.2)*(
 			peak_heights/peak_heights_ref)**(-0.8))
 
@@ -106,6 +109,12 @@ class NFWMassFunctionsTests(unittest.TestCase):
 		self.assertAlmostEqual(np.std(scatter),
 			subhalo_parameters['dex_scatter'],places=2)
 		self.assertAlmostEqual(np.mean(scatter),0.0,places=2)
+
+		# Check that things don't crash if you pass in a float for the
+		# mass
+		m_200 =1e9
+		concentrations = nfw_functions.mass_concentration_DG_19(
+			subhalo_parameters,z,m_200,cosmo)
 
 
 class NFWPosFunctionsTests(unittest.TestCase):
@@ -163,13 +172,13 @@ class NFWPosFunctionsTests(unittest.TestCase):
 
 		# Colossus calculation
 		h = cosmo.h
-		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200/h,
+		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
 			c=c,z=0,mdef='200c')
 
 		# manada calculation
 		r_200 = nfw_functions.r_200_from_m(m_200,cosmo)
 
-		np.testing.assert_almost_equal(r_200/c,rs*h)
+		np.testing.assert_almost_equal(r_200/c,rs/h)
 
 	def test_rho_nfw_from_m_c(self):
 		# Compare the calculation from our function to the colossus output
@@ -178,10 +187,76 @@ class NFWPosFunctionsTests(unittest.TestCase):
 		c = 2.9
 
 		h = cosmo.h
-		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200/h,
+		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
 			c=c,z=0,mdef='200c')
 
 		# manada calculation
 		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo)
 
-		np.testing.assert_almost_equal(rho_nfw,rhos/h**2)
+		np.testing.assert_almost_equal(rho_nfw,rhos*h**2)
+
+	def test_rejection_sampling_DG_19(self):
+		# Test the the numba rejection sampling works as expected
+		# Start with bounds that accept everything
+		n_samps = int(1e6)
+		r_samps = np.ones(n_samps)
+		r_200 = 2
+		r_3E = 2
+		keep, cart_pos = nfw_functions.rejection_sampling_DG_19(r_samps,
+			r_200,r_3E)
+
+		# Check the the stats agree with what we put in
+		self.assertEqual(np.mean(keep),1.0)
+		np.testing.assert_almost_equal(np.sqrt(np.sum(cart_pos**2,axis=-1)),
+			r_samps)
+		phi = np.arccos(cart_pos[:,2]/r_samps)
+		theta = np.arctan(cart_pos[:,1]/cart_pos[:,0])
+		self.assertAlmostEqual(np.mean(phi),np.pi/2,places=2)
+		self.assertAlmostEqual(np.mean(theta),0,places=2)
+		for i in range(3):
+			self.assertAlmostEqual(np.max(cart_pos[:,i])-np.min(cart_pos[:,i]),
+				2,places=4)
+
+		# Set boundaries and make sure that the keep draws are within the
+		# boundaries
+		n_samps = int(1e4)
+		r_samps = np.random.rand(n_samps)
+		r_200 = 0.9
+		r_3E = 0.2
+		keep, cart_pos = nfw_functions.rejection_sampling_DG_19(r_samps,
+			r_200,r_3E)
+
+		self.assertLess(np.mean(keep),1)
+		cart_pos = cart_pos[keep]
+		self.assertEqual(np.mean(np.sqrt(cart_pos[:,0]**2+
+			cart_pos[:,1]**2)<r_3E),1)
+		self.assertEqual(np.mean(np.abs(cart_pos[:,2])<r_200),1)
+
+	def test_sample_cored_nfw_DG_19(self):
+		# Test that the sampling code returns the desired number of
+		# values
+		r_tidal = 10
+		subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
+			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
+			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'dex_scatter': 0.0}
+		main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
+			'theta_E':1}
+		cosmo = cosmology.setCosmology('planck18')
+		n_subs = int(1e5)
+		cart_pos = nfw_functions.sample_cored_nfw_DG_19(r_tidal,
+			subhalo_parameters,main_deflector_parameters,cosmo,n_subs)
+
+		# Basic check that the array is long enough and that no value
+		# hasn't been overwritten
+		self.assertEqual(len(cart_pos),n_subs)
+		self.assertEqual(np.sum(cart_pos==0),0)
+
+		# We can't check against an analytic distribution, but we can
+		# check that the likelihood of the radius decreases with increase
+		# radius
+		r_vals = np.sqrt(np.sum(cart_pos**2,axis=-1))
+		r_bins, _ = np.histogram(r_vals,bins=100)
+		self.assertGreater(r_bins[0],r_bins[5])
+		self.assertGreater(r_bins[5],r_bins[-1])
+		self.assertGreater(r_bins[0],r_bins[2])

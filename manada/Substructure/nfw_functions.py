@@ -13,7 +13,8 @@ from scipy.interpolate import interp1d
 from colossus.halo.concentration import peaks
 
 draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
-	'm_min','m_max']
+	'm_min','m_max','c_0','conc_xi','conc_beta','conc_m_ref',
+	'dex_scatter']
 
 
 # -------------------------------Mass Functions-------------------------------
@@ -116,14 +117,19 @@ def mass_concentration_DG_19(subhalo_parameters,z,m_200,cosmo):
 	dex_scatter = subhalo_parameters['dex_scatter']
 
 	# The peak calculation is done by colossus. The cosmology must have
-	# already been set. Note it expect M_sun/h
+	# already been set. Note these functions expect M_sun/h units (which
+	# you get by multiplying by h
+	# https://www.astro.ljmu.ac.uk/~ikb/research/h-units.html)
 	h = cosmo.h
-	peak_heights = peaks.peakHeight(m_200/h,z)
-	peak_height_ref = peaks.peakHeight(m_ref/h,0)
+	peak_heights = peaks.peakHeight(m_200*h,z)
+	peak_height_ref = peaks.peakHeight(m_ref*h,0)
 
 	# Now get the concentrations and add scatter
 	concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(-beta)
-	conc_scatter = np.random.randn(len(concentrations))*dex_scatter
+	if isinstance(concentrations,np.ndarray):
+		conc_scatter = np.random.randn(len(concentrations))*dex_scatter
+	elif isinstance(concentrations,float):
+		conc_scatter = np.random.randn()*dex_scatter
 	concentrations = 10**(np.log10(concentrations)+conc_scatter)
 
 	return concentrations
@@ -207,16 +213,16 @@ def r_200_from_m(m_200,cosmo):
 	Calculate r_200 for our NFW profile given our m_200 mass.
 
 	Parameters:
-		m_200 (float): The mass contained within r_200
+		m_200 (np.array): The mass contained within r_200
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
 	Returns:
-		(float): The r_200 radius corresponding to the given mass.
+		(np.array): The r_200 radius corresponding to the given mass.
 	"""
 	# Get the critical density
 	h = cosmo.h
 	# rho_c is returned in units of M_sun*h^2/kpc^3
-	rho_c = cosmo.rho_c(0)/h**2
+	rho_c = cosmo.rho_c(0)*h**2
 
 	# Return r_200 given that critical density
 	return (3*m_200/(4*np.pi*rho_c*200))**(1.0/3.0)
@@ -227,13 +233,13 @@ def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None):
 	Calculate the amplitude of the nfw profile given the physical parameters.
 
 	Parameters:
-		m_200 (float): The mass of the nfw halo in units of M_sun
-		c (float): The concentration of the nfw_halo
+		m_200 (np.array): The mass of the nfw halo in units of M_sun
+		c (np.array): The concentration of the nfw_halo
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
-		r_scale (float): The scale radius in units of kpc
+		r_scale (np.array): The scale radius in units of kpc
 	Returns:
-		(float): The amplitude for the nfw.
+		(np.array): The amplitude for the nfw.
 	"""
 	# If r_scale is not provided, calculate it
 	if r_scale is None:
@@ -244,6 +250,43 @@ def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None):
 	rho_0 = m_200/(4*np.pi*r_scale**3*(np.log(1+c)-c/(1+c)))
 
 	return rho_0
+
+
+def rejection_sampling_DG_19(r_samps,r_200,r_3E):
+	"""
+	Given the radial sampling of the positions and DG_19 constraints
+	conduct rejection sampling and return the cartesian positions.
+
+	Parameters:
+		r_samps (np.array): Samples of the radial coordinates for
+			the subhalos.
+		r_200 (float): The r_200 of the host halo which will be used
+			as the maximum z magnitude
+		r_3E (float): 3 times the einstein radius, which will be used
+			to bound the x and y coordinates.
+	Returns:
+		([np.array,...]): A list of two numpy arrays: the boolean
+		array of accepted samples and a n_subsx3 array of x,y,z
+		coordinates.
+	"""
+	# Sample theta and phi values for all of the radii samples
+	theta = np.random.rand(len(r_samps)) * 2 * np.pi
+	phi = np.random.rand(len(r_samps))*np.pi
+
+	# Initialize the x,y,z array
+	cart_pos = np.zeros(r_samps.shape+(3,))
+
+	# Get the x, y, and z coordinates
+	cart_pos[:,0] += r_samps*np.sin(phi)*np.cos(theta)
+	cart_pos[:,1] += r_samps*np.sin(phi)*np.sin(theta)
+	cart_pos[:,2] += r_samps*np.cos(phi)
+
+	# Test which samples are outside the DG_19 bounds
+	r2_inside = np.sqrt(cart_pos[:,0]**2+cart_pos[:,1]**2)<r_3E
+	z_inside = np.abs(cart_pos[:,2])<r_200
+	keep = np.logical_and(r2_inside,z_inside)
+
+	return [keep,cart_pos]
 
 
 def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
@@ -272,7 +315,14 @@ def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
 		introducing more analytical components.
 	"""
 
-	# TODO add a parameter check
+	# Check that we have all the parameters we need
+	if not all(elem in subhalo_parameters.keys() for
+		elem in draw_nfw_masses_DG_19_parameters):
+		raise ValueError('Not all of the required parameters for the DG_19' +
+			'parameterization are present.')
+
+	# Create an array that will store our coordinates
+	cart_pos = np.zeros((n_subs,3))
 
 	host_m200 = main_deflector_parameters['M200']
 	z_lens = main_deflector_parameters['z_lens']
@@ -294,16 +344,27 @@ def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
 	r_max = np.sqrt(r_3E**2+host_r_200**2)
 
 	n_accepted_draws = 0
+	r_subs = cored_nfw_draws(r_tidal,host_rho_nfw,host_r_scale,r_max,n_subs)
+	keep_ind, cart_draws = rejection_sampling_DG_19(r_subs,host_r_200,r_3E)
+
+	# Save the cartesian coordinates we want to keep
+	cart_pos[n_accepted_draws:n_accepted_draws+np.sum(keep_ind)] = (
+		cart_draws[keep_ind])
+	n_accepted_draws += np.sum(keep_ind)
+
+	# Get the fraction of rejection to see how much we should sample
+	rejection_frac = 1-np.mean(keep_ind)
+
+	# Keep drawing until we have enough r_subs.
 	while n_accepted_draws<n_subs:
 		r_subs = cored_nfw_draws(r_tidal,host_rho_nfw,host_r_scale,r_max,
-			n_subs)
+			int(np.round(n_subs*rejection_frac)))
+		keep_ind, cart_draws = rejection_sampling_DG_19(r_subs,host_r_200,
+			r_3E)
+		use_keep = np.minimum(n_subs-n_accepted_draws,np.sum(keep_ind))
+		# Save the cartesian coordinates we want to keep
+		cart_pos[n_accepted_draws:n_accepted_draws+use_keep] = (
+			cart_draws[keep_ind][:use_keep])
+		n_accepted_draws += use_keep
 
-	# Draw theta and phi for the samples and then reject all of the samples
-	# that either have too large a z coordinate or too large an r_2d
-	# coordinate. Calculate the rejection rate and then scale the next
-	# sample to that size.
-
-	# Return all of the positions
-
-	# Draw
-	return
+	return cart_pos

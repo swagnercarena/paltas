@@ -19,6 +19,6 @@ def kpc_per_arcsecond(z,cosmo):
 		(float): The kpc per arcsecond
 	"""
 	h = cosmo.h
-	kpc_per_arcsecond = (cosmo.angularDiameterDistance(z) *np.pi/180/3600 *
+	kpc_per_arcsecond = (cosmo.angularDiameterDistance(z) *np.pi/180/3600 /
 		h * 1e3)
 	return kpc_per_arcsecond
