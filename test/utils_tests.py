@@ -82,7 +82,13 @@ class CosmologyTest(unittest.TestCase):
 		h = cosmo.H0/100
 		for z_test in np.linspace(0.2,0.8,20):
 			dd = cosmo.comovingDistance(z_max=z_test)/(1+z_test)
-			dd *= h * u.Mpc.to(u.kpc)/u.radian.to(u.arcsecond)
-			# print(dd)
+			dd *= 1/h * u.Mpc.to(u.kpc)/u.radian.to(u.arcsecond)
 			self.assertAlmostEqual(cosmology_utils.kpc_per_arcsecond(z_test,
 				cosmo),dd,places=4)
+
+		# Repeat the test in array form
+		z_test = np.linspace(0.2,0.8,20)
+		dd = cosmo.comovingDistance(z_max=z_test)/(1+z_test)
+		dd *= 1/h * u.Mpc.to(u.kpc)/u.radian.to(u.arcsecond)
+		np.testing.assert_almost_equal(cosmology_utils.kpc_per_arcsecond(
+			z_test,cosmo),dd,decimal=4)

@@ -25,3 +25,5 @@ In the future, manada will be a pypi package. For now, it can be installed by cl
 	$ pip install -e . -r requirements.txt
 
 The addition of the -e option will allow you to pull manada updates and have them work automatically.
+
+TODO: Label the units for all functions
