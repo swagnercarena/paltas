@@ -11,7 +11,7 @@ from colossus.cosmology import cosmology
 
 
 def draw_subhalos(subhalo_parameters,main_deflector_parameters,
-	cosmology_parameters):
+	source_parameter,cosmology_parameters):
 	"""
 	Given the parameters of the subhalo mass distribution the main deflector
 	lens parameters draw masses, concentrations,and positions for the
@@ -58,8 +58,8 @@ def draw_subhalos(subhalo_parameters,main_deflector_parameters,
 			subhalo_parameters,main_deflector_parameters,cosmo,
 			len(subhalo_masses))
 		model_list, kwargs_list = nfw_functions.convert_to_lenstronomy_DG_19(
-			subhalo_parameters,main_deflector_parameters,cosmo,subhalo_masses,
-			subhalo_cart_pos)
+			subhalo_parameters,main_deflector_parameters,source_parameter,
+			cosmo,subhalo_masses,subhalo_cart_pos)
 		subhalo_model_list += model_list
 		subhalo_kwargs_list += kwargs_list
 	else:

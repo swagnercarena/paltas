@@ -176,11 +176,12 @@ class NFWPosFunctionsTests(unittest.TestCase):
 
 		# Colossus calculation
 		h = cosmo.h
+		z_lens =0.2
 		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
-			c=c,z=0,mdef='200c')
+			c=c,z=z_lens,mdef='200c')
 
 		# manada calculation
-		r_200 = nfw_functions.r_200_from_m(m_200,cosmo)
+		r_200 = nfw_functions.r_200_from_m(m_200,z_lens,cosmo)
 
 		np.testing.assert_almost_equal(r_200/c,rs/h)
 
@@ -191,11 +192,12 @@ class NFWPosFunctionsTests(unittest.TestCase):
 		c = 2.9
 
 		h = cosmo.h
+		z = 0.2
 		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
-			c=c,z=0,mdef='200c')
+			c=c,z=z,mdef='200c')
 
 		# manada calculation
-		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo)
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,z=z)
 
 		np.testing.assert_almost_equal(rho_nfw,rhos*h**2)
 
@@ -305,9 +307,9 @@ class NFWLenstronomyConverstionTests(unittest.TestCase):
 		c = 4
 
 		# Do the physical calculations in our code and in lenstronomy
-		r_scale = nfw_functions.r_200_from_m(m_200,cosmo)/c
+		r_scale = nfw_functions.r_200_from_m(m_200,0,cosmo)/c
 		r_trunc = np.ones(r_scale.shape)
-		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,r_scale)
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,r_scale=r_scale)
 		rho0, Rs, r200 = lens_cosmo.nfwParam_physical(M=m_200, c=c)
 
 		# Repeat for the angular calculations
@@ -316,14 +318,20 @@ class NFWLenstronomyConverstionTests(unittest.TestCase):
 			nfw_functions.convert_to_lenstronomy_NFW(r_scale,z_lens,rho_nfw,
 			r_trunc,z_source,cosmo))
 
+		# So the tricky parth here is that the way we treat r_200 and the way
+		# lenstronomy treat r_200 is not the same. To make them equivalent
+		# we need to make our calculations in terms of rho_c(z=0) and then
+		# scale the critical like a^3. That's equivalent to plugging in
+		# z=0 to all of our functions and then multiplying our radial
+		# quantities by the scale factor 1/(1+z).
+		a = 1/(1+z_lens)
+
 		mpc_2_kpc = 1e3
-		self.assertAlmostEqual(r_scale,Rs*mpc_2_kpc)
-		self.assertAlmostEqual(rho_nfw,rho0/(mpc_2_kpc**3),places=2)
-		self.assertAlmostEqual(r_scale_angle/rs_angle_ls,1,places=3)
-		self.assertAlmostEqual(alpha_rs,alpha_rs_ls,
-			places=3)
-		self.assertAlmostEqual(r_trunc_ang*r_scale/r_scale_angle,
-			r_trunc,places=3)
+		self.assertAlmostEqual(r_scale*a,Rs*mpc_2_kpc)
+		self.assertAlmostEqual(rho_nfw/a**3,rho0/(mpc_2_kpc**3),places=2)
+		self.assertAlmostEqual(r_scale_angle*a,rs_angle_ls,places=2)
+		self.assertAlmostEqual(alpha_rs/a,alpha_rs_ls)
+		self.assertAlmostEqual(r_trunc_ang*r_scale/r_scale_angle,r_trunc)
 
 
 class SubstructureTests(unittest.TestCase):
@@ -336,9 +344,10 @@ class SubstructureTests(unittest.TestCase):
 			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.0, 'distribution':'DG_19'}
 		main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
-			'theta_E':1}
+			'theta_E':1, 'center_x':0.0, 'center_y': 0.0}
+		source_parameters = {'z_source':1.5}
 		cosmology_parameters = {'cosmology_name': 'planck18'}
 
 		subhalo_model_list, subhalo_kwargs_list = substructure.draw_subhalos(
-			subhalo_parameters,main_deflector_parameters,
+			subhalo_parameters,main_deflector_parameters,source_parameters,
 			cosmology_parameters)
