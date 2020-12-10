@@ -82,7 +82,9 @@ class COSMOSCatalog(GalaxyCatalog):
             min_size = np.minimum(self.catalog['size_x'],
                                   self.catalog['size_y'])
             is_ok &= min_size < minimum_size_in_pixels
-        return np.random.choice(np.where(is_ok)[0], replace=True)
+        return np.random.choice(np.where(is_ok)[0],
+                                size=n_galaxies,
+                                replace=True)
 
     @staticmethod
     def _file_number(fn):
