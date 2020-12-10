@@ -351,3 +351,11 @@ class SubstructureTests(unittest.TestCase):
 		subhalo_model_list, subhalo_kwargs_list = substructure.draw_subhalos(
 			subhalo_parameters,main_deflector_parameters,source_parameters,
 			cosmology_parameters)
+
+		for subhalo_model in subhalo_model_list:
+			self.assertEqual(subhalo_model,'TNFW')
+
+		required_keys_DG_19 = ['alpha_Rs','Rs','center_x','center_y','r_trunc']
+		for subhalo_kwargs in subhalo_kwargs_list:
+			self.assertTrue(all(elem in subhalo_kwargs.keys() for
+				elem in required_keys_DG_19))
