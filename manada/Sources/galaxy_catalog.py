@@ -82,14 +82,11 @@ class GalaxyCatalog:
         img *= (self.cosmo.luminosityDistance(z)
                 / self.cosmo.luminosityDistance(z_new))**2
 
-        # Assuming image is centered, compute center in angular coordinates
-        center = np.array(img.shape) * pixel_width / 2
-
         # Convert to kwargs for lenstronomy
         return dict(
             image=img,
-            center_x=center[0],
-            center_y=center[1],
+            center_x=0,
+            center_y=0,
             phi_G=0,
             scale=pixel_width)
 
