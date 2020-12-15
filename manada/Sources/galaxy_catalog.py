@@ -68,8 +68,9 @@ class GalaxyCatalog:
         img, metadata = self.image_and_metadata(catalog_i)
         z, pixel_width = metadata['z'], metadata['pixel_width']
 
-        # Convert image to flux / arcsec^2
-        # TODO: do we also need to convert to a magnitude scale?
+        # With this, lenstronomy will preserve the scale/units of
+        # the input image (in a configuration without lensing,
+        # same pixel widths, etc.)
         img = img / pixel_width**2
 
         # Pixel length ~ angular diameter distance
@@ -77,10 +78,6 @@ class GalaxyCatalog:
         #  fortunately doesn't matter)
         pixel_width *= (self.cosmo.angularDiameterDistance(z_new)
                         / self.cosmo.angularDiameterDistance(z))
-
-        # (flux/arcsec^2) ~ 1/(luminosity distance)^2
-        img *= (self.cosmo.luminosityDistance(z)
-                / self.cosmo.luminosityDistance(z_new))**2
 
         # Convert to kwargs for lenstronomy
         return dict(
