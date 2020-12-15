@@ -109,7 +109,12 @@ class COSMOSCatalog(GalaxyCatalog):
         """Return (image array, metadata record) for one galaxy"""
         fn, index = self.catalog[catalog_i][['GAL_FILENAME', 'GAL_HDU']]
         fn = self.folder / fn.decode()  # 'real_galaxy_images_23.5_n1.fits'
-        return fits.getdata(fn, ext=index), self.catalog[catalog_i]
+        img = fits.getdata(fn, ext=index)
+        # For some reason the COSMOS images are in big endian..??
+        # This would cause some functions to fail, others to do weird things
+        # silently! Let's cast it back to normal floats...
+        img = img.astype(np.float)
+        return img, self.catalog[catalog_i]
 
 
 def unfits(fn, pandas=False):
