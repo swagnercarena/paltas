@@ -50,6 +50,7 @@ def kpc_per_arcsecond(z,cosmo):
         z (float): The redshift to calculate the distance at
         cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
             colossus cosmology object.
+
     Returns:
         (float): The kpc per arcsecond
     """

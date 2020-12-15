@@ -11,7 +11,7 @@ from manada.Utils.cosmology_utils import get_cosmology
 
 
 def draw_subhalos(subhalo_parameters,main_deflector_parameters,
-	cosmology_parameters):
+	source_parameter,cosmology_parameters):
 	"""
 	Given the parameters of the subhalo mass distribution the main deflector
 	lens parameters draw masses, concentrations,and positions for the
@@ -24,6 +24,7 @@ def draw_subhalos(subhalo_parameters,main_deflector_parameters,
 			main deflector and the value for each of its parameters.
 		cosmology_parameters (dict): Either a dictionary containing the
 			cosmology parameters or a string to be passed to collosus.
+
 	Returns:
 		(tuple): A tuple of two lists: the first is the profile type for each
 		subhalo returned and the second is the kwargs for that subhalo.
@@ -45,6 +46,14 @@ def draw_subhalos(subhalo_parameters,main_deflector_parameters,
 		# we will then translate to Lenstronomy parameters.
 		subhalo_masses = nfw_functions.draw_nfw_masses_DG_19(
 			subhalo_parameters,main_deflector_parameters,cosmo)
+		subhalo_cart_pos = nfw_functions.sample_cored_nfw_DG_19(
+			subhalo_parameters,main_deflector_parameters,cosmo,
+			len(subhalo_masses))
+		model_list, kwargs_list = nfw_functions.convert_to_lenstronomy_DG_19(
+			subhalo_parameters,main_deflector_parameters,source_parameter,
+			cosmo,subhalo_masses,subhalo_cart_pos)
+		subhalo_model_list += model_list
+		subhalo_kwargs_list += kwargs_list
 	else:
 		raise ValueError('Provided subhalo distribution %s not within' +
 			'recognized distributions. Please implement this distribution' +

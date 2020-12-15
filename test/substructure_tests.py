@@ -1,11 +1,13 @@
 import unittest
-from manada.Substructure import nfw_functions
+from manada.Substructure import nfw_functions, substructure
 from manada.Utils import power_law
 import numpy as np
 from scipy.integrate import quad
 from colossus.cosmology import cosmology
 from colossus.halo.concentration import peaks
 from colossus.halo import profile_nfw
+from lenstronomy.Cosmo.lens_cosmo import LensCosmo
+from astropy.cosmology import FlatLambdaCDM
 
 
 class NFWMassFunctionsTests(unittest.TestCase):
@@ -87,8 +89,9 @@ class NFWMassFunctionsTests(unittest.TestCase):
 		# Test that the mass concentration relationship has thr right scatter
 		subhalo_parameters = {'c_0':18, 'conc_xi':-0.2, 'conc_beta':0.8,
 			'conc_m_ref': 1e8, 'dex_scatter': 0.0}
-		z = 0.2
-		m_200 = np.logspace(6,10,10000)
+		n_haloes = 10000
+		z = np.ones(n_haloes)*0.2
+		m_200 = np.logspace(6,10,n_haloes)
 		cosmo = cosmology.setCosmology('planck18')
 		concentrations = nfw_functions.mass_concentration_DG_19(
 			subhalo_parameters,z,m_200,cosmo)
@@ -101,7 +104,7 @@ class NFWMassFunctionsTests(unittest.TestCase):
 
 		# Test that scatter works as desired
 		subhalo_parameters['dex_scatter'] = 0.1
-		m_200 = np.logspace(6,10,10000)
+		m_200 = np.logspace(6,10,n_haloes)
 		concentrations = nfw_functions.mass_concentration_DG_19(
 			subhalo_parameters,z,m_200,cosmo)
 		scatter = np.log10(concentrations) - np.log10(18*1.2**(-0.2)*(
@@ -112,6 +115,7 @@ class NFWMassFunctionsTests(unittest.TestCase):
 
 		# Check that things don't crash if you pass in a float for the
 		# mass
+		z = 0.2
 		m_200 =1e9
 		concentrations = nfw_functions.mass_concentration_DG_19(
 			subhalo_parameters,z,m_200,cosmo)
@@ -172,11 +176,12 @@ class NFWPosFunctionsTests(unittest.TestCase):
 
 		# Colossus calculation
 		h = cosmo.h
+		z_lens =0.2
 		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
-			c=c,z=0,mdef='200c')
+			c=c,z=z_lens,mdef='200c')
 
 		# manada calculation
-		r_200 = nfw_functions.r_200_from_m(m_200,cosmo)
+		r_200 = nfw_functions.r_200_from_m(m_200,z_lens,cosmo)
 
 		np.testing.assert_almost_equal(r_200/c,rs/h)
 
@@ -187,11 +192,12 @@ class NFWPosFunctionsTests(unittest.TestCase):
 		c = 2.9
 
 		h = cosmo.h
+		z = 0.2
 		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
-			c=c,z=0,mdef='200c')
+			c=c,z=z,mdef='200c')
 
 		# manada calculation
-		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo)
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,z=z)
 
 		np.testing.assert_almost_equal(rho_nfw,rhos*h**2)
 
@@ -235,7 +241,6 @@ class NFWPosFunctionsTests(unittest.TestCase):
 	def test_sample_cored_nfw_DG_19(self):
 		# Test that the sampling code returns the desired number of
 		# values
-		r_tidal = 10
 		subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
 			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
 			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
@@ -244,7 +249,7 @@ class NFWPosFunctionsTests(unittest.TestCase):
 			'theta_E':1}
 		cosmo = cosmology.setCosmology('planck18')
 		n_subs = int(1e5)
-		cart_pos = nfw_functions.sample_cored_nfw_DG_19(r_tidal,
+		cart_pos = nfw_functions.sample_cored_nfw_DG_19(
 			subhalo_parameters,main_deflector_parameters,cosmo,n_subs)
 
 		# Basic check that the array is long enough and that no value
@@ -260,3 +265,97 @@ class NFWPosFunctionsTests(unittest.TestCase):
 		self.assertGreater(r_bins[0],r_bins[5])
 		self.assertGreater(r_bins[5],r_bins[-1])
 		self.assertGreater(r_bins[0],r_bins[2])
+
+	def test_get_truncation_radius_DG_19(self):
+		# Test that the returned radius agrees with some precomputed values
+		m_200 = np.logspace(6,9,10)
+		r = np.linspace(10,300,10)
+		pre_comp_vals = np.array([0.22223615,0.74981341,1.4133784,2.32006694,
+			3.57303672,5.30341642,7.68458502,10.94766194,15.40115448,
+			21.45666411])
+		r_trunc = nfw_functions.get_truncation_radius_DG_19(m_200,r)
+
+		np.testing.assert_almost_equal(r_trunc,pre_comp_vals,decimal=5)
+
+
+class NFWLenstronomyConverstionTests(unittest.TestCase):
+
+	def test_calculate_sigma_crit(self):
+		# Check that the sigma_crit calculation agrees with
+		# lenstronomy
+		cosmo = cosmology.setCosmology('planck18')
+		cosmo_astropy = cosmo.toAstropy()
+		z_lens = 0.2
+		z_source = 1.3
+		lens_cosmo = LensCosmo(z_lens=z_lens, z_source=z_source,
+			cosmo=cosmo_astropy)
+		sigma_crit = nfw_functions.calculate_sigma_crit(z_lens,z_source,cosmo)
+		mpc_2_kpc = 1e3
+		self.assertAlmostEqual(sigma_crit/(lens_cosmo.sigma_crit/mpc_2_kpc**2),
+			1,places=4)
+
+	def test_convert_to_lenstronomy_NFW(self):
+		# Compare the values we return to those returned by lenstronomy
+		cosmo = cosmology.setCosmology('planck18')
+		cosmo_astropy = cosmo.toAstropy()
+		# Our calculations are always at z=0.
+		z_lens = 0.2
+		z_source = 1.5
+		lens_cosmo = LensCosmo(z_lens=z_lens, z_source=z_source,
+			cosmo=cosmo_astropy)
+		m_200 = 1e9
+		c = 4
+
+		# Do the physical calculations in our code and in lenstronomy
+		r_scale = nfw_functions.r_200_from_m(m_200,0,cosmo)/c
+		r_trunc = np.ones(r_scale.shape)
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,r_scale=r_scale)
+		rho0, Rs, r200 = lens_cosmo.nfwParam_physical(M=m_200, c=c)
+
+		# Repeat for the angular calculations
+		rs_angle_ls, alpha_rs_ls = lens_cosmo.nfw_physical2angle(M=m_200,c=c)
+		r_scale_angle, alpha_rs, r_trunc_ang = (
+			nfw_functions.convert_to_lenstronomy_NFW(r_scale,z_lens,rho_nfw,
+			r_trunc,z_source,cosmo))
+
+		# So the tricky parth here is that the way we treat r_200 and the way
+		# lenstronomy treat r_200 is not the same. To make them equivalent
+		# we need to make our calculations in terms of rho_c(z=0) and then
+		# scale the critical like a^3. That's equivalent to plugging in
+		# z=0 to all of our functions and then multiplying our radial
+		# quantities by the scale factor 1/(1+z).
+		a = 1/(1+z_lens)
+
+		mpc_2_kpc = 1e3
+		self.assertAlmostEqual(r_scale*a,Rs*mpc_2_kpc)
+		self.assertAlmostEqual(rho_nfw/a**3,rho0/(mpc_2_kpc**3),places=2)
+		self.assertAlmostEqual(r_scale_angle*a,rs_angle_ls,places=2)
+		self.assertAlmostEqual(alpha_rs/a,alpha_rs_ls)
+		self.assertAlmostEqual(r_trunc_ang*r_scale/r_scale_angle,r_trunc)
+
+
+class SubstructureTests(unittest.TestCase):
+
+	def test_draw_subhalos(self):
+		# Check that the draw returns parameters that can be passsed
+		# into lenstronomy.
+		subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
+			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
+			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'dex_scatter': 0.0, 'distribution':'DG_19'}
+		main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
+			'theta_E':1, 'center_x':0.0, 'center_y': 0.0}
+		source_parameters = {'z_source':1.5}
+		cosmology_parameters = {'cosmology_name': 'planck18'}
+
+		subhalo_model_list, subhalo_kwargs_list = substructure.draw_subhalos(
+			subhalo_parameters,main_deflector_parameters,source_parameters,
+			cosmology_parameters)
+
+		for subhalo_model in subhalo_model_list:
+			self.assertEqual(subhalo_model,'TNFW')
+
+		required_keys_DG_19 = ['alpha_Rs','Rs','center_x','center_y','r_trunc']
+		for subhalo_kwargs in subhalo_kwargs_list:
+			self.assertTrue(all(elem in subhalo_kwargs.keys() for
+				elem in required_keys_DG_19))

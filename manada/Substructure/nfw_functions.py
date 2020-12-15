@@ -11,6 +11,7 @@ from manada.Utils import power_law, cosmology_utils
 import numba
 from scipy.interpolate import interp1d
 from colossus.halo.concentration import peaks
+import lenstronomy.Util.constants as const
 
 draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
 	'm_min','m_max','c_0','conc_xi','conc_beta','conc_m_ref',
@@ -30,8 +31,10 @@ def host_scaling_function_DG_19(host_m200, z_lens, k1=0.88, k2=1.7):
 		z_lens (flat): The redshift of the host halo / main deflector
 		k1 (flaot): Amplitude of halo mass dependence
 		k2 (flaot): Amplitude of the redshift scaling
+
 	Returns:
 		(float): The normalization scaling for the subhalo mass function
+
 	Notes:
 		Default values of k1 and k2 are derived from galacticus.
 	"""
@@ -52,8 +55,9 @@ def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
 			main deflector and the value for each of its parameters.
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
+
 	Returns:
-		(np.array): The masses of the drawn halos
+		(np.array): The masses of the drawn halos in units of M_sun
 	"""
 
 	# Check that we have all the parameters we need
@@ -104,10 +108,13 @@ def mass_concentration_DG_19(subhalo_parameters,z,m_200,cosmo):
 	Parameters:
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
-		z (float): The redshift of the nfw halo
+		z (np.array): The redshift of the nfw halo
 		m_200 (np.array): array of M_200 of the nfw halo units of M_sun
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
+
+	Returns:
+		(np.array): The concentration for each halo.
 	"""
 	# Get the concentration parameters
 	c_0 = subhalo_parameters['c_0']
@@ -144,12 +151,13 @@ def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
 
 	Parameters:
 		r_tidal (float): The tidal radius within which the NFW profile
-			will be replaced by a uniform profile.
+			will be replaced by a uniform profile. Units of kpc
 		rho_nfw (float): The amplitude of the nfw density outside the
-			cored radius.
-		r_scale (float): The scale radius of the nfw
+			cored radius. Units of M_sun/kpc^3
+		r_scale (float): The scale radius of the nfw in units of kpc
 		r_upper (np.array): An array containing the upper bounds
-			to be evaluated.
+			to be evaluated in units of kpc.
+
 	Returns:
 		(np.array): The value of the integral for each r_upper given.
 	"""
@@ -182,16 +190,17 @@ def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 
 	Parameters:
 		r_tidal (float): The tidal radius within which the NFW profile
-			will be replaced by a uniform profile.
+			will be replaced by a uniform profile in units of kpc.
 		rho_nfw (float): The amplitude of the nfw density outside the
-			cored radius.
-		r_scale (float): The scale radius of the nfw
-		r_max (float): The maximum value of r to sample
+			cored radius in units of M_sun / kpc^3.
+		r_scale (float): The scale radius of the nfw in units of kpc.
+		r_max (float): The maximum value of r to sample i nunits of kpc.
 		n_subs (int): The number of subhalo positions to sample
 		n_cdf_samps (int): The number of samples to use to numerically
 			invert the cdf for sampling.
+
 	Returns:
-		(np.array): A n_subs array giving sampled radii.
+		(np.array): A n_subs array giving sampled radii in units of kpc.
 	"""
 	# First we have to numerically calculate the inverse cdf
 	r_values = np.linspace(0,r_max,n_cdf_samps)
@@ -208,27 +217,35 @@ def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 	return r_draws
 
 
-def r_200_from_m(m_200,cosmo):
+def r_200_from_m(m_200,z,cosmo):
 	"""
 	Calculate r_200 for our NFW profile given our m_200 mass.
 
 	Parameters:
-		m_200 (np.array): The mass contained within r_200
+		m_200 (np.array): The mass contained within r_200 in units of M_sun
+		z (np.array): The redshift of the halo
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
+
 	Returns:
-		(np.array): The r_200 radius corresponding to the given mass.
+		(np.array): The r_200 radius corresponding to the given mass in units
+			of kpc.
+
+	Notes:
+		This equation assumes that for a halo at redshift z, m200 is
+		defined in terms of the critical density at that redshift. Therefore
+		the output to the equation is in physical units.
 	"""
 	# Get the critical density
 	h = cosmo.h
 	# rho_c is returned in units of M_sun*h^2/kpc^3
-	rho_c = cosmo.rho_c(0)*h**2
+	rho_c = cosmo.rho_c(z)*h**2
 
 	# Return r_200 given that critical density
 	return (3*m_200/(4*np.pi*rho_c*200))**(1.0/3.0)
 
 
-def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None):
+def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None,z=None):
 	"""
 	Calculate the amplitude of the nfw profile given the physical parameters.
 
@@ -238,12 +255,15 @@ def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None):
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
 		r_scale (np.array): The scale radius in units of kpc
+
 	Returns:
-		(np.array): The amplitude for the nfw.
+		(np.array): The amplitude for the nfw in units of M_sun/kpc^3.
 	"""
 	# If r_scale is not provided, calculate it
 	if r_scale is None:
-		r_200 = r_200_from_m(m_200,cosmo)
+		if z is None:
+			raise ValueError('Must specify z if not specifying r_scale')
+		r_200 = r_200_from_m(m_200,z,cosmo)
 		r_scale = r_200/c
 
 	# Calculate the density to match the mass and concentration.
@@ -259,15 +279,16 @@ def rejection_sampling_DG_19(r_samps,r_200,r_3E):
 
 	Parameters:
 		r_samps (np.array): Samples of the radial coordinates for
-			the subhalos.
+			the subhalos in units of kpc.
 		r_200 (float): The r_200 of the host halo which will be used
-			as the maximum z magnitude
+			as the maximum z magnitude in units of kpc.
 		r_3E (float): 3 times the einstein radius, which will be used
-			to bound the x and y coordinates.
+			to bound the x and y coordinates in units of kpc.
+
 	Returns:
 		([np.array,...]): A list of two numpy arrays: the boolean
 		array of accepted samples and a n_subsx3 array of x,y,z
-		coordinates.
+		coordinates. All in units of kpc.
 	"""
 	# Sample theta and phi values for all of the radii samples
 	theta = np.random.rand(len(r_samps)) * 2 * np.pi
@@ -289,16 +310,14 @@ def rejection_sampling_DG_19(r_samps,r_200,r_3E):
 	return [keep,cart_pos]
 
 
-def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
-	main_deflector_parameters,cosmo,n_subs):
+def sample_cored_nfw_DG_19(subhalo_parameters,main_deflector_parameters,
+	cosmo,n_subs):
 	"""
 	Given the a tidal radius that defines a core region and the parameters
 	of the main deflector, sample positions for NFW subhalos bounded
 	as described in https://arxiv.org/pdf/1909.02573.pdf
 
 	Parameters:
-		r_tidal (float): The tidal radius within which the NFW profile will
-			be replaced by a uniform profile.
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
 		main_deflector_parameters (dict): A dictionary containing the type of
@@ -306,9 +325,11 @@ def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
 		n_subs (int): The number of subhalo positions to sample
+
 	Returns:
 		(np.array): A n_subs x 3 array giving the x,y,z position of the
 		subhalos in units of kpc.
+
 	Notes:
 		The code works through rejection sampling, which can be inneficient
 		for certain configurations. If this is a major issue, it may be worth
@@ -328,8 +349,10 @@ def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
 	z_lens = main_deflector_parameters['z_lens']
 	host_c = mass_concentration_DG_19(subhalo_parameters,z_lens,host_m200,
 		cosmo)
-	host_r_200 = r_200_from_m(host_m200,cosmo)
+	host_r_200 = r_200_from_m(host_m200,z_lens,cosmo)
 	host_r_scale = host_r_200/host_c
+	# DG_19 definition of the tidal radius
+	r_tidal = host_r_200/2
 	host_rho_nfw = rho_nfw_from_m_c(host_m200,host_c,cosmo,
 		r_scale=host_r_scale)
 
@@ -368,3 +391,147 @@ def sample_cored_nfw_DG_19(r_tidal,subhalo_parameters,
 		n_accepted_draws += use_keep
 
 	return cart_pos
+
+
+def get_truncation_radius_DG_19(m_200,r,m_pivot=1e7,r_pivot=50):
+	"""
+	Get the truncation radius for a subhalo given the mass and radial position
+	in the host NFW
+
+	Paramters:
+		m_200 (np.array): The mass of the subhalos in units of M_sun
+		r (np.array): The radial position of the subhalos in units of kpc
+		m_pivot (float): The pivot mass for the scaling in units of M_sun
+		r_pivot (float): The pivot radius for the relation in unit of kpc
+
+	Returns:
+		(np.array): The truncation radii for the subhalos in units of kpc
+	"""
+
+	return 1.4*(m_200/m_pivot)**(1/3)*(r/r_pivot)**(2/3)
+
+#  ----------------------------Conversion Functions----------------------------
+
+
+def calculate_sigma_crit(z,z_source,cosmo):
+	"""
+	Calculate the critical density for the given configuration
+
+	Parameters:
+		z (np.array): The redshift of the nfw
+		z_source (float): The redshift of the source
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+
+	Returns:
+		(np.array): The critical surface density in units of M_sun/kpc^2
+	"""
+	# Normalization factor for sigma_crit
+	norm = const.c ** 2 / (4 * np.pi * const.G)*const.Mpc / const.M_sun
+	# Get our three angular diameter distances
+	mpc2kpc = 1e3
+	dd = cosmo.angularDiameterDistance(z)
+	ds = cosmo.angularDiameterDistance(z_source)
+	cosmo_astro = cosmo.toAstropy()
+	dds = cosmo_astro.angular_diameter_distance_z1z2(z,z_source).value
+	return ds / (dd * dds) * norm/mpc2kpc**2
+
+
+def convert_to_lenstronomy_NFW(r_scale,z,rho_nfw,r_trunc,z_source,cosmo):
+	"""
+	Convert physical NFW parameters to parameters used by lenstronomy
+
+	Parameters:
+		r_scale (np.array): The scale radius of the nfw in units of kpc
+		z (np.array): The redshift of the nfw
+		rho_nfw (np.array): The amplitude of the nfw halos i nunits of
+			M_sun/kpc^3
+		r_trunc (np.array): The truncation radius for each nfw in units of
+			kpc.
+		z_source (float): The redshift of the source
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+
+	Returns:
+		[np.array,...]: A list of 3 numpy arrays: The angular r_scale, the
+		the deflection angle at the scale radius, and the angular truncation
+		radius in units of kpc.
+	"""
+	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,cosmo)
+
+	# For two of our parameters we just need to convert to arcseconds
+	r_scale_ang = r_scale/kpc_per_arcsecond
+	r_trunc_ang = r_trunc/kpc_per_arcsecond
+
+	# For our deflection angle the calculation is a little more involved
+	# and requires knowledge of the source redshift. We will take advantage
+	# of lenstronomy for this calculation.
+	sigma_crit = calculate_sigma_crit(z,z_source,cosmo)
+	alpha_rs = rho_nfw * (4*r_scale**2*(1+np.log(0.5)))
+	alpha_rs /= kpc_per_arcsecond * sigma_crit
+	return r_scale_ang, alpha_rs, r_trunc_ang
+
+
+def convert_to_lenstronomy_DG_19(subhalo_parameters,main_deflector_parameters,
+	source_parameters,cosmo,subhalo_masses,subhalo_cart_pos):
+	"""
+	Convert the subhalo masses and position to truncated NFW profiles for
+	lenstronomy
+
+	Parameters:
+		subhalo_parameters (dict): A dictionary containing the type of
+			subhalo distribution and the value for each of its parameters.
+		main_deflector_parameters (dict): A dictionary containing the type of
+			main deflector and the value for each of its parameters.
+		source_parameters (dict): A dictionary containing the type of the
+			source and the value for each of its parameters.
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+		subhalo_masses (np.array): The masses of each of the subhalos that
+			was drawn
+		subhalo_cart_pos (np.array): A n_subs x 3D array of the subhalos
+			that was drawn
+	Returns:
+		([string,...],[dict,...]): A tuple containing the list of models
+		and the list of kwargs for the truncated NFWs.
+	"""
+	# First, for each subhalo mass we'll also have to draw a concentration.
+	# This requires a redshift. DG_19 used the predicted redshift of infall
+	# from galacticus. For now, we'll use the redshift of the lens itself.
+	# TODO: Use a different redshift
+	z_lens = main_deflector_parameters['z_lens']
+	z_source = source_parameters['z_source']
+	subhalo_z = (np.ones(subhalo_masses.shape) *
+		main_deflector_parameters['z_lens'])
+	concentration = mass_concentration_DG_19(subhalo_parameters,subhalo_z,
+		subhalo_masses,cosmo)
+
+	# We'll also need the radial position in the halo
+	r_in_host = np.sqrt(np.sum(subhalo_cart_pos**2,axis=-1))
+
+	# Now we can convert these masses and concentrations into NFW parameters
+	# for lenstronomy.
+	sub_r_200 = r_200_from_m(subhalo_masses,subhalo_z,cosmo)
+	sub_r_scale = sub_r_200/concentration
+	sub_rho_nfw = rho_nfw_from_m_c(subhalo_masses,concentration,cosmo,
+		r_scale=sub_r_scale)
+	sub_r_trunc = get_truncation_radius_DG_19(subhalo_masses,r_in_host)
+
+	# Convert to lenstronomy units
+	sub_r_scale_ang, alpha_Rs, sub_r_trunc_ang = convert_to_lenstronomy_NFW(
+		sub_r_scale,subhalo_z,sub_rho_nfw,sub_r_trunc,z_source,cosmo)
+	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z_lens,cosmo)
+	cart_pos_ang = subhalo_cart_pos / np.expand_dims(kpc_per_arcsecond,
+		axis=-1)
+
+	# Populate the parameters for each lens
+	model_list = []
+	kwargs_list = []
+	for i in range(len(subhalo_masses)):
+		model_list.append('TNFW')
+		kwargs_list.append({'alpha_Rs':alpha_Rs[i],'Rs':sub_r_scale_ang[i],
+			'center_x':cart_pos_ang[i,0]+main_deflector_parameters['center_x'],
+			'center_y':cart_pos_ang[i,1]+main_deflector_parameters['center_y'],
+			'r_trunc':sub_r_trunc_ang[i]})
+
+	return (model_list,kwargs_list)
