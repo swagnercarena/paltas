@@ -6,7 +6,7 @@ from colossus.cosmology import cosmology
 from astropy import units as u
 
 
-class PowerLawTest(unittest.TestCase):
+class PowerLawTests(unittest.TestCase):
 
 	def setUp(self):
 		# Fix the random seed to be able to have reliable tests
@@ -73,7 +73,45 @@ class PowerLawTest(unittest.TestCase):
 				places=2)
 
 
-class CosmologyTest(unittest.TestCase):
+class CosmologyTests(unittest.TestCase):
+
+	def test_get_cosmology(self):
+		# Check that for the four input types, get cosmology works as
+		# intended.
+		# Start with string
+		cosmology_parameters = 'planck18'
+		string_cosmo = cosmology_utils.get_cosmology(cosmology_parameters)
+		sh = string_cosmo.h
+		so = string_cosmo.Om0
+
+		# Now dict containing the string in cosmology_name
+		cosmology_parameters = {'cosmology_name':'planck18'}
+		dict_string_cosmo = cosmology_utils.get_cosmology(cosmology_parameters)
+		dsh = dict_string_cosmo.h
+		dso = dict_string_cosmo.Om0
+
+		# Directly pass the cosmology
+		cosmo = cosmology.setCosmology('planck18')
+		cosmo_cosmo = cosmology_utils.get_cosmology(cosmo)
+		ch = cosmo_cosmo.h
+		co = cosmo_cosmo.Om0
+
+		# Pass the parameters in the form of a dict
+		cosmology_parameters = {}
+		cosmology_parameters['H0'] = 67.66
+		cosmology_parameters['Om0'] = 0.3111
+		direct_cosmo = cosmology_utils.get_cosmology(cosmo)
+		dh = direct_cosmo.h
+		do = direct_cosmo.Om0
+
+		# Check that they're all equal.
+		self.assertEqual(sh,dsh)
+		self.assertEqual(sh,ch)
+		self.assertEqual(sh,dh)
+
+		self.assertEqual(so,dso)
+		self.assertEqual(so,co)
+		self.assertEqual(so,do)
 
 	def test_kpc_per_arcsecond(self):
 		# Just check that the calculation agree with what we would expect using

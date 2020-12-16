@@ -307,7 +307,7 @@ class NFWLenstronomyConverstionTests(unittest.TestCase):
 		c = 4
 
 		# Do the physical calculations in our code and in lenstronomy
-		r_scale = nfw_functions.r_200_from_m(m_200,0,cosmo)/c
+		r_scale = nfw_functions.r_200_from_m(m_200,z_lens,cosmo)/c
 		r_trunc = np.ones(r_scale.shape)
 		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,r_scale=r_scale)
 		rho0, Rs, r200 = lens_cosmo.nfwParam_physical(M=m_200, c=c)
@@ -318,19 +318,11 @@ class NFWLenstronomyConverstionTests(unittest.TestCase):
 			nfw_functions.convert_to_lenstronomy_NFW(r_scale,z_lens,rho_nfw,
 			r_trunc,z_source,cosmo))
 
-		# So the tricky parth here is that the way we treat r_200 and the way
-		# lenstronomy treat r_200 is not the same. To make them equivalent
-		# we need to make our calculations in terms of rho_c(z=0) and then
-		# scale the critical like a^3. That's equivalent to plugging in
-		# z=0 to all of our functions and then multiplying our radial
-		# quantities by the scale factor 1/(1+z).
-		a = 1/(1+z_lens)
-
 		mpc_2_kpc = 1e3
-		self.assertAlmostEqual(r_scale*a,Rs*mpc_2_kpc)
-		self.assertAlmostEqual(rho_nfw/a**3,rho0/(mpc_2_kpc**3),places=2)
-		self.assertAlmostEqual(r_scale_angle*a,rs_angle_ls,places=2)
-		self.assertAlmostEqual(alpha_rs/a,alpha_rs_ls)
+		self.assertAlmostEqual(r_scale,Rs*mpc_2_kpc)
+		self.assertAlmostEqual(rho_nfw,rho0/(mpc_2_kpc**3),places=2)
+		self.assertAlmostEqual(r_scale_angle,rs_angle_ls,places=2)
+		self.assertAlmostEqual(alpha_rs,alpha_rs_ls)
 		self.assertAlmostEqual(r_trunc_ang*r_scale/r_scale_angle,r_trunc)
 
 

@@ -10,10 +10,9 @@ import numba
 
 @numba.njit()
 def power_law_integrate(p_min,p_max,slope):
-	"""
-	Integrate a power law
+	"""Integrates a power law
 
-	Parameters:
+	Args:
 		p_min (float): The lower bound of the power law
 		p_max (float): The upper bound of the power law
 		slope (float): The slope of the power law
@@ -29,14 +28,14 @@ def power_law_integrate(p_min,p_max,slope):
 
 @numba.njit()
 def power_law_draw(p_min,p_max,slope,norm):
-	"""
-	Sample from a power law
+	"""Samples from a power law
 
-	Parameters:
+	Args:
 		p_min (float): The lower bound of the power law
 		p_max (float): The upper bound of the power law
 		slope (float): The slope of the power law
 		norm (float): The overall normalization of the power law
+
 	Returns:
 		[float,...]: A list of values drawn from the power law
 	"""
