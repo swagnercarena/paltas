@@ -127,7 +127,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 				elem in self.rkeys+self.rfkeys[1:]))
 
 	def test_sample_indices(self):
-		# Just test that the not implemented error is raised.
+		# Test the sampled indices respect the restriction we pass.
 		# Sample alot to make sure we get the full range.
 		n_galaxies = int(1e4)
 		samples = self.c.sample_indices(n_galaxies)
