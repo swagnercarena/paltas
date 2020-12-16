@@ -202,8 +202,6 @@ class COSMOSCatalogTests(unittest.TestCase):
 			kwargs_source=source_kwargs)
 		np.testing.assert_almost_equal(l_image,image)
 
-		print(l_image.shape,image.shape)
-
 
 def _check_lightmodel_kwargs(kwargs):
 	assert isinstance(kwargs, dict)
