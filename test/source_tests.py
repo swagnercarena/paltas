@@ -161,19 +161,23 @@ class COSMOSCatalogTests(unittest.TestCase):
 			z_new=metadata['z'])
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/lm_kwargs['scale']**2)
+		low_z_scale = lm_kwargs['scale']
 
 		# Now change the redshift
-		z_new = 1.5
+		z_new = 1.0
 		lm_kwargs = self.c.lightmodel_kwargs(catalog_i,
 			z_new=z_new)
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/metadata['pixel_width']**2)
+		high_z_scale = lm_kwargs['scale']
+
+		self.assertLess(high_z_scale,low_z_scale)
 
 		# Grab the cosmo to compare with
 		cosmo = get_cosmology('planck18')
-		self.assertEqual(lm_kwargs['scale'],metadata['pixel_width']*
-			cosmo.angularDiameterDistance(z_new)/
-			cosmo.angularDiameterDistance(metadata['z']))
+		self.assertAlmostEqual(lm_kwargs['scale'],metadata['pixel_width']*
+			cosmo.angularDiameterDistance(metadata['z'])/
+			cosmo.angularDiameterDistance(z_new))
 
 		# Finally test that if we pass these kwargs into a lenstronomy
 		# Interpolation class we get the image we expect.

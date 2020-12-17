@@ -104,8 +104,8 @@ class GalaxyCatalog:
 		# Pixel length ~ angular diameter distance
 		# (colossus uses funny /h units, but for ratios it
 		#  fortunately doesn't matter)
-		pixel_width *= (self.cosmo.angularDiameterDistance(z_new)
-						/ self.cosmo.angularDiameterDistance(z))
+		pixel_width *= (self.cosmo.angularDiameterDistance(z)
+						/ self.cosmo.angularDiameterDistance(z_new))
 
 		# Convert to kwargs for lenstronomy
 		return dict(image=img,center_x=0,center_y=0,phi_G=0,scale=pixel_width)
