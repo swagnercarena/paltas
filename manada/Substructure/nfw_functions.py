@@ -7,7 +7,7 @@ subhalo distributions into masses, concentrations, and positions for those
 NFW subhalos.
 """
 import numpy as np
-from manada.Utils import power_law, cosmology_utils
+from ..Utils import power_law, cosmology_utils
 import numba
 from scipy.interpolate import interp1d
 from colossus.halo.concentration import peaks
@@ -22,11 +22,12 @@ draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
 
 @numba.njit()
 def host_scaling_function_DG_19(host_m200, z_lens, k1=0.88, k2=1.7):
-	"""
-	Scaling for the subhalo mass function based on the mass of the host
-	halo. Derived from galacticus in https://arxiv.org/pdf/1909.02573.pdf.
+	"""Returns scaling for the subhalo mass function based on the mass of the
+	host halo.
 
-	Parameters:
+	Derived from galacticus in https://arxiv.org/pdf/1909.02573.pdf.
+
+	Args:
 		host_m200 (float): The mass of the host halo in units of M_sun
 		z_lens (flat): The redshift of the host halo / main deflector
 		k1 (flaot): Amplitude of halo mass dependence
@@ -44,11 +45,10 @@ def host_scaling_function_DG_19(host_m200, z_lens, k1=0.88, k2=1.7):
 
 
 def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
-	"""
-	Draw from the https://arxiv.org/pdf/1909.02573.pdf mass function and
+	"""Draws from the https://arxiv.org/pdf/1909.02573.pdf mass function and
 	return an array of the masses.
 
-	Parameters:
+	Args:
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
 		main_deflector_parameters (dict): A dictionary containing the type of
@@ -101,11 +101,10 @@ def draw_nfw_masses_DG_19(subhalo_parameters,main_deflector_parameters,cosmo):
 
 
 def mass_concentration_DG_19(subhalo_parameters,z,m_200,cosmo):
-	"""
-	Return the concentration of halos at a certain mass given the
+	"""Returns the concentration of halos at a certain mass given the
 	parameterization of DG_19.
 
-	Parameters:
+	Args:
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
 		z (np.array): The redshift of the nfw halo
@@ -146,10 +145,9 @@ def mass_concentration_DG_19(subhalo_parameters,z,m_200,cosmo):
 
 @numba.njit()
 def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
-	"""
-	Integrate the cored nfw profile from 0 to r_upper
+	"""Integrates the cored nfw profile from 0 to r_upper
 
-	Parameters:
+	Args:
 		r_tidal (float): The tidal radius within which the NFW profile
 			will be replaced by a uniform profile. Units of kpc
 		rho_nfw (float): The amplitude of the nfw density outside the
@@ -185,10 +183,9 @@ def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
 
 
 def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
-	"""
-	Return radial samples from a cored nfw profile
+	"""Returns radial samples from a cored nfw profile
 
-	Parameters:
+	Args:
 		r_tidal (float): The tidal radius within which the NFW profile
 			will be replaced by a uniform profile in units of kpc.
 		rho_nfw (float): The amplitude of the nfw density outside the
@@ -218,18 +215,18 @@ def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 
 
 def r_200_from_m(m_200,z,cosmo):
-	"""
-	Calculate r_200 for our NFW profile given our m_200 mass.
+	"""Calculates r_200 for our NFW profile given our m_200 mass.
 
-	Parameters:
-		m_200 (np.array): The mass contained within r_200 in units of M_sun
-		z (np.array): The redshift of the halo
+	Args:
+		m_200 (float, or np.array): The mass contained within r_200 in units
+			of M_sun
+		z (float, or np.array): The redshift of the halo
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
 
 	Returns:
-		(np.array): The r_200 radius corresponding to the given mass in units
-			of kpc.
+		(float, or np.array): The r_200 radius corresponding to the given mass
+		in units of kpc.
 
 	Notes:
 		This equation assumes that for a halo at redshift z, m200 is
@@ -246,18 +243,19 @@ def r_200_from_m(m_200,z,cosmo):
 
 
 def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None,z=None):
-	"""
-	Calculate the amplitude of the nfw profile given the physical parameters.
+	"""Calculates the amplitude of the nfw profile given the physical
+	parameters.
 
-	Parameters:
-		m_200 (np.array): The mass of the nfw halo in units of M_sun
-		c (np.array): The concentration of the nfw_halo
+	Args:
+		m_200 (float, or np.array): The mass of the nfw halo in units of M_sun
+		c (float, or np.array): The concentration of the nfw_halo
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
-		r_scale (np.array): The scale radius in units of kpc
+		r_scale (float, or np.array): The scale radius in units of kpc
 
 	Returns:
-		(np.array): The amplitude for the nfw in units of M_sun/kpc^3.
+		(float, or np.array): The amplitude for the nfw in units of
+		M_sun/kpc^3.
 	"""
 	# If r_scale is not provided, calculate it
 	if r_scale is None:
@@ -273,11 +271,10 @@ def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None,z=None):
 
 
 def rejection_sampling_DG_19(r_samps,r_200,r_3E):
-	"""
-	Given the radial sampling of the positions and DG_19 constraints
-	conduct rejection sampling and return the cartesian positions.
+	"""Given the radial sampling of the positions and DG_19 constraints,
+	conducts rejection sampling and return the cartesian positions.
 
-	Parameters:
+	Args:
 		r_samps (np.array): Samples of the radial coordinates for
 			the subhalos in units of kpc.
 		r_200 (float): The r_200 of the host halo which will be used
@@ -312,12 +309,11 @@ def rejection_sampling_DG_19(r_samps,r_200,r_3E):
 
 def sample_cored_nfw_DG_19(subhalo_parameters,main_deflector_parameters,
 	cosmo,n_subs):
-	"""
-	Given the a tidal radius that defines a core region and the parameters
-	of the main deflector, sample positions for NFW subhalos bounded
+	"""Given the a tidal radius that defines a core region and the parameters
+	of the main deflector, samples positions for NFW subhalos bounded
 	as described in https://arxiv.org/pdf/1909.02573.pdf
 
-	Parameters:
+	Args:
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
 		main_deflector_parameters (dict): A dictionary containing the type of
@@ -394,9 +390,8 @@ def sample_cored_nfw_DG_19(subhalo_parameters,main_deflector_parameters,
 
 
 def get_truncation_radius_DG_19(m_200,r,m_pivot=1e7,r_pivot=50):
-	"""
-	Get the truncation radius for a subhalo given the mass and radial position
-	in the host NFW
+	"""Returns the truncation radius for a subhalo given the mass and radial
+	position in the host NFW
 
 	Paramters:
 		m_200 (np.array): The mass of the subhalos in units of M_sun
@@ -414,10 +409,9 @@ def get_truncation_radius_DG_19(m_200,r,m_pivot=1e7,r_pivot=50):
 
 
 def calculate_sigma_crit(z,z_source,cosmo):
-	"""
-	Calculate the critical density for the given configuration
+	"""Calculates the critical density for the given configuration
 
-	Parameters:
+	Args:
 		z (np.array): The redshift of the nfw
 		z_source (float): The redshift of the source
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
@@ -438,10 +432,9 @@ def calculate_sigma_crit(z,z_source,cosmo):
 
 
 def convert_to_lenstronomy_NFW(r_scale,z,rho_nfw,r_trunc,z_source,cosmo):
-	"""
-	Convert physical NFW parameters to parameters used by lenstronomy
+	"""Converts physical NFW parameters to parameters used by lenstronomy
 
-	Parameters:
+	Args:
 		r_scale (np.array): The scale radius of the nfw in units of kpc
 		z (np.array): The redshift of the nfw
 		rho_nfw (np.array): The amplitude of the nfw halos i nunits of
@@ -474,11 +467,10 @@ def convert_to_lenstronomy_NFW(r_scale,z,rho_nfw,r_trunc,z_source,cosmo):
 
 def convert_to_lenstronomy_DG_19(subhalo_parameters,main_deflector_parameters,
 	source_parameters,cosmo,subhalo_masses,subhalo_cart_pos):
-	"""
-	Convert the subhalo masses and position to truncated NFW profiles for
+	"""Converts the subhalo masses and position to truncated NFW profiles for
 	lenstronomy
 
-	Parameters:
+	Args:
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
 		main_deflector_parameters (dict): A dictionary containing the type of

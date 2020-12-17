@@ -6,18 +6,17 @@ This module contains the functions needed to draw subhalos given a specific
 subhalo parameterization and transform those parameters into lens models and
 kwargs to pass into lenstronomy.
 """
-from manada.Substructure import nfw_functions
-from colossus.cosmology import cosmology
+from ..Substructure import nfw_functions
+from ..Utils.cosmology_utils import get_cosmology
 
 
 def draw_subhalos(subhalo_parameters,main_deflector_parameters,
 	source_parameter,cosmology_parameters):
-	"""
-	Given the parameters of the subhalo mass distribution the main deflector
-	lens parameters draw masses, concentrations,and positions for the
+	"""Given the parameters of the subhalo mass distribution the main deflector
+	lens parameters draws masses, concentrations,and positions for the
 	subhalos of a main lens halo.
 
-	Parameters:
+	Args:
 		subhalo_parameters (dict): A dictionary containing the type of
 			subhalo distribution and the value for each of its parameters.
 		main_deflector_parameters (dict): A dictionary containing the type of
@@ -35,15 +34,7 @@ def draw_subhalos(subhalo_parameters,main_deflector_parameters,
 	subhalo_kwargs_list = []
 
 	# Initialize the cosmology
-	if 'cosmology_name' in cosmology_parameters:
-		cosmo = cosmology.setCosmology(cosmology_parameters['cosmology_name'])
-	else:
-		# Leave some parameters to their default values so the user only has
-		# to specify H0 and Om0.
-		col_params = {'flat': True, 'H0':cosmology_parameters['H0'],
-		'Om0':cosmology_parameters['Om0'], 'Ob0': 0.049, 'sigma8': 0.81,
-		'ns': 0.95}
-		cosmo = cosmology.setCosmology('temp_cosmo', col_params)
+	cosmo = get_cosmology(cosmology_parameters)
 
 	# Draw the model_list and kwargs depending on the type of subhalo
 	# distribution
