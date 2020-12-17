@@ -1,6 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Turn real galaxies into Lenstronomy inputs.
+
+This module contains the default class for transforming the objects of a
+source catalog into sources to be passed to lenstronomy.
+"""
 import numpy as np
-
-
 from ..Utils.cosmology_utils import get_cosmology
 
 DEFAULT_Z = 2.
