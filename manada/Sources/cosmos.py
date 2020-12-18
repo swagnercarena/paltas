@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Turn COSMOS galaxies into Lenstronomy inputs.
+
+This module contains the default class for transforming the objects of the
+COSMOS catalog into sources to be passed to lenstronomy.
+"""
 from pathlib import Path
 import astropy
 import astropy.table
