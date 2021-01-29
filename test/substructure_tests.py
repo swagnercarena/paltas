@@ -2,6 +2,7 @@ import unittest
 from manada.Substructure import nfw_functions
 from manada.Substructure.subhalos_base import SubhalosBase
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
+from manada.Substructure.subhalos_catalog import SubhalosCatalog
 from manada.Substructure.los_base import LOSBase
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Utils import cosmology_utils
@@ -401,6 +402,26 @@ class SubhalosDG19Tests(unittest.TestCase):
 				elem in required_keys_DG_19))
 
 		self.assertListEqual(subhalo_z_list,[0.5]*len(subhalo_model_list))
+
+
+class SubhalosCatalogTests(unittest.TestCase):
+	def setUp(self):
+		# This gets done before each test is run
+		np.random.seed(10)
+
+		self.subhalo_parameters = {'rockstar_path':'fill_this_in', 'm_min':1e8}
+		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
+			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
+		self.source_parameters = {'z_source':1.5}
+		self.cosmology_parameters = {'cosmology_name': 'planck18'}
+		self.sc = SubhalosCatalog(self.los_parameters,
+			self.main_deflector_parameters,self.source_parameters,
+			self.cosmology_parameters)
+		self.cosmo = self.sc.cosmo
+
+	def test_read_catalog(self):
+		# One sentence descritpion of what you're testing
+		self.assertEqual(self.read_catalog,2)
 
 
 class LOSBaseTests(unittest.TestCase):
