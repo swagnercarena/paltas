@@ -10,7 +10,7 @@ from .subhalos_base import SubhalosBase
 
 
 # Define the parameters we expect to find for the DG_19 model
-draw_nfw_masses_catalog_parameters = ['elise_must_fill_this_out']
+draw_nfw_masses_catalog_parameters = ['rockstar_path','m_min']
 
 
 class SubhalosCatalog(SubhalosBase):

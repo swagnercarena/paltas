@@ -414,14 +414,14 @@ class SubhalosCatalogTests(unittest.TestCase):
 			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
 		self.cosmology_parameters = {'cosmology_name': 'planck18'}
-		self.sc = SubhalosCatalog(self.los_parameters,
+		self.sc = SubhalosCatalog(self.subhalo_parameters,
 			self.main_deflector_parameters,self.source_parameters,
 			self.cosmology_parameters)
 		self.cosmo = self.sc.cosmo
 
 	def test_read_catalog(self):
 		# One sentence descritpion of what you're testing
-		self.assertEqual(self.read_catalog,2)
+		self.assertEqual(self.sc.read_catalog(),2)
 
 
 class LOSBaseTests(unittest.TestCase):
