@@ -11,10 +11,6 @@ import numba
 from scipy.interpolate import interp1d
 import lenstronomy.Util.constants as const
 
-draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
-	'm_min','m_max','c_0','conc_xi','conc_beta','conc_m_ref',
-	'dex_scatter']
-
 
 @numba.njit()
 def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):

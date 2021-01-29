@@ -2,11 +2,16 @@ import unittest
 from manada.Substructure import nfw_functions
 from manada.Substructure.subhalos_base import SubhalosBase
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
+from manada.Substructure.los_base import LOSBase
+from manada.Substructure.los_dg19 import LOSDG19
+from manada.Utils import cosmology_utils
+from colossus.lss.mass_function import modelSheth99, massFunction
 from manada.Utils import power_law
 import numpy as np
 from scipy.integrate import quad
 from colossus.cosmology import cosmology
 from colossus.halo.concentration import peaks
+from colossus.lss import bias
 from colossus.halo import profile_nfw
 from lenstronomy.Cosmo.lens_cosmo import LensCosmo
 
@@ -155,6 +160,7 @@ class SubhalosBaseTests(unittest.TestCase):
 		self.sb = SubhalosBase(self.subhalo_parameters,
 			self.main_deflector_parameters,self.source_parameters,
 			self.cosmology_parameters)
+		self.cosmo = self.sb.cosmo
 
 	def test_init(self):
 		# Check that the parameters are saved as desired.
@@ -182,6 +188,29 @@ class SubhalosBaseTests(unittest.TestCase):
 		# Check that an error is raised if something is missing
 		with self.assertRaises(ValueError):
 			self.sb.check_parameterization(parameters_extra)
+
+	def test_update_parameters(self):
+		# Check that the parameters are updated
+		subhalo_parameters = {'sigma_sub':1e-2, 'shmf_plaw_index': -1.83,
+			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
+			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'dex_scatter': 0.0, 'distribution':'DG_19'}
+		main_deflector_parameters = {'M200': 1e12, 'z_lens': 0.4,
+			'theta_E':0.32, 'center_x':0.1, 'center_y': 0.1}
+		source_parameters = {'z_source':1.9}
+		cosmology_parameters = {'cosmology_name': 'WMAP7'}
+		self.sb.update_parameters(subhalo_parameters=subhalo_parameters,
+			main_deflector_parameters=main_deflector_parameters,
+			source_parameters=source_parameters,
+			cosmology_parameters=cosmology_parameters)
+
+		self.assertFalse(self.sb.subhalo_parameters['sigma_sub'] ==
+			self.subhalo_parameters['sigma_sub'])
+		self.assertFalse(self.sb.main_deflector_parameters['M200'] ==
+			self.main_deflector_parameters['M200'])
+		self.assertFalse(self.sb.source_parameters['z_source'] ==
+			self.source_parameters['z_source'])
+		self.assertFalse(self.sb.cosmo.h == self.cosmo.h)
 
 	def test_draw_subhalos(self):
 		# Just check that the NotImplementedError is raised
@@ -360,7 +389,8 @@ class SubhalosDG19Tests(unittest.TestCase):
 	def test_draw_subhalos(self):
 		# Check that the draw returns parameters that can be passsed
 		# into lenstronomy. This will also test convert_to_lenstronomy.
-		subhalo_model_list, subhalo_kwargs_list = self.sd.draw_subhalos()
+		subhalo_model_list, subhalo_kwargs_list, subhalo_z_list = (
+			self.sd.draw_subhalos())
 
 		for subhalo_model in subhalo_model_list:
 			self.assertEqual(subhalo_model,'TNFW')
@@ -369,3 +399,295 @@ class SubhalosDG19Tests(unittest.TestCase):
 		for subhalo_kwargs in subhalo_kwargs_list:
 			self.assertTrue(all(elem in subhalo_kwargs.keys() for
 				elem in required_keys_DG_19))
+
+		self.assertListEqual(subhalo_z_list,[0.5]*len(subhalo_model_list))
+
+
+class LOSBaseTests(unittest.TestCase):
+
+	def setUp(self):
+		# Fix the random seed to be able to have reliable tests
+		np.random.seed(10)
+
+		self.los_parameters = {'test_1':0.2, 'test_2':0.3}
+		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
+			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
+		self.source_parameters = {'z_source':1.5}
+		self.cosmology_parameters = {'cosmology_name': 'planck18'}
+		self.lb = LOSBase(self.los_parameters,
+			self.main_deflector_parameters,self.source_parameters,
+			self.cosmology_parameters)
+		self.cosmo = self.lb.cosmo
+
+	def test_check_parameterization(self):
+		parameters_extra = ['test_1','test_2','test_3']
+		parameters_less = ['test_1','test_2']
+
+		# Make sure no error is raised if everything is there
+		self.lb.check_parameterization(parameters_less)
+
+		# Check that an error is raised if something is missing
+		with self.assertRaises(ValueError):
+			self.lb.check_parameterization(parameters_extra)
+
+	def test_update_parameters(self):
+		# Check that updating the parameters works
+		los_parameters = {'test_1':0.1, 'test_2':0.1}
+		main_deflector_parameters = {'M200': 1e12, 'z_lens': 0.4,
+			'theta_E':0.32, 'center_x':0.1, 'center_y': 0.1}
+		source_parameters = {'z_source':1.9}
+		cosmology_parameters = {'cosmology_name': 'WMAP7'}
+		self.lb.update_parameters(los_parameters=los_parameters,
+			main_deflector_parameters=main_deflector_parameters,
+			source_parameters=source_parameters,
+			cosmology_parameters=cosmology_parameters)
+
+		self.assertFalse(self.lb.los_parameters['test_1'] ==
+			self.los_parameters['test_1'])
+		self.assertFalse(self.lb.main_deflector_parameters['M200'] ==
+			self.main_deflector_parameters['M200'])
+		self.assertFalse(self.lb.source_parameters['z_source'] ==
+			self.source_parameters['z_source'])
+		self.assertFalse(self.lb.cosmo.h == self.cosmo.h)
+
+	def test_draw_los(self):
+		# Just check that the NotImplementedError is raised
+		with self.assertRaises(NotImplementedError):
+			self.lb.draw_los()
+
+
+class LOSDG19Tests(unittest.TestCase):
+
+	def setUp(self):
+		# Fix the random seed to be able to have reliable tests
+		np.random.seed(10)
+
+		self.los_parameters = {'m_min':1e6, 'm_max':1e10,'z_min':0.01,
+			'dz':0.01,'cone_angle':4.0,'r_min':0.5,'r_max':10.0}
+		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
+			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
+		self.source_parameters = {'z_source':1.5}
+		self.cosmology_parameters = {'cosmology_name': 'planck18'}
+		self.ld = LOSDG19(self.los_parameters,
+			self.main_deflector_parameters,self.source_parameters,
+			self.cosmology_parameters)
+		self.cosmo = self.ld.cosmo
+
+	def test_nu_f_nu(self):
+		# Compare a few values of nu_f_nu with colossus output.
+		z = self.source_parameters['z_source']
+		delta_c = peaks.collapseOverdensity(z=z,corrections=True)
+		nu = np.linspace(1e-2,10,100)
+		sigma = delta_c/nu
+		nfn_eval = self.ld.nu_f_nu(nu)
+		# Convert for our slightly more precise value of A
+		nfn_eval *= 0.3222/0.32218
+		np.testing.assert_almost_equal(modelSheth99(sigma,z),
+			nfn_eval)
+
+		# Make sure that it integrates to 1
+		def f_nu(nu):
+			return self.ld.nu_f_nu(nu)/nu
+		self.assertAlmostEqual(quad(f_nu,0,1e2)[0],1,places=4)
+
+	def test_dn_dm(self):
+		# Test that the outputs of the mass function agrees with colossus
+		z = self.source_parameters['z_source']
+		m = np.logspace(4,10,100)
+		dndm_eval = self.ld.dn_dm(m,z)
+		dndlogm_eval = dndm_eval*m
+
+		# Convert the colossus mass function to our units
+		col_mf = massFunction(m*self.cosmo.h,z,model='sheth99',q_out='dndlnM',
+			deltac_args={'corrections':True})
+		# /kpc^3 to /Mpc^3
+		dndlogm_eval *= 1e9
+		# Convert from rho_m(0) to rho_m(z)
+		col_mf *= (1+z)**(3)
+		# Convert for our slightly more precise value of A
+		col_mf /= 0.3222/0.32218
+		# col_mf returns in units of comoving (Mpc/h)**(-3)
+		col_mf *= self.cosmo.h**3
+		np.testing.assert_almost_equal(dndlogm_eval,col_mf)
+
+		# Repeat for a different redshift
+		z = 0.1
+		dndm_eval = self.ld.dn_dm(m,z)
+		dndlogm_eval = dndm_eval*m
+
+		# Convert the colossus mass function to our units
+		col_mf = massFunction(m*self.cosmo.h,z,model='sheth99',q_out='dndlnM',
+			deltac_args={'corrections':True})
+		# /kpc^3 to /Mpc^3
+		dndlogm_eval *= 1e9
+		# Convert from rho_m(0) to rho_m(z)
+		col_mf *= (1+z)**(3)
+		# Convert for our slightly more precise value of A
+		col_mf /= 0.3222/0.32218
+		# col_mf returns in units of comoving (Mpc/h)**(-3)
+		col_mf *= self.cosmo.h**3
+		np.testing.assert_almost_equal(dndlogm_eval,col_mf)
+
+	def test_power_law_dn_dm(self):
+		# Make sure that the power law fit is a decent explanation of the
+		# actual mass function.
+		m = np.logspace(6,10,100)
+		z=0.1
+		dn_dm = self.ld.dn_dm(m,z)
+		slope, norm = self.ld.power_law_dn_dm(z)
+		y = norm*m**slope
+		np.testing.assert_almost_equal(dn_dm/y,y/y,decimal=1)
+
+	def test_update_parameters(self):
+		# Test that updating the parameters updates the cache
+		z = 0.1
+		slope, norm = self.ld.power_law_dn_dm(z)
+
+		los_parameters = {'m_min':1e6, 'm_max':1e9,'z_min':0.01,
+			'dz':0.01}
+
+		# Make sure that manual change does nothing to caching
+		self.ld.los_parameters['m_max'] = 1e8
+		slope_new, norm_new = self.ld.power_law_dn_dm(z)
+		self.assertEqual(slope,slope_new)
+		self.assertEqual(norm,norm_new)
+
+		# Make sure using the function does work
+		self.ld.update_parameters(los_parameters=los_parameters)
+		slope_new, norm_new = self.ld.power_law_dn_dm(z)
+		self.assertNotEqual(slope,slope_new)
+		self.assertNotEqual(norm,norm_new)
+
+	def test_two_halo_boost(self):
+		# Make sure that the two_halo_boost term agrees with some analytical
+		# test cases
+		# First check that the two halo boost term is 1 far from the
+		# main deflector
+		dz = 0.01
+		z_lens = 1.1
+		lens_m200 = 1e13
+		r_max = 10
+		r_min = 0.5
+		n_quads = 1000
+
+		# Behind the light cone
+		for z in np.linspace(0,1.08,10):
+			self.assertEqual(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,
+				r_max,r_min,n_quads=n_quads),1)
+
+		# In front of the light cone
+		for z in np.linspace(1.11,4,30):
+			self.assertEqual(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,
+				r_max,r_min,n_quads=n_quads),1)
+
+		# Check that the values near the lens redshift work
+		z = 1.1
+		# Conduct the calculation by hand
+		z_range = np.linspace(z,z+dz,n_quads)
+		r_cmv = -self.cosmo.comovingDistance(z_range,z_lens)
+		r_cmv = r_cmv[r_cmv>r_min*self.cosmo.h]
+		xi_halo = self.cosmo.correlationFunction(r_cmv,z_lens)
+		xi_halo *= bias.haloBias(lens_m200,z_lens,mdef='200c',
+			model='tinker10')
+		self.assertEqual(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,r_max,
+			r_min,n_quads=n_quads),1+np.mean(xi_halo))
+
+		z=1.095
+		r_min = 0.01
+		z_range = np.linspace(z,z+dz,n_quads)
+		r_cmv = self.cosmo.comovingDistance(z_range,z_lens)
+		r_cmv[z_range>z_lens] *= -1
+		r_cmv = r_cmv[r_cmv>r_min*self.cosmo.h]
+		xi_halo = self.cosmo.correlationFunction(r_cmv,z_lens)
+		xi_halo *= bias.haloBias(lens_m200,z_lens,mdef='200c',
+			model='tinker10')
+		self.assertEqual(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,r_max,
+			r_min,n_quads=n_quads),1+np.mean(xi_halo))
+
+	def test_cone_angle_to_radius(self):
+		# Test that the radius grows and shrinks as expected.
+		z_lens = 1.1
+		z_source = 3.5
+		cone_angle = 2.0
+		z_first = np.arange(0.1,z_lens,0.01)
+		r_first = np.zeros(z_first.shape)
+
+		for i in range(len(z_first)):
+			# Get the radius in comoving coordinates
+			r_first[i] = self.ld.cone_angle_to_radius(z_first[i],z_lens,
+				z_source,cone_angle)*(1+z_first[i])
+
+		# Check that our cone is growing at a constant rate
+		ratio_first = self.cosmo.comovingDistance(0.0,z_first)/r_first
+		self.assertAlmostEqual(np.std(ratio_first),0.0,places=3)
+		self.assertGreater(np.mean(ratio_first),0.0)
+		np.testing.assert_almost_equal(r_first/(1+z_first),
+			cosmology_utils.kpc_per_arcsecond(z_first,self.cosmo)*cone_angle*
+			0.5)
+
+		# Repeat the same, but now make sure that the cone is shrinking
+		z_second = np.arange(z_lens,z_source,0.01)
+		r_second = np.zeros(z_second.shape)
+		for i in range(len(z_second)):
+			# Get the radius in comoving coordinates
+			r_second[i] = self.ld.cone_angle_to_radius(z_second[i],z_lens,
+				z_source,cone_angle)*(1+z_second[i])
+
+		r_cmv = self.cosmo.comovingDistance(z_lens,z_second)
+		ratio_second = (r_cmv[1:]-r_cmv[:-1])/(r_second[1:]-r_second[:-1])
+		self.assertAlmostEqual(np.std(ratio_second),0.0,places=2)
+		self.assertLess(np.mean(ratio_second),0.0)
+
+		# Confirm the hand calc
+		hand_calc = 0.8
+		hand_calc *= (self.cosmo.comovingDistance(z_source)/
+			self.cosmo.comovingDistance(z_lens,z_source))
+		hand_calc *= (self.cosmo.comovingDistance(z_lens,z_second)/
+			self.cosmo.comovingDistance(z_second))
+		hand_calc = 1-hand_calc
+		hand_calc *= cosmology_utils.kpc_per_arcsecond(z_second,
+			self.cosmo)*cone_angle*0.5
+		np.testing.assert_almost_equal(r_second/(1+z_second),hand_calc)
+
+		# One last check, if the angle_bufffer is 1 then z_source should
+		# return a radius of 0
+		angle_buffer = 1.0
+		self.assertAlmostEqual(self.ld.cone_angle_to_radius(z_source,z_lens,
+			z_source,cone_angle,angle_buffer=angle_buffer),0.0)
+
+	def test_volume_element(self):
+		# Check that the returned volume element is what you would expect
+		z_lens = 1.1
+		z_source = 4.0
+		dz = 0.01
+		cone_angle = 2.0
+		z_range = np.arange(0.01,z_source,0.01)
+		r_z = np.zeros(z_range.shape)
+		v_z = np.zeros(z_range.shape)
+
+		for i in range(len(z_range)):
+			r_z[i] = self.ld.cone_angle_to_radius(z_range[i]+dz/2,z_lens,
+				z_source,cone_angle)
+			v_z[i] = self.ld.volume_element(z_range[i],z_lens,z_source,dz,
+				cone_angle)
+
+		dz_in_kpc = self.cosmo.comovingDistance(z_range,z_range+dz)/(
+			1+z_range)/self.cosmo.h*1e3
+		np.testing.assert_almost_equal(v_z,1*np.pi*r_z**2*dz_in_kpc)
+
+	def test_draw_nfw_masses(self):
+		# Check that the number of masses drawn behave according to the
+		# expectation for the power law.
+		z_range = np.arange(0.01,self.source_parameters['z_source'],0.01)
+		masses = []
+		import time
+		start = time.time()
+		for z in z_range:
+			masses.extend(list(self.ld.draw_nfw_masses(z)))
+		print(time.time()-start)
+		masses=[]
+		start = time.time()
+		for z in z_range:
+			masses.extend(list(self.ld.draw_nfw_masses(z)))
+		print(time.time()-start)
+		print(len(masses))

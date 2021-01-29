@@ -6,6 +6,7 @@ Useful functions for extra cosmology calculations.
 """
 from colossus.cosmology import cosmology
 import numpy as np
+import copy
 
 
 def get_cosmology(cosmology_parameters):
@@ -23,7 +24,7 @@ def get_cosmology(cosmology_parameters):
 		of the colossus cosmology class.
 	"""
 	if isinstance(cosmology_parameters, cosmology.Cosmology):
-		return cosmology_parameters
+		return copy.copy(cosmology_parameters)
 	if isinstance(cosmology_parameters, str):
 		return cosmology.setCosmology(cosmology_parameters)
 	if isinstance(cosmology_parameters, dict):
