@@ -34,11 +34,6 @@ class LOSDG19(LOSBase):
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
-	Notes:
-		This class uses caching to improve performance over many draws. Do not
-		manually change the values of the passed in dictionary values as the
-		cached functions will not register that those parameters have changed.
-		For new parameter values use the update_parameters function.
 	"""
 
 	def __init__(self,los_parameters,main_deflector_parameters,
@@ -111,21 +106,21 @@ class LOSDG19(LOSBase):
 		return -1/3*nfn_eval*rho_m/m**2*d_ln_sigma_d_ln_r
 
 	@functools.lru_cache(maxsize=None)
-	def power_law_dn_dm(self,z,n_dm=100):
+	def power_law_dn_dm(self,z,m_min,m_max,n_dm=100):
 		"""Returns the best fit power law parameters for the physical number
 		density at a given redshift and mass range.
 
 		Args:
 			z (float): The redshift at which to calculate the power law
 				parameters.
+			m_min (float): The lower bound of the mass M_sun
+			m_max (float): The upper bound of the mass M_sun
 			n_dm (int): The number of dm samples to consider in the fit.
 
 		Returns:
 			(tuple): The power law slope and the norm for the power law in
 				units of 1/M_sun
 		"""
-		m_min = self.los_parameters['m_min']
-		m_max = self.los_parameters['m_max']
 		m = np.logspace(np.log10(m_min),np.log10(m_max),n_dm)
 		lm = np.log(m)
 		dn_dm = self.dn_dm(m,z)
@@ -142,40 +137,7 @@ class LOSDG19(LOSBase):
 
 		return slope_estimate, norm_estimate
 
-	def update_parameters(self,los_parameters=None,
-		main_deflector_parameters=None,source_parameters=None,
-		cosmology_parameters=None):
-		"""Updated the class parameters and clears the power_law cache if
-		needed.
-
-		Args:
-			los_parameters (dict): A dictionary containing the type of
-				los distribution and the value for each of its parameters.
-			main_deflector_parameters (dict): A dictionary containing the type
-				of main deflector and the value for each of its parameters.
-			source_parameters (dict): A dictionary containing the type of the
-				source and the value for each of its parameters.
-			cosmology_parameters (str,dict, or
-				colossus.cosmology.cosmology.Cosmology): Either a name
-				of colossus cosmology, a dict with 'cosmology name': name of
-				colossus cosmology, an instance of colussus cosmology, or a
-				dict with H0 and Om0 ( other parameters will be set to
-				defaults).
-
-		Notes:
-			Use this function to update parameter values instead of
-			starting a new class. This function will preserve the cache if
-			the parameters being changed to not affect the cache, and
-			therefore will offer enormous improvements in performance.
-		"""
-		# Clear cache if min or max mass have changed.
-		if ((los_parameters['m_min'] != self.los_parameters['m_min']) or
-			(los_parameters['m_max'] != self.los_parameters['m_max'])):
-			self.power_law_dn_dm.cache_clear()
-
-		super().update_parameters(los_parameters,main_deflector_parameters,
-			source_parameters,cosmology_parameters)
-
+	@functools.lru_cache(maxsize=1)
 	def two_halo_boost(self,z,z_lens,dz,lens_m200,r_max,r_min,n_quads=1000):
 		"""Calculates the boost from the two halo term of the host halo at
 		the given redshift.
@@ -250,7 +212,7 @@ class LOSDG19(LOSBase):
 			r_los *= 1 - scal_factor
 		return r_los
 
-	def volume_element(self,z,z_lens,z_source,dz,cone_angle):
+	def volume_element(self,z,z_lens,z_source,dz,cone_angle,angle_buffer=0.8):
 		"""Returns the physical volume element at the given redshift
 
 		Args:
@@ -268,7 +230,8 @@ class LOSDG19(LOSBase):
 			This depends on parameters like the cone angle, the redshift of
 			the source, and the redshift of the lens.
 		"""
-		r_los = self.cone_angle_to_radius(z+dz/2,z_lens,z_source,cone_angle)
+		r_los = self.cone_angle_to_radius(z+dz/2,z_lens,z_source,cone_angle,
+			angle_buffer=angle_buffer)
 
 		# Get the thickness of our cone slice in physical units of kpc
 		dz_in_kpc = self.cosmo.comovingDistance(z,z+dz)/self.cosmo.h
@@ -290,8 +253,6 @@ class LOSDG19(LOSBase):
 
 		"""
 		# Pull the parameters we need from the input dictionaries
-		m_min = self.los_parameters['m_min']
-		m_max = self.los_parameters['m_max']
 		# Units of M_sun
 		lens_m200 = self.main_deflector_parameters['M200']
 		z_lens = self.main_deflector_parameters['z_lens']
@@ -303,9 +264,13 @@ class LOSDG19(LOSBase):
 		r_max = self.los_parameters['r_max']
 		# Units of Mpc
 		r_min = self.los_parameters['r_min']
+		# Units of M_sun
+		m_min = self.los_parameters['m_min']
+		# Units of M_sun
+		m_max = self.los_parameters['m_max']
 		# Get the parameters of the power law fit to the Sheth Tormen mass
 		# function
-		pl_slope, pl_norm = self.power_law_dn_dm(z)
+		pl_slope, pl_norm = self.power_law_dn_dm(z,m_min,m_max)
 
 		# Scale the norm by the total volume and the two point correlation.
 		dV = self.volume_element(z,z_lens,z_source,dz,cone_angle)
@@ -315,6 +280,39 @@ class LOSDG19(LOSBase):
 		# Draw from our power law and return the masses.
 		masses = power_law.power_law_draw(m_min,m_max,pl_slope,pl_norm)
 		return masses
+
+	def sample_los_pos(self,z,n_los):
+		"""Draws the positions for the line of sight substructure at the given
+		redshift.
+
+		Args:
+			z (float): The redshift to place the los halos at.
+			n_los (int): The number of los halos to draw position for
+
+		Returns:
+			(np.array): A n_los x 2 array giving the x,y position of the
+			line of sight structure in units of kpc.
+		"""
+		# Pull the parameters we need from the input dictionaries
+		# Units of M_sun
+		z_lens = self.main_deflector_parameters['z_lens']
+		z_source = self.source_parameters['z_source']
+		dz = self.los_parameters['dz']
+		# Units of arcsecond
+		cone_angle = self.los_parameters['cone_angle']
+
+		r_los = self.cone_angle_to_radius(z+dz/2,z_lens,z_source,cone_angle)
+		# Draw the radii of the los halos.
+		r_draws = r_los*np.sqrt(np.random.rand(n_los))
+		theta = 2*np.pi*np.random.rand(n_los)
+
+		# Create an array for the coordinates
+		cart_pos = np.zeros((n_los,2))
+
+		cart_pos[:,0] = r_draws * np.cos(theta)
+		cart_pos[:,1] = r_draws * np.sin(theta)
+
+		return cart_pos
 
 	def draw_los(self):
 		"""Draws masses, concentrations,and positions for the los substructure
@@ -336,9 +334,13 @@ class LOSDG19(LOSBase):
 		los_kwargs_list = []
 		los_z_list = []
 
+		# Pull the paramters we need
+		z_min = self.los_parameters['z_min']
+		z_source = self.source_parameters['z_source']
+		dz = self.los_parameters['dz']
+
 		# Add halos from the starting reshift to the source redshift.
-		z_range = np.arange(self.los_parameters['z_min'],
-			self.source_parameters['z_source'],self.los_parameters['dz'])
+		z_range = np.arange(z_min,z_source,dz)
 		# Round the z_range to improve caching hits.
 		z_range = list(np.round(z_range,2))
 
@@ -351,12 +353,12 @@ class LOSDG19(LOSBase):
 			# Convert the mass and positions to lenstronomy models
 			# and kwargs and append to our lists.
 			model_list, kwargs_list = self.convert_to_lenstronomy(
-				z_masses,z_cart_pos)
+				z,z_masses,z_cart_pos)
 			los_model_list += model_list
 			los_kwargs_list += kwargs_list
 
 			# TODO - correction for average line of sight
 
-			los_z_list += [z]*len(model_list)
+			los_z_list += [z+dz/2]*len(model_list)
 
 		return (los_model_list, los_kwargs_list, los_z_list)

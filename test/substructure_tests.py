@@ -534,29 +534,9 @@ class LOSDG19Tests(unittest.TestCase):
 		m = np.logspace(6,10,100)
 		z=0.1
 		dn_dm = self.ld.dn_dm(m,z)
-		slope, norm = self.ld.power_law_dn_dm(z)
+		slope, norm = self.ld.power_law_dn_dm(z,1e6,1e10)
 		y = norm*m**slope
 		np.testing.assert_almost_equal(dn_dm/y,y/y,decimal=1)
-
-	def test_update_parameters(self):
-		# Test that updating the parameters updates the cache
-		z = 0.1
-		slope, norm = self.ld.power_law_dn_dm(z)
-
-		los_parameters = {'m_min':1e6, 'm_max':1e9,'z_min':0.01,
-			'dz':0.01}
-
-		# Make sure that manual change does nothing to caching
-		self.ld.los_parameters['m_max'] = 1e8
-		slope_new, norm_new = self.ld.power_law_dn_dm(z)
-		self.assertEqual(slope,slope_new)
-		self.assertEqual(norm,norm_new)
-
-		# Make sure using the function does work
-		self.ld.update_parameters(los_parameters=los_parameters)
-		slope_new, norm_new = self.ld.power_law_dn_dm(z)
-		self.assertNotEqual(slope,slope_new)
-		self.assertNotEqual(norm,norm_new)
 
 	def test_two_halo_boost(self):
 		# Make sure that the two_halo_boost term agrees with some analytical
@@ -678,16 +658,62 @@ class LOSDG19Tests(unittest.TestCase):
 	def test_draw_nfw_masses(self):
 		# Check that the number of masses drawn behave according to the
 		# expectation for the power law.
-		z_range = np.arange(0.01,self.source_parameters['z_source'],0.01)
-		masses = []
-		import time
-		start = time.time()
-		for z in z_range:
-			masses.extend(list(self.ld.draw_nfw_masses(z)))
-		print(time.time()-start)
-		masses=[]
-		start = time.time()
-		for z in z_range:
-			masses.extend(list(self.ld.draw_nfw_masses(z)))
-		print(time.time()-start)
-		print(len(masses))
+		z = 0.1
+
+		# Manually calculate the expected counts
+		pl_slope, pl_norm = self.ld.power_law_dn_dm(z)
+		dV = self.ld.volume_element(z,self.main_deflector_parameters['z_lens'],
+			self.source_parameters['z_source'],self.los_parameters['dz'],
+			self.los_parameters['cone_angle'])
+		power_law_norm = power_law.power_law_integrate(
+			self.los_parameters['m_min'],self.los_parameters['m_max'],pl_slope)
+		n_expected = pl_norm*dV*power_law_norm
+		n_loops = 1000
+		total = 0
+		for _ in range(n_loops):
+			total += len(self.ld.draw_nfw_masses(z))
+		self.assertAlmostEqual(total//n_loops,np.round(n_expected))
+
+		z = 0.5
+		pl_slope, pl_norm = self.ld.power_law_dn_dm(z)
+		dV = self.ld.volume_element(z,self.main_deflector_parameters['z_lens'],
+			self.source_parameters['z_source'],self.los_parameters['dz'],
+			self.los_parameters['cone_angle'])
+		power_law_norm = power_law.power_law_integrate(
+			self.los_parameters['m_min'],self.los_parameters['m_max'],pl_slope)
+		halo_boost = self.ld.two_halo_boost(z,
+			self.main_deflector_parameters['z_lens'],self.los_parameters['dz'],
+			self.main_deflector_parameters['M200'],self.los_parameters['r_max'],
+			self.los_parameters['r_min'])
+		n_expected = pl_norm*dV*power_law_norm*halo_boost
+		n_loops = 100
+		total = 0
+		for _ in range(n_loops):
+			total += len(self.ld.draw_nfw_masses(z))
+		self.assertAlmostEqual(np.round(total/n_loops),np.round(n_expected))
+
+	def test_sample_los_pos(self):
+		# Test that the positions for the los halos are within the los cone.
+		z = 0.1
+		n_los = int(1e6)
+
+		cart_pos = self.ld.sample_los_pos(z,n_los)
+		r_los = self.ld.cone_angle_to_radius(z+self.los_parameters['dz']/2,
+			self.main_deflector_parameters['z_lens'],
+			self.source_parameters['z_source'],
+			self.los_parameters['cone_angle'])
+
+		# Check the angle distribution
+		angles = np.arctan(cart_pos[:,1]/cart_pos[:,0])
+		self.assertAlmostEqual(np.mean(angles<0),np.mean(angles>0),places=2)
+
+		# Make sure that within a square they are uniformly distributed
+		d_max = np.sqrt(2)*r_los
+		xwhere = np.abs(cart_pos[:,0]) < d_max/2
+		ywhere = np.abs(cart_pos[:,1]) < d_max/2
+		where = xwhere * ywhere
+		cart_pos = cart_pos[where]
+		self.assertAlmostEqual(np.mean(cart_pos[:,0]<0),
+			np.mean(cart_pos[:,0]>0),places=2)
+		self.assertAlmostEqual(np.mean(cart_pos[:,1]<0),
+			np.mean(cart_pos[:,1]>0),places=2)

@@ -71,12 +71,6 @@ class LOSBase():
 				colossus cosmology, an instance of colussus cosmology, or a
 				dict with H0 and Om0 ( other parameters will be set to
 				defaults).
-
-		Notes:
-			Use this function to update parameter values instead of
-			starting a new class. This function will preserve the cache if
-			the parameters being changed to not affect the cache, and
-			therefore will offer enormous improvements in performance.
 		"""
 		if los_parameters is not None:
 			self.los_parameters = copy.copy(los_parameters)
