@@ -32,14 +32,15 @@ def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
 	x_tidal = r_tidal / r_scale
 	x_upper = r_upper / r_scale
 
-	# Get the value of the NFW in the core region
-	uniform_value = rho_nfw/(x_tidal*(1+x_tidal)**2)
+	# Get the value of the NFW in the core region such that at x_tidal we
+	# match the nfw profile
+	linear_scaling = rho_nfw/(x_tidal*(1+x_tidal)**2)/r_tidal**2
 
 	# Array to save the integral outputs to
 	integral_values = np.zeros(r_upper.shape)
 
 	# Add the cored component
-	integral_values += uniform_value * np.minimum(r_tidal,r_upper)
+	integral_values += 1.0/3.0*linear_scaling * np.minimum(r_tidal,r_upper)**3
 
 	# Add the nfw component where x_upper > x_tidal
 	lower_bound = 1/(x_tidal+1) + np.log(x_tidal) - np.log(x_tidal+1)

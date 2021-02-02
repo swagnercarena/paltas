@@ -35,7 +35,7 @@ class NFWFunctionsTests(unittest.TestCase):
 		def cored_nfw_func(r,r_tidal,rho_nfw,r_scale):
 			if r<r_tidal:
 				x_tidal = r_tidal/r_scale
-				return rho_nfw/(x_tidal*(1+x_tidal)**2)
+				return rho_nfw/(x_tidal*(1+x_tidal)**2)*r**2/r_tidal**2
 			else:
 				x = r/r_scale
 				return rho_nfw/(x*(1+x)**2)
@@ -50,7 +50,7 @@ class NFWFunctionsTests(unittest.TestCase):
 		r_scale = 2
 		rho_nfw = 1.5
 		r_max = 4
-		n_subs = int(1e5)
+		n_subs = int(2e5)
 		r_draws = nfw_functions.cored_nfw_draws(r_tidal,rho_nfw,r_scale,
 			r_max,n_subs)
 
@@ -62,6 +62,24 @@ class NFWFunctionsTests(unittest.TestCase):
 		for i in range(n_test_points):
 			self.assertAlmostEqual(np.mean(r_draws<r_test[i]),
 				analytic_integral[i]/np.max(analytic_integral),places=2)
+
+		# Make sure that within a square they are uniformly distributed
+		cart_pos = np.zeros((n_subs,3))
+		theta = np.random.rand(n_subs) * 2 * np.pi
+		phi = np.arccos(1-2*np.random.rand(n_subs))
+		cart_pos[:,0] += r_draws*np.sin(phi)*np.cos(theta)
+		cart_pos[:,1] += r_draws*np.sin(phi)*np.sin(theta)
+		cart_pos[:,2] += r_draws*np.cos(phi)
+
+		d_max = np.sqrt(2)*r_tidal
+		xwhere = np.abs(cart_pos[:,0]) < d_max/2
+		ywhere = np.abs(cart_pos[:,1]) < d_max/2
+		zwhere = np.abs(cart_pos[:,2]) < d_max/2
+		where = xwhere * ywhere * zwhere
+		cart_pos = cart_pos[where]
+		for i in range(3):
+			self.assertAlmostEqual(2*np.mean(cart_pos[:,i]<-d_max/4),
+				np.mean(cart_pos[:,i]>0),places=1)
 
 	def test_r_200_from_m(self):
 		# Compare the calculation from our function to the colossus output
@@ -229,7 +247,7 @@ class SubhalosDG19Tests(unittest.TestCase):
 			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.0, 'distribution':'DG_19'}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
-			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
+			'theta_E':2.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
 		self.cosmology_parameters = {'cosmology_name': 'planck18'}
 		self.sd = SubhalosDG19(self.subhalo_parameters,
@@ -284,6 +302,7 @@ class SubhalosDG19Tests(unittest.TestCase):
 		# Now just give some parameters for an HE0435-1223 galaxy and make sure
 		# what we return is reasonable as a sanity check on units.
 		self.sd.subhalo_parameters['sigma_sub'] = 4e-2
+		self.sd.main_deflector_parameters['theta_E'] = 0.38
 		total_subs = 0
 		for _ in range(n_loops):
 			masses = self.sd.draw_nfw_masses()
@@ -367,13 +386,12 @@ class SubhalosDG19Tests(unittest.TestCase):
 		self.assertEqual(np.sum(cart_pos==0),0)
 
 		# We can't check against an analytic distribution, but we can
-		# check that the likelihood of the radius decreases with increase
-		# radius
+		# check that the likelihood of the radius roughly follows our
+		# expectations.
 		r_vals = np.sqrt(np.sum(cart_pos**2,axis=-1))
 		r_bins, _ = np.histogram(r_vals,bins=100)
-		self.assertGreater(r_bins[0],r_bins[5])
+		self.assertLess(r_bins[0],r_bins[2])
 		self.assertGreater(r_bins[5],r_bins[-1])
-		self.assertGreater(r_bins[0],r_bins[2])
 
 	def test_get_truncation_radius(self):
 		# Test that the returned radius agrees with some precomputed values
@@ -567,7 +585,7 @@ class LOSDG19Tests(unittest.TestCase):
 		r_cmv = -self.cosmo.comovingDistance(z_range,z_lens)
 		r_cmv = r_cmv[r_cmv>r_min*self.cosmo.h]
 		xi_halo = self.cosmo.correlationFunction(r_cmv,z_lens)
-		xi_halo *= bias.haloBias(lens_m200,z_lens,mdef='200c',
+		xi_halo *= bias.haloBias(lens_m200*self.cosmo.h,z_lens,mdef='200c',
 			model='tinker10')
 		self.assertEqual(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,r_max,
 			r_min,n_quads=n_quads),1+np.mean(xi_halo))
@@ -579,7 +597,7 @@ class LOSDG19Tests(unittest.TestCase):
 		r_cmv[z_range>z_lens] *= -1
 		r_cmv = r_cmv[r_cmv>r_min*self.cosmo.h]
 		xi_halo = self.cosmo.correlationFunction(r_cmv,z_lens)
-		xi_halo *= bias.haloBias(lens_m200,z_lens,mdef='200c',
+		xi_halo *= bias.haloBias(lens_m200*self.cosmo.h,z_lens,mdef='200c',
 			model='tinker10')
 		self.assertEqual(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,r_max,
 			r_min,n_quads=n_quads),1+np.mean(xi_halo))
@@ -661,7 +679,8 @@ class LOSDG19Tests(unittest.TestCase):
 		z = 0.1
 
 		# Manually calculate the expected counts
-		pl_slope, pl_norm = self.ld.power_law_dn_dm(z)
+		pl_slope, pl_norm = self.ld.power_law_dn_dm(z,
+			self.los_parameters['m_min'],self.los_parameters['m_max'])
 		dV = self.ld.volume_element(z,self.main_deflector_parameters['z_lens'],
 			self.source_parameters['z_source'],self.los_parameters['dz'],
 			self.los_parameters['cone_angle'])
@@ -672,10 +691,12 @@ class LOSDG19Tests(unittest.TestCase):
 		total = 0
 		for _ in range(n_loops):
 			total += len(self.ld.draw_nfw_masses(z))
-		self.assertAlmostEqual(total//n_loops,np.round(n_expected))
+		self.assertAlmostEqual(np.round(total/n_loops),np.round(n_expected))
 
 		z = 0.5
-		pl_slope, pl_norm = self.ld.power_law_dn_dm(z)
+		pl_slope, pl_norm = self.ld.power_law_dn_dm(
+			z+self.los_parameters['dz']/2,
+			self.los_parameters['m_min'],self.los_parameters['m_max'])
 		dV = self.ld.volume_element(z,self.main_deflector_parameters['z_lens'],
 			self.source_parameters['z_source'],self.los_parameters['dz'],
 			self.los_parameters['cone_angle'])
@@ -686,7 +707,7 @@ class LOSDG19Tests(unittest.TestCase):
 			self.main_deflector_parameters['M200'],self.los_parameters['r_max'],
 			self.los_parameters['r_min'])
 		n_expected = pl_norm*dV*power_law_norm*halo_boost
-		n_loops = 100
+		n_loops = 1000
 		total = 0
 		for _ in range(n_loops):
 			total += len(self.ld.draw_nfw_masses(z))
@@ -713,7 +734,7 @@ class LOSDG19Tests(unittest.TestCase):
 		ywhere = np.abs(cart_pos[:,1]) < d_max/2
 		where = xwhere * ywhere
 		cart_pos = cart_pos[where]
-		self.assertAlmostEqual(np.mean(cart_pos[:,0]<0),
+		self.assertAlmostEqual(2*np.mean(cart_pos[:,0]<-d_max/4),
 			np.mean(cart_pos[:,0]>0),places=2)
-		self.assertAlmostEqual(np.mean(cart_pos[:,1]<0),
+		self.assertAlmostEqual(2*np.mean(cart_pos[:,1]<-d_max/4),
 			np.mean(cart_pos[:,1]>0),places=2)

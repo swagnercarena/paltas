@@ -170,7 +170,7 @@ class SubhalosDG19(SubhalosBase):
 		"""
 		# Sample theta and phi values for all of the radii samples
 		theta = np.random.rand(len(r_samps)) * 2 * np.pi
-		phi = np.random.rand(len(r_samps))*np.pi
+		phi = np.arccos(1-2*np.random.rand(len(r_samps)))
 
 		# Initialize the x,y,z array
 		cart_pos = np.zeros(r_samps.shape+(3,))
@@ -208,6 +208,7 @@ class SubhalosDG19(SubhalosBase):
 		# Create an array that will store our coordinates
 		cart_pos = np.zeros((n_subs,3))
 
+		# Calculate the needed host properties
 		host_m200 = self.main_deflector_parameters['M200']
 		z_lens = self.main_deflector_parameters['z_lens']
 		host_c = self.mass_concentration(z_lens,host_m200)

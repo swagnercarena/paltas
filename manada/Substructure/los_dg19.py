@@ -270,7 +270,7 @@ class LOSDG19(LOSBase):
 		m_max = self.los_parameters['m_max']
 		# Get the parameters of the power law fit to the Sheth Tormen mass
 		# function
-		pl_slope, pl_norm = self.power_law_dn_dm(z,m_min,m_max)
+		pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
 
 		# Scale the norm by the total volume and the two point correlation.
 		dV = self.volume_element(z,z_lens,z_source,dz,cone_angle)
