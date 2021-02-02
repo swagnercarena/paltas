@@ -278,18 +278,10 @@ class SubhalosDG19(SubhalosBase):
 		for lenstronomy
 
 		Args:
-			subhalo_parameters (dict): A dictionary containing the type of
-				subhalo distribution and the value for each of its parameters.
-			main_deflector_parameters (dict): A dictionary containing the type
-				of main deflector and the value for each of its parameters.
-			source_parameters (dict): A dictionary containing the type of the
-				source and the value for each of its parameters.
-			cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
-				colossus cosmology object.
 			subhalo_masses (np.array): The masses of each of the subhalos that
-				was drawn
-			subhalo_cart_pos (np.array): A n_subs x 3D array of the subhalos
-				that was drawn
+				were drawn
+			subhalo_cart_pos (np.array): A n_subs x 3D array of the positions
+				of the subhalos that were drawn
 		Returns:
 			([string,...],[dict,...]): A tuple containing the list of models
 			and the list of kwargs for the truncated NFWs.
@@ -319,7 +311,7 @@ class SubhalosDG19(SubhalosBase):
 
 		# Convert to lenstronomy units
 		sub_r_scale_ang, alpha_Rs, sub_r_trunc_ang = (
-			nfw_functions.convert_to_lenstronomy_NFW(
+			nfw_functions.convert_to_lenstronomy_tNFW(
 				sub_r_scale,subhalo_z,sub_rho_nfw,sub_r_trunc,z_source,
 				self.cosmo))
 		kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z_lens,
@@ -364,6 +356,12 @@ class SubhalosDG19(SubhalosBase):
 		# For these NFWs we need positions, masses, and concentrations that
 		# we will then translate to Lenstronomy parameters.
 		subhalo_masses = self.draw_nfw_masses()
+
+		# It is possible for there to be no subhalos. In that regime
+		# just return empty lists
+		if subhalo_masses.size == 0:
+			return (subhalo_model_list, subhalo_kwargs_list, [])
+
 		subhalo_cart_pos = self.sample_cored_nfw(len(subhalo_masses))
 		model_list, kwargs_list = self.convert_to_lenstronomy(
 			subhalo_masses,subhalo_cart_pos)

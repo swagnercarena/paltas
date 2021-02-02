@@ -133,6 +133,37 @@ class NFWFunctionsTests(unittest.TestCase):
 		cosmo = cosmology.setCosmology('planck18')
 		cosmo_astropy = cosmo.toAstropy()
 		# Our calculations are always at z=0.
+		n_samps = 100
+		z_halo = np.linspace(0.2,1.2,n_samps)
+		z_source = 1.5
+		m_200 = np.logspace(8,9,n_samps)
+		c = np.linspace(4,5,n_samps)
+
+		# Do the vectorized calculation using our code
+		r_scale = nfw_functions.r_200_from_m(m_200,z_halo,cosmo)/c
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,r_scale=r_scale)
+		r_scale_angle, alpha_rs = nfw_functions.convert_to_lenstronomy_NFW(
+			r_scale,z_halo,rho_nfw,z_source,cosmo)
+
+		# Do the physical calculation in lenstronomy
+		for i in range(n_samps):
+			lens_cosmo = LensCosmo(z_lens=z_halo[i], z_source=z_source,
+				cosmo=cosmo_astropy)
+			rho0, Rs, r200 = lens_cosmo.nfwParam_physical(M=m_200[i], c=c[i])
+			rs_angle_ls, alpha_rs_ls = lens_cosmo.nfw_physical2angle(M=m_200[i],
+				c=c[i])
+
+			mpc_2_kpc = 1e3
+			self.assertAlmostEqual(r_scale[i],Rs*mpc_2_kpc)
+			self.assertAlmostEqual(rho_nfw[i]/(rho0/(mpc_2_kpc**3)),1)
+			self.assertAlmostEqual(r_scale_angle[i],rs_angle_ls,places=2)
+			self.assertAlmostEqual(alpha_rs[i],alpha_rs_ls)
+
+	def test_convert_to_lenstronomy_tNFW(self):
+		# Compare the values we return to those returned by lenstronomy
+		cosmo = cosmology.setCosmology('planck18')
+		cosmo_astropy = cosmo.toAstropy()
+		# Our calculations are always at z=0.
 		z_lens = 0.2
 		z_source = 1.5
 		lens_cosmo = LensCosmo(z_lens=z_lens, z_source=z_source,
@@ -149,7 +180,7 @@ class NFWFunctionsTests(unittest.TestCase):
 		# Repeat for the angular calculations
 		rs_angle_ls, alpha_rs_ls = lens_cosmo.nfw_physical2angle(M=m_200,c=c)
 		r_scale_angle, alpha_rs, r_trunc_ang = (
-			nfw_functions.convert_to_lenstronomy_NFW(r_scale,z_lens,rho_nfw,
+			nfw_functions.convert_to_lenstronomy_tNFW(r_scale,z_lens,rho_nfw,
 			r_trunc,z_source,cosmo))
 
 		mpc_2_kpc = 1e3
@@ -420,6 +451,14 @@ class SubhalosDG19Tests(unittest.TestCase):
 
 		self.assertListEqual(subhalo_z_list,[0.5]*len(subhalo_model_list))
 
+		# Check that things still work in the limit of no substructure
+		self.sd.subhalo_parameters['sigma_sub'] = 1e-9
+		subhalo_model_list, subhalo_kwargs_list, subhalo_z_list = (
+			self.sd.draw_subhalos())
+		self.assertEqual(len(subhalo_model_list),0)
+		self.assertEqual(len(subhalo_kwargs_list),0)
+		self.assertEqual(len(subhalo_z_list),0)
+
 
 class LOSBaseTests(unittest.TestCase):
 
@@ -481,7 +520,9 @@ class LOSDG19Tests(unittest.TestCase):
 		np.random.seed(10)
 
 		self.los_parameters = {'m_min':1e6, 'm_max':1e10,'z_min':0.01,
-			'dz':0.01,'cone_angle':4.0,'r_min':0.5,'r_max':10.0}
+			'dz':0.01,'cone_angle':4.0,'r_min':0.5,'r_max':10.0,'c_0':18,
+			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'dex_scatter': 0.0}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
@@ -738,3 +779,71 @@ class LOSDG19Tests(unittest.TestCase):
 			np.mean(cart_pos[:,0]>0),places=2)
 		self.assertAlmostEqual(2*np.mean(cart_pos[:,1]<-d_max/4),
 			np.mean(cart_pos[:,1]>0),places=2)
+
+	def test_mass_concentration(self):
+		# Confirm that the concentrations drawn follows expectations
+		n_haloes = 10000
+		z = np.ones(n_haloes)*0.2
+		m_200 = np.logspace(6,10,n_haloes)
+		concentrations = self.ld.mass_concentration(z,m_200)
+
+		h = self.cosmo.h
+		peak_heights = peaks.peakHeight(m_200*h,z)
+		peak_heights_ref = peaks.peakHeight(1e8*h,0)
+		np.testing.assert_almost_equal(concentrations,18*1.2**(-0.2)*(
+			peak_heights/peak_heights_ref)**(-0.8))
+
+		# Test that scatter works as desired
+		self.ld.los_parameters['dex_scatter'] = 0.1
+		m_200 = np.logspace(6,10,n_haloes)
+		concentrations = self.ld.mass_concentration(z,m_200)
+		scatter = np.log10(concentrations) - np.log10(18*1.2**(-0.2)*(
+			peak_heights/peak_heights_ref)**(-0.8))
+		self.assertAlmostEqual(np.std(scatter),
+			self.ld.los_parameters['dex_scatter'],places=2)
+		self.assertAlmostEqual(np.mean(scatter),0.0,places=2)
+
+		# Check that things don't crash if you pass in a float for the
+		# mass
+		z = 0.2
+		m_200 =1e9
+		concentrations = self.ld.mass_concentration(z,m_200)
+
+	def test_convert_to_lenstronomy(self):
+		# Test that the lenstronomy parameters returned match our
+		# expectation
+		z = 0.02
+		n_halos = 1000
+		z_masses = 10**(np.random.rand(n_halos)*4+6)
+		z_cart_pos = np.random.rand(n_halos*2).reshape((-1,2))
+
+		kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,self.cosmo)
+		z_cart_ang = z_cart_pos / np.expand_dims(kpc_per_arcsecond,axis=-1)
+
+		model_list, kwargs_list = self.ld.convert_to_lenstronomy(z,z_masses,
+			z_cart_pos)
+
+		self.assertEqual(len(model_list),n_halos)
+		self.assertEqual(len(kwargs_list),n_halos)
+
+		for i, model in enumerate(model_list):
+			self.assertEqual(model,'NFW')
+			self.assertAlmostEqual(kwargs_list[i]['center_x'],z_cart_ang[i,0])
+			self.assertAlmostEqual(kwargs_list[i]['center_y'],z_cart_ang[i,1])
+
+	def test_draw_los(self):
+		# Check that the draw returns parameters that can be passsed
+		# into lenstronomy. This will also test convert_to_lenstronomy.
+		los_model_list, los_kwargs_list, los_z_list = (
+			self.ld.draw_los())
+
+		for model in los_model_list:
+			self.assertEqual(model,'NFW')
+
+		required_keys = ['alpha_Rs','Rs','center_x','center_y']
+		for kwargs in los_kwargs_list:
+			self.assertTrue(all(elem in kwargs.keys() for
+				elem in required_keys))
+
+		self.assertGreater(np.min(los_z_list),self.los_parameters['z_min'])
+		self.assertLess(np.max(los_z_list),self.source_parameters['z_source'])

@@ -12,11 +12,12 @@ import numpy as np
 from colossus.lss import peaks, bias
 from ..Utils import power_law, cosmology_utils
 import functools
+from . import nfw_functions
 
 # Define the parameters we expect to find for the DG_19 model
 # TODO Fill this once we have all the parameters
 draw_nfw_masses_DG_19_parameters = ['m_min','m_max','z_min','dz','cone_angle',
-	'r_max','r_min']
+	'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter']
 
 
 class LOSDG19(LOSBase):
@@ -314,6 +315,86 @@ class LOSDG19(LOSBase):
 
 		return cart_pos
 
+	def mass_concentration(self,z,m_200):
+		"""Returns the concentration of halos at a certain mass given the
+		parameterization of DG_19.
+
+		Args:
+			z (float): The redshift of the nfw halos
+			m_200 (np.array): array of M_200 of the nfw halo units of M_sun
+
+		Returns:
+			(np.array): The concentration for each halo.
+		"""
+		# Get the concentration parameters
+		c_0 = self.los_parameters['c_0']
+		xi = self.los_parameters['conc_xi']
+		beta = self.los_parameters['conc_beta']
+		m_ref = self.los_parameters['conc_m_ref']
+		dex_scatter = self.los_parameters['dex_scatter']
+
+		# The peak calculation is done by colossus. The cosmology must have
+		# already been set. Note these functions expect M_sun/h units (which
+		# you get by multiplying by h
+		# https://www.astro.ljmu.ac.uk/~ikb/research/h-units.html)
+		h = self.cosmo.h
+		peak_heights = peaks.peakHeight(m_200*h,z)
+		peak_height_ref = peaks.peakHeight(m_ref*h,0)
+
+		# Now get the concentrations and add scatter
+		concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(
+			-beta)
+		if isinstance(concentrations,np.ndarray):
+			conc_scatter = np.random.randn(len(concentrations))*dex_scatter
+		elif isinstance(concentrations,float):
+			conc_scatter = np.random.randn()*dex_scatter
+		concentrations = 10**(np.log10(concentrations)+conc_scatter)
+
+		return concentrations
+
+	def convert_to_lenstronomy(self,z,z_masses,z_cart_pos):
+		"""Converts the subhalo masses and position to truncated NFW profiles
+		for lenstronomy
+
+		Args:
+			z (float): The redshift for each of the halos
+			z_masses (np.array): The masses of each of the halos that
+				were drawn
+			z_cart_pos (np.array): A n_los x 2D array of the position of the
+				halos that were drawn
+		Returns:
+			([string,...],[dict,...]): A tuple containing the list of models
+			and the list of kwargs for the truncated NFWs.
+		"""
+		z_source = self.source_parameters['z_source']
+		# First, draw a concentration for all our LOS structure from our mass
+		# concentration relation
+		concentration = self.mass_concentration(z,z_masses)
+
+		# Now convert our mass and concentration into the lenstronomy
+		# parameters
+		z_r_200 = nfw_functions.r_200_from_m(z_masses,z,self.cosmo)
+		z_r_scale = z_r_200/concentration
+		z_rho_nfw = nfw_functions.rho_nfw_from_m_c(z_masses,concentration,
+			self.cosmo,r_scale=z_r_scale)
+
+		# Convert to lenstronomy units
+		z_r_scale_ang, alpha_Rs = nfw_functions.convert_to_lenstronomy_NFW(
+			z_r_scale,z,z_rho_nfw,z_source,self.cosmo)
+		kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,self.cosmo)
+		cart_pos_ang = z_cart_pos / np.expand_dims(kpc_per_arcsecond,-1)
+
+		# Populate the parameters for each lens
+		model_list = []
+		kwargs_list = []
+
+		for i in range(len(z_masses)):
+			model_list.append('NFW')
+			kwargs_list.append({'alpha_Rs':alpha_Rs[i], 'Rs':z_r_scale_ang[i],
+				'center_x':cart_pos_ang[i,0],'center_y':cart_pos_ang[i,1]})
+
+		return (model_list,kwargs_list)
+
 	def draw_los(self):
 		"""Draws masses, concentrations,and positions for the los substructure
 		of a main lens halo.
@@ -349,6 +430,9 @@ class LOSDG19(LOSBase):
 			# Draw the masses and positions at this redshift from our
 			# model
 			z_masses = self.draw_nfw_masses(z)
+			# Don't add anything to the model if no masses were drawn
+			if z_masses.size == 0:
+				continue
 			z_cart_pos = self.sample_los_pos(z,len(z_masses))
 			# Convert the mass and positions to lenstronomy models
 			# and kwargs and append to our lists.
