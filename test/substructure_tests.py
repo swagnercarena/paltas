@@ -114,6 +114,23 @@ class NFWFunctionsTests(unittest.TestCase):
 
 		np.testing.assert_almost_equal(rho_nfw,rhos*h**2)
 
+	def test_m_c_from_rho_r_scale(self):
+		# Just test that the inverse works well
+		cosmo = cosmology.setCosmology('planck18')
+		n_samps = 100
+		m_200 = np.logspace(7,10,n_samps)
+		c = np.linspace(1,40,n_samps)
+		z_lens = 1.2
+
+		r200 = nfw_functions.r_200_from_m(m_200,z_lens,cosmo)
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,z=z_lens)
+
+		m_inv,c_inv = nfw_functions.m_c_from_rho_r_scale(rho_nfw,r200/c,cosmo,
+			z_lens)
+
+		np.testing.assert_almost_equal(m_200/m_inv,1,decimal=2)
+		np.testing.assert_almost_equal(c,c_inv,decimal=2)
+
 	def test_calculate_sigma_crit(self):
 		# Check that the sigma_crit calculation agrees with
 		# lenstronomy
@@ -159,6 +176,28 @@ class NFWFunctionsTests(unittest.TestCase):
 			self.assertAlmostEqual(r_scale_angle[i],rs_angle_ls,places=2)
 			self.assertAlmostEqual(alpha_rs[i],alpha_rs_ls)
 
+	def test_convert_from_lenstronomy_NFW(self):
+		# Just make sure this is a valid inverse transform
+		cosmo = cosmology.setCosmology('planck18')
+		# Our calculations are always at z=0.
+		n_samps = 100
+		z_halo = np.linspace(0.2,1.2,n_samps)
+		z_source = 1.5
+		m_200 = np.logspace(8,9,n_samps)
+		c = np.linspace(4,5,n_samps)
+
+		# Do the vectorized calculation using our code
+		r_scale = nfw_functions.r_200_from_m(m_200,z_halo,cosmo)/c
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,r_scale=r_scale)
+		r_scale_angle, alpha_rs = nfw_functions.convert_to_lenstronomy_NFW(
+			r_scale,z_halo,rho_nfw,z_source,cosmo)
+		r_scale_inv, rho_nfw_inv = (
+			nfw_functions.convert_from_lenstronomy_NFW(r_scale_angle,
+				alpha_rs,z_halo,z_source,cosmo))
+
+		np.testing.assert_almost_equal(r_scale,r_scale_inv)
+		np.testing.assert_almost_equal(rho_nfw,rho_nfw_inv)
+
 	def test_convert_to_lenstronomy_tNFW(self):
 		# Compare the values we return to those returned by lenstronomy
 		cosmo = cosmology.setCosmology('planck18')
@@ -189,6 +228,31 @@ class NFWFunctionsTests(unittest.TestCase):
 		self.assertAlmostEqual(r_scale_angle,rs_angle_ls,places=2)
 		self.assertAlmostEqual(alpha_rs,alpha_rs_ls)
 		self.assertAlmostEqual(r_trunc_ang*r_scale/r_scale_angle,r_trunc)
+
+	def test_convert_from_lenstronomy_tNFW(self):
+		# Just make sure this is a valid inverse transform
+		cosmo = cosmology.setCosmology('planck18')
+		# Our calculations are always at z=0.
+		n_samps = 100
+		z_halo = np.linspace(0.2,1.2,n_samps)
+		z_source = 1.5
+		m_200 = np.logspace(8,9,n_samps)
+		c = np.linspace(4,5,n_samps)
+
+		# Do the vectorized calculation using our code
+		r_scale = nfw_functions.r_200_from_m(m_200,z_halo,cosmo)/c
+		r_trunc = np.ones(r_scale.shape)
+		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,r_scale=r_scale)
+		r_scale_angle, alpha_rs, r_trunc_ang = (
+			nfw_functions.convert_to_lenstronomy_tNFW(r_scale,z_halo,rho_nfw,
+				r_trunc,z_source,cosmo))
+		r_scale_inv, rho_nfw_inv, r_trunc_inv = (
+			nfw_functions.convert_from_lenstronomy_tNFW(r_scale_angle,
+				alpha_rs,r_trunc_ang,z_halo,z_source,cosmo))
+
+		np.testing.assert_almost_equal(r_scale,r_scale_inv)
+		np.testing.assert_almost_equal(rho_nfw,rho_nfw_inv)
+		np.testing.assert_almost_equal(r_trunc,r_trunc_inv)
 
 
 class SubhalosBaseTests(unittest.TestCase):
@@ -642,6 +706,9 @@ class LOSDG19Tests(unittest.TestCase):
 			model='tinker10')
 		self.assertEqual(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,r_max,
 			r_min,n_quads=n_quads),1+np.mean(xi_halo))
+		# Make sure it's boosting
+		self.assertGreater(self.ld.two_halo_boost(z,z_lens,dz,lens_m200,r_max,
+			r_min,n_quads=n_quads),1)
 
 	def test_cone_angle_to_radius(self):
 		# Test that the radius grows and shrinks as expected.
