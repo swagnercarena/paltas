@@ -409,7 +409,8 @@ class SubhalosCatalogTests(unittest.TestCase):
 		# This gets done before each test is run
 		np.random.seed(10)
 
-		self.subhalo_parameters = {'rockstar_path':'fill_this_in', 'm_min':1e8}
+		self.subhalo_parameters = {'rockstar_path':'fill_this_in', 'm_min':1e8,
+			'get_main':True}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
@@ -419,9 +420,11 @@ class SubhalosCatalogTests(unittest.TestCase):
 			self.cosmology_parameters)
 		self.cosmo = self.sc.cosmo
 
-	def test_read_catalog(self):
-		# One sentence descritpion of what you're testing
-		self.assertEqual(self.sc.read_catalog(),2)
+	def test_get_numbers_from_filename(self):
+		# Make sure it gets the number from my filename
+		test_filename = 'hlist_0.52867.list'
+		self.assertEqual(self.sc.get_scale_factor_from_filename(test_filename),
+			0.52867)
 
 
 class LOSBaseTests(unittest.TestCase):
