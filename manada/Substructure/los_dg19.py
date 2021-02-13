@@ -13,6 +13,8 @@ from colossus.lss import peaks, bias
 from ..Utils import power_law, cosmology_utils
 import functools
 from . import nfw_functions
+import lenstronomy.Util.util as util
+from lenstronomy.LensModel.lens_model import LensModel
 
 # Define the parameters we expect to find for the DG_19 model
 # TODO Fill this once we have all the parameters
@@ -178,6 +180,7 @@ class LOSDG19(LOSBase):
 			model='tinker10')
 		return 1+np.mean(xi_halo)
 
+	@functools.lru_cache(maxsize=1024)
 	def cone_angle_to_radius(self,z,z_lens,z_source,cone_angle,
 		angle_buffer=0.8):
 		"""Returns the radius in kpc at the given redshift for the given cone
@@ -213,6 +216,7 @@ class LOSDG19(LOSBase):
 			r_los *= 1 - scal_factor
 		return r_los
 
+	@functools.lru_cache(maxsize=1024)
 	def volume_element(self,z,z_lens,z_source,dz,cone_angle,angle_buffer=0.8):
 		"""Returns the physical volume element at the given redshift
 
@@ -446,3 +450,77 @@ class LOSDG19(LOSBase):
 			los_z_list += [z+dz/2]*len(model_list)
 
 		return (los_model_list, los_kwargs_list, los_z_list)
+
+	def calculate_average_alpha(self,num_pix,pixel_scale,n_draws=1000):
+		""" Calculates the average deflection maps from the los at each
+		redshift specified by the los parameters and returns corresponding
+		lenstronomy objects.
+
+		Args:
+			num_pix (int): The number of pixels to sample for our
+				interpolation maps.
+			pixel_scale (float): The pixel scale in arcseconds.
+			n_draws (int): The number of los draws to average over.
+
+		Returns:
+			(tuple): A tuple of two lists: the first is the interpolation
+			profile type for each redshift slice and the second is the
+			lenstronomy kwargs for that profile.
+
+		Notes:
+			The average los deflection angles of the lenstronomy objects will
+			be the negative of the average (since we want to subtract the
+			average effect not add it).
+		"""
+		# Pull the parameters we need.
+		z_min = self.los_parameters['z_min']
+		z_source = self.source_parameters['z_source']
+		dz = self.los_parameters['dz']
+		z_range = np.arange(z_min,z_source,dz)
+		# Round the z_range to improve caching hits. Add the dz/2 shift that
+		# gets output by draw_los.
+		z_range = list(np.round(z_range,2)+dz/2)
+
+		# Create an array of the deflection maps.
+		a_x_mean = np.zeros((len(z_range),num_pix,num_pix))
+		a_y_mean = np.zeros((len(z_range),num_pix,num_pix))
+		x_grid, y_grid = util.make_grid(numPix=num_pix,
+			deltapix=pixel_scale)
+		x_axes, y_axes = util.get_axes(x_grid, y_grid)
+
+		# Initialize the average variables we'll want to use for the deflection
+		# angle.
+		for n in range(n_draws):
+			los_model_list, los_kwargs_list, los_z_list = self.draw_los()
+			los_z_list = np.array(los_z_list)
+			for zi, z in enumerate(z_range):
+				# Pull the relevant los models
+				los_at_z = (los_z_list == z).nonzero()[0]
+				if los_at_z.size>0:
+					los_model_z = [los_model_list[i] for i in los_at_z]
+					los_kwargs_z = [los_kwargs_list[i] for i in los_at_z]
+
+					# Create the lens model and calculate the deflection
+					# angles
+					los_lm_z = LensModel(los_model_z,z,z_source,
+						cosmo=self.cosmo.toAstropy())
+					a_x, a_y = los_lm_z.alpha(x_grid, y_grid, los_kwargs_z)
+					a_x_mean[zi] += util.array2image(a_x)
+					a_y_mean[zi] += util.array2image(a_y)
+
+		a_x_mean /= n_draws
+		a_y_mean /= n_draws
+
+		interp_model_list = []
+		interp_kwargs_list = []
+		interp_z_list = []
+		# Make the interpol profile object for each redshift slice with
+		# the negative average deflection angle
+		for zi, z in enumerate(z_range):
+			interp_model_list.append('INTERPOL')
+			interp_kwargs_list.append({'grid_interp_x':x_axes,
+				'grid_interp_y':y_axes, 'f_x':-a_x_mean[zi],
+				'f_y':-a_y_mean[zi]})
+			interp_z_list.append(z)
+
+		return (interp_model_list,interp_kwargs_list,interp_z_list)

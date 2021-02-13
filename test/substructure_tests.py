@@ -576,6 +576,11 @@ class LOSBaseTests(unittest.TestCase):
 		with self.assertRaises(NotImplementedError):
 			self.lb.draw_los()
 
+	def test_calculate_average_alpha(self):
+		# Just check that the NotImplementedError is raised
+		with self.assertRaises(NotImplementedError):
+			self.lb.calculate_average_alpha()
+
 
 class LOSDG19Tests(unittest.TestCase):
 
@@ -914,3 +919,13 @@ class LOSDG19Tests(unittest.TestCase):
 
 		self.assertGreater(np.min(los_z_list),self.los_parameters['z_min'])
 		self.assertLess(np.max(los_z_list),self.source_parameters['z_source'])
+
+	def test_calculate_average_alpha(self):
+		# Test that the interpolation class on average ensures
+		# that each sightline has a deflection of 0.
+		# Set the parameters of our alpha calculation
+		num_pix = 64
+		pixel_scale = 0.08
+		n_draws = 1
+		iml, imk, imz = self.ld.calculate_average_alpha(num_pix,pixel_scale,
+			n_draws=n_draws)

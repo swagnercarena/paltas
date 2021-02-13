@@ -92,3 +92,15 @@ class LOSBase():
 			for that halo.
 		"""
 		raise NotImplementedError
+
+	def calculate_average_alpha(self,n_draws=100):
+		""" Calculates the average convergence from the los at each redshift
+		specified by the los parameters and returns corresponding lenstronomy
+		objects.
+
+		Returns:
+			(tuple): A tuple of two lists: the first is the interpolation
+			profile type for each redshift slice and the second is the
+			lenstronomy kwargs for that profile.
+		"""
+		raise NotImplementedError
