@@ -21,7 +21,7 @@ draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
 
 
 class SubhalosDG19(SubhalosBase):
-	""" Base class for rendering the subhalos of a main halo.
+	"""Class for rendering the subhalos of a main halos according to DG19.
 
 	Args:
 		subhalo_parameters (dict): A dictionary containing the type of
@@ -72,8 +72,8 @@ class SubhalosDG19(SubhalosBase):
 		return 10**log_f
 
 	def draw_nfw_masses(self):
-		"""Draws from the https://arxiv.org/pdf/1909.02573.pdf mass function
-		and returns an array of the masses.
+		"""Draws from the https://arxiv.org/pdf/1909.02573.pdf subhalo mass
+		function and returns an array of the masses.
 
 		Returns:
 			(np.array): The masses of the drawn halos in units of M_sun
@@ -93,14 +93,15 @@ class SubhalosDG19(SubhalosBase):
 		m_max = self.subhalo_parameters['m_max']
 		z_lens = self.main_deflector_parameters['z_lens']
 
-		# Calculate the overall norm of the power law. This includes host scaling,
-		# sigma_sub, and the area of interest.
+		# Calculate the overall norm of the power law. This includes host
+		# scaling, sigma_sub, and the area of interest.
 		f_host = self.host_scaling_function(host_m200,z_lens)
 
 		# In DG_19 subhalos are rendered up until 3*theta_E.
-		# Colossus return in MPC per h per radian so must be converted to kpc per
-		# arc second
-		kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z_lens,self.cosmo)
+		# Colossus return in MPC per h per radian so must be converted to kpc
+		# per arc second
+		kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z_lens,
+			self.cosmo)
 		r_E = (kpc_per_arcsecond*self.main_deflector_parameters['theta_E'])
 		dA = np.pi * (3*r_E)**2
 
@@ -139,7 +140,8 @@ class SubhalosDG19(SubhalosBase):
 		peak_height_ref = peaks.peakHeight(m_ref*h,0)
 
 		# Now get the concentrations and add scatter
-		concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(-beta)
+		concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(
+			-beta)
 		if isinstance(concentrations,np.ndarray):
 			conc_scatter = np.random.randn(len(concentrations))*dex_scatter
 		elif isinstance(concentrations,float):
@@ -168,7 +170,7 @@ class SubhalosDG19(SubhalosBase):
 		"""
 		# Sample theta and phi values for all of the radii samples
 		theta = np.random.rand(len(r_samps)) * 2 * np.pi
-		phi = np.random.rand(len(r_samps))*np.pi
+		phi = np.arccos(1-2*np.random.rand(len(r_samps)))
 
 		# Initialize the x,y,z array
 		cart_pos = np.zeros(r_samps.shape+(3,))
@@ -183,7 +185,7 @@ class SubhalosDG19(SubhalosBase):
 		z_inside = np.abs(cart_pos[:,2])<r_200
 		keep = np.logical_and(r2_inside,z_inside)
 
-		return [keep,cart_pos]
+		return (keep,cart_pos)
 
 	def sample_cored_nfw(self,n_subs):
 		"""Given the a tidal radius that defines a core region and the
@@ -206,6 +208,7 @@ class SubhalosDG19(SubhalosBase):
 		# Create an array that will store our coordinates
 		cart_pos = np.zeros((n_subs,3))
 
+		# Calculate the needed host properties
 		host_m200 = self.main_deflector_parameters['M200']
 		z_lens = self.main_deflector_parameters['z_lens']
 		host_c = self.mass_concentration(z_lens,host_m200)
@@ -275,18 +278,10 @@ class SubhalosDG19(SubhalosBase):
 		for lenstronomy
 
 		Args:
-			subhalo_parameters (dict): A dictionary containing the type of
-				subhalo distribution and the value for each of its parameters.
-			main_deflector_parameters (dict): A dictionary containing the type
-				of main deflector and the value for each of its parameters.
-			source_parameters (dict): A dictionary containing the type of the
-				source and the value for each of its parameters.
-			cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
-				colossus cosmology object.
 			subhalo_masses (np.array): The masses of each of the subhalos that
-				was drawn
-			subhalo_cart_pos (np.array): A n_subs x 3D array of the subhalos
-				that was drawn
+				were drawn
+			subhalo_cart_pos (np.array): A n_subs x 3D array of the positions
+				of the subhalos that were drawn
 		Returns:
 			([string,...],[dict,...]): A tuple containing the list of models
 			and the list of kwargs for the truncated NFWs.
@@ -316,7 +311,7 @@ class SubhalosDG19(SubhalosBase):
 
 		# Convert to lenstronomy units
 		sub_r_scale_ang, alpha_Rs, sub_r_trunc_ang = (
-			nfw_functions.convert_to_lenstronomy_NFW(
+			nfw_functions.convert_to_lenstronomy_tNFW(
 				sub_r_scale,subhalo_z,sub_rho_nfw,sub_r_trunc,z_source,
 				self.cosmo))
 		kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z_lens,
@@ -343,9 +338,13 @@ class SubhalosDG19(SubhalosBase):
 		main lens halo.
 
 		Returns:
-			(tuple): A tuple of two lists: the first is the profile type for
-			each subhalo returned and the second is the lenstronomy kwargs for
-			that subhalo.
+			(tuple): A tuple of the lists: the first is the profile type for
+				each subhalo returned, the second is the lenstronomy kwargs for
+				that subhalo, and the third is the redshift for each subhalo.
+		Notes:
+			The redshift for each subhalo is the same as the host, so the
+			returned redshift list is not necessary unless the output is
+			being combined with los substructure.
 		"""
 		# Initialize the lists that will contain our mass profile types and
 		# assosciated kwargs. If no subhalos are drawn, these will remain empty
@@ -357,10 +356,18 @@ class SubhalosDG19(SubhalosBase):
 		# For these NFWs we need positions, masses, and concentrations that
 		# we will then translate to Lenstronomy parameters.
 		subhalo_masses = self.draw_nfw_masses()
+
+		# It is possible for there to be no subhalos. In that regime
+		# just return empty lists
+		if subhalo_masses.size == 0:
+			return (subhalo_model_list, subhalo_kwargs_list, [])
+
 		subhalo_cart_pos = self.sample_cored_nfw(len(subhalo_masses))
 		model_list, kwargs_list = self.convert_to_lenstronomy(
 			subhalo_masses,subhalo_cart_pos)
 		subhalo_model_list += model_list
 		subhalo_kwargs_list += kwargs_list
+		subhalo_z_list = [self.main_deflector_parameters['z_lens']]*len(
+			subhalo_masses)
 
-		return (subhalo_model_list, subhalo_kwargs_list)
+		return (subhalo_model_list, subhalo_kwargs_list, subhalo_z_list)

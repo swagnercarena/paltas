@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-Define the base class to draw subhalos for a lens
+Define the base class to draw line of sight substructure for a lens
 
-This module contains the base class that all the subhalo classes will build
-from. Because the steps for rendering subhalos can vary between different
+This module contains the base class that all the los classes will build
+from. Because the steps for rendering halos can vary between different
 models, the required functions are very sparse.
 """
 from ..Utils.cosmology_utils import get_cosmology
 import copy
 
 
-class SubhalosBase():
-	""" Base class for rendering the subhalos of a main halo.
+class LOSBase():
+	"""Base class for rendering the los of a main halo.
 
 	Args:
-		subhalo_parameters (dict): A dictionary containing the type of
-			subhalo distribution and the value for each of its parameters.
+		los_parameters (dict): A dictionary containing the type of
+			los distribution and the value for each of its parameters.
 		main_deflector_parameters (dict): A dictionary containing the type of
 			main deflector and the value for each of its parameters.
 		source_parameters (dict): A dictionary containing the type of the
@@ -27,11 +27,12 @@ class SubhalosBase():
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 
-	def __init__(self,subhalo_parameters,main_deflector_parameters,
+	def __init__(self,los_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
 
-		# Save the parameters as a copy to avoid user confusion
-		self.subhalo_parameters = copy.copy(subhalo_parameters)
+		# Save the parameters as a copy to avoid any misunderstanding on the
+		# user end.
+		self.los_parameters = copy.copy(los_parameters)
 		self.main_deflector_parameters = copy.copy(main_deflector_parameters)
 		self.source_parameters = copy.copy(source_parameters)
 
@@ -40,18 +41,18 @@ class SubhalosBase():
 
 	def check_parameterization(self,required_params):
 		""" Check that all the required parameters are present in the
-		subhalo_parameters.
+		los_parameters.
 
 		Args:
 			required_params ([str,...]): A list of strings containing the
 				required parameters.
 		"""
-		if not all(elem in self.subhalo_parameters.keys() for
+		if not all(elem in self.los_parameters.keys() for
 			elem in required_params):
 			raise ValueError('Not all of the required parameters for the ' +
 				'parameterization are present.')
 
-	def update_parameters(self,subhalo_parameters=None,
+	def update_parameters(self,los_parameters=None,
 		main_deflector_parameters=None,source_parameters=None,
 		cosmology_parameters=None):
 		"""Updated the class parameters and clears the power_law cache if
@@ -70,13 +71,9 @@ class SubhalosBase():
 				colossus cosmology, an instance of colussus cosmology, or a
 				dict with H0 and Om0 ( other parameters will be set to
 				defaults).
-
-		Notes:
-			Use this function to update parameter values instead of
-			starting a new class.
 		"""
-		if subhalo_parameters is not None:
-			self.subhalo_parameters = copy.copy(subhalo_parameters)
+		if los_parameters is not None:
+			self.los_parameters = copy.copy(los_parameters)
 		if main_deflector_parameters is not None:
 			self.main_deflector_parameters = copy.copy(
 				main_deflector_parameters)
@@ -85,13 +82,25 @@ class SubhalosBase():
 		if cosmology_parameters is not None:
 			self.cosmo = get_cosmology(cosmology_parameters)
 
-	def draw_subhalos(self):
-		"""Draws masses, concentrations,and positions for the subhalos of a
-		main lens halo.
+	def draw_los(self):
+		"""Draws masses, concentrations,and positions for the los substructure
+		of a main lens halo.
 
 		Returns:
-			(tuple): A tuple of the lists: the first is the profile type for
-				each subhalo returned, the second is the lenstronomy kwargs for
-				that subhalo, and the third is the redshift for each subhalo.
+			(tuple): A tuple of two lists: the first is the profile type for
+			each los halo returned and the second is the lenstronomy kwargs
+			for that halo.
+		"""
+		raise NotImplementedError
+
+	def calculate_average_alpha(self,n_draws=100):
+		""" Calculates the average convergence from the los at each redshift
+		specified by the los parameters and returns corresponding lenstronomy
+		objects.
+
+		Returns:
+			(tuple): A tuple of two lists: the first is the interpolation
+			profile type for each redshift slice and the second is the
+			lenstronomy kwargs for that profile.
 		"""
 		raise NotImplementedError

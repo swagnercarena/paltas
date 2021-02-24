@@ -11,10 +11,6 @@ import numba
 from scipy.interpolate import interp1d
 import lenstronomy.Util.constants as const
 
-draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
-	'm_min','m_max','c_0','conc_xi','conc_beta','conc_m_ref',
-	'dex_scatter']
-
 
 @numba.njit()
 def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
@@ -36,14 +32,15 @@ def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
 	x_tidal = r_tidal / r_scale
 	x_upper = r_upper / r_scale
 
-	# Get the value of the NFW in the core region
-	uniform_value = rho_nfw/(x_tidal*(1+x_tidal)**2)
+	# Get the value of the NFW in the core region such that at x_tidal we
+	# match the nfw profile
+	linear_scaling = rho_nfw/(x_tidal*(1+x_tidal)**2)/r_tidal**2
 
 	# Array to save the integral outputs to
 	integral_values = np.zeros(r_upper.shape)
 
 	# Add the cored component
-	integral_values += uniform_value * np.minimum(r_tidal,r_upper)
+	integral_values += 1.0/3.0*linear_scaling * np.minimum(r_tidal,r_upper)**3
 
 	# Add the nfw component where x_upper > x_tidal
 	lower_bound = 1/(x_tidal+1) + np.log(x_tidal) - np.log(x_tidal+1)
@@ -125,6 +122,8 @@ def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None,z=None):
 		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
 			colossus cosmology object.
 		r_scale (float, or np.array): The scale radius in units of kpc
+		z (float, or np.array): The redshift at which to calculate
+			r_200.
 
 	Returns:
 		(float, or np.array): The amplitude for the nfw in units of
@@ -141,6 +140,40 @@ def rho_nfw_from_m_c(m_200,c,cosmo,r_scale=None,z=None):
 	rho_0 = m_200/(4*np.pi*r_scale**3*(np.log(1+c)-c/(1+c)))
 
 	return rho_0
+
+
+def m_c_from_rho_r_scale(rho_nfw,r_scale,cosmo,z):
+	"""Calculates the mass and concentration from the amplitude of the
+	nfw profile and scale radius.
+
+	Args:
+		rho_nfw (np.array): The amplitude of the nfw in units of M_sun/kpc^3
+		r_scale (np.array): The scale radius in units of kpc
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+		z (float): The redshift of the NFW halos.
+
+	Returns:
+		[np.array,...]: A list of 2 np.array objects. This first is the
+		mass and the second the concentration for each NFW.
+	"""
+	# The equations do not have a simple closed form, so we're going to
+	# cheat and interpolate
+	c_eval = np.logspace(-1,2,1000)
+	h = cosmo.h
+	# rho_c is returned in units of M_sun*h^2/kpc^3
+	rho_c = cosmo.rho_c(z)*h**2
+
+	rho_nfw_evals = rho_c*200/3*c_eval**3/(np.log(1+c_eval)-c_eval/(1+c_eval))
+	# Interpolate the inverse
+	inverse_c = interp1d(rho_nfw_evals,c_eval)
+	c = inverse_c(rho_nfw)
+
+	# With the concentration we can get the mass
+	r_200 = r_scale * c
+	m = (4*np.pi*rho_c*200*r_200**3)/3
+
+	return [m,c]
 
 
 def calculate_sigma_crit(z,z_source,cosmo):
@@ -166,13 +199,71 @@ def calculate_sigma_crit(z,z_source,cosmo):
 	return ds / (dd * dds) * norm/mpc2kpc**2
 
 
-def convert_to_lenstronomy_NFW(r_scale,z,rho_nfw,r_trunc,z_source,cosmo):
+def convert_to_lenstronomy_NFW(r_scale,z,rho_nfw,z_source,cosmo):
 	"""Converts physical NFW parameters to parameters used by lenstronomy
 
 	Args:
 		r_scale (np.array): The scale radius of the nfw in units of kpc
 		z (np.array): The redshift of the nfw
-		rho_nfw (np.array): The amplitude of the nfw halos i nunits of
+		rho_nfw (np.array): The amplitude of the nfw halos in units of
+			M_sun/kpc^3
+		z_source (float): The redshift of the source
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+
+	Returns:
+		[np.array,...]: A list of 2 numpy arrays: The angular r_scale and the
+		deflection angle at the scale radius.
+	"""
+	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,cosmo)
+
+	# For two of our parameters we just need to convert to arcseconds
+	r_scale_ang = r_scale/kpc_per_arcsecond
+
+	# For our deflection angle the calculation is a little more involved
+	# and requires knowledge of the source redshift.
+	sigma_crit = calculate_sigma_crit(z,z_source,cosmo)
+	alpha_rs = rho_nfw * (4*r_scale**2*(1+np.log(0.5)))
+	alpha_rs /= kpc_per_arcsecond * sigma_crit
+	return [r_scale_ang, alpha_rs]
+
+
+def convert_from_lenstronomy_NFW(r_scale_ang,alpha_rs,z,z_source,cosmo):
+	"""Converts parameters used by lenstronomy to physical NFW parameters
+
+	Args:
+		r_scale_ang (np.array): The scale radius of the nfw in angular
+			units
+		alpha_rs (np.array): The deflection angle at the scale radius
+		z (np.array): The redshift of the nfw
+		z_source (float): The redshift of the source
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+
+	Returns:
+		[np.array,...]: A list of 2 numpy arrays: The scale radius in kpc
+		and the amplitude of the nfw halo in units of M_sun/kpc^3.
+	"""
+	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,cosmo)
+
+	# For the scale radius we just need to convert from arcseconds
+	r_scale = r_scale_ang * kpc_per_arcsecond
+
+	# Deflection angle to rho_nfw requires sigma_crit and source
+	# position
+	sigma_crit = calculate_sigma_crit(z,z_source,cosmo)
+	rho_nfw = alpha_rs / (4*r_scale**2*(1+np.log(0.5)))
+	rho_nfw *= kpc_per_arcsecond * sigma_crit
+	return [r_scale,rho_nfw]
+
+
+def convert_to_lenstronomy_tNFW(r_scale,z,rho_nfw,r_trunc,z_source,cosmo):
+	"""Converts physical tNFW parameters to parameters used by lenstronomy
+
+	Args:
+		r_scale (np.array): The scale radius of the nfw in units of kpc
+		z (np.array): The redshift of the nfw
+		rho_nfw (np.array): The amplitude of the nfw halos in units of
 			M_sun/kpc^3
 		r_trunc (np.array): The truncation radius for each nfw in units of
 			kpc.
@@ -182,7 +273,7 @@ def convert_to_lenstronomy_NFW(r_scale,z,rho_nfw,r_trunc,z_source,cosmo):
 
 	Returns:
 		[np.array,...]: A list of 3 numpy arrays: The angular r_scale, the
-		the deflection angle at the scale radius, and the angular truncation
+		deflection angle at the scale radius, and the angular truncation
 		radius in units of kpc.
 	"""
 	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,cosmo)
@@ -197,4 +288,38 @@ def convert_to_lenstronomy_NFW(r_scale,z,rho_nfw,r_trunc,z_source,cosmo):
 	sigma_crit = calculate_sigma_crit(z,z_source,cosmo)
 	alpha_rs = rho_nfw * (4*r_scale**2*(1+np.log(0.5)))
 	alpha_rs /= kpc_per_arcsecond * sigma_crit
-	return r_scale_ang, alpha_rs, r_trunc_ang
+	return [r_scale_ang, alpha_rs, r_trunc_ang]
+
+
+def convert_from_lenstronomy_tNFW(r_scale_ang,alpha_rs,r_trunc_ang,z,
+	z_source,cosmo):
+	"""Converts parameters used by lenstronomy to physical tNFW parameters
+
+	Args:
+		r_scale_ang (np.array): The scale radius of the nfw in angular
+			units
+		alpha_rs (np.array): The deflection angle at the scale radius
+		r_trunc_ang (np.array): The truncation radius for each nfw in angular
+			units.
+		z (np.array): The redshift of the nfw
+		z_source (float): The redshift of the source
+		cosmo (colossus.cosmology.cosmology.Cosmology): An instance of the
+			colossus cosmology object.
+
+	Returns:
+		[np.array,...]: A list of 3 numpy arrays: The scale radius in kpc,
+		the amplitude of the nfw halo in units of M_sun/kpc^3, and the
+		truncation radius in units of kpc.
+	"""
+	kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,cosmo)
+
+	# For the scale radius we just need to convert from arcseconds
+	r_scale = r_scale_ang * kpc_per_arcsecond
+	r_trunc = r_trunc_ang * kpc_per_arcsecond
+
+	# Deflection angle to rho_nfw requires sigma_crit and source
+	# position
+	sigma_crit = calculate_sigma_crit(z,z_source,cosmo)
+	rho_nfw = alpha_rs / (4*r_scale**2*(1+np.log(0.5)))
+	rho_nfw *= kpc_per_arcsecond * sigma_crit
+	return [r_scale,rho_nfw,r_trunc]
