@@ -14,12 +14,14 @@ from ..Utils import power_law, cosmology_utils
 import functools
 from . import nfw_functions
 import lenstronomy.Util.util as util
-from lenstronomy.LensModel.lens_model import LensModel
+from lenstronomy.LensModel.Profiles.nfw import NFW
+from scipy.signal import fftconvolve
 
 # Define the parameters we expect to find for the DG_19 model
 # TODO Fill this once we have all the parameters
 draw_nfw_masses_DG_19_parameters = ['m_min','m_max','z_min','dz','cone_angle',
-	'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter']
+	'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter',
+	'delta_los']
 
 
 class LOSDG19(LOSBase):
@@ -122,7 +124,7 @@ class LOSDG19(LOSBase):
 
 		Returns:
 			(tuple): The power law slope and the norm for the power law in
-				units of 1/M_sun
+				units of 1/M_sun/kpc**3
 		"""
 		m = np.logspace(np.log10(m_min),np.log10(m_max),n_dm)
 		lm = np.log(m)
@@ -273,6 +275,7 @@ class LOSDG19(LOSBase):
 		m_min = self.los_parameters['m_min']
 		# Units of M_sun
 		m_max = self.los_parameters['m_max']
+		delta_los = self.los_parameters['delta_los']
 		# Get the parameters of the power law fit to the Sheth Tormen mass
 		# function
 		pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
@@ -280,7 +283,7 @@ class LOSDG19(LOSBase):
 		# Scale the norm by the total volume and the two point correlation.
 		dV = self.volume_element(z,z_lens,z_source,dz,cone_angle)
 		halo_boost = self.two_halo_boost(z,z_lens,dz,lens_m200,r_max,r_min)
-		pl_norm *= dV * halo_boost
+		pl_norm *= dV * halo_boost * delta_los
 
 		# Draw from our power law and return the masses.
 		masses = power_law.power_law_draw(m_min,m_max,pl_slope,pl_norm)
@@ -319,13 +322,15 @@ class LOSDG19(LOSBase):
 
 		return cart_pos
 
-	def mass_concentration(self,z,m_200):
+	def mass_concentration(self,z,m_200,scatter_mult=1.0):
 		"""Returns the concentration of halos at a certain mass given the
 		parameterization of DG_19.
 
 		Args:
 			z (float): The redshift of the nfw halos
 			m_200 (np.array): array of M_200 of the nfw halo units of M_sun
+			scatter_mult (float): an additional scaling to the scatter. Likely
+				only useful for los rendering to force scatter to 0.
 
 		Returns:
 			(np.array): The concentration for each halo.
@@ -335,7 +340,7 @@ class LOSDG19(LOSBase):
 		xi = self.los_parameters['conc_xi']
 		beta = self.los_parameters['conc_beta']
 		m_ref = self.los_parameters['conc_m_ref']
-		dex_scatter = self.los_parameters['dex_scatter']
+		dex_scatter = self.los_parameters['dex_scatter']*scatter_mult
 
 		# The peak calculation is done by colossus. The cosmology must have
 		# already been set. Note these functions expect M_sun/h units (which
@@ -451,7 +456,7 @@ class LOSDG19(LOSBase):
 
 		return (los_model_list, los_kwargs_list, los_z_list)
 
-	def calculate_average_alpha(self,num_pix,pixel_scale,n_draws=1000):
+	def calculate_average_alpha(self,num_pix):
 		""" Calculates the average deflection maps from the los at each
 		redshift specified by the los parameters and returns corresponding
 		lenstronomy objects.
@@ -459,8 +464,6 @@ class LOSDG19(LOSBase):
 		Args:
 			num_pix (int): The number of pixels to sample for our
 				interpolation maps.
-			pixel_scale (float): The pixel scale in arcseconds.
-			n_draws (int): The number of los draws to average over.
 
 		Returns:
 			(tuple): A tuple of two lists: the first is the interpolation
@@ -470,57 +473,104 @@ class LOSDG19(LOSBase):
 		Notes:
 			The average los deflection angles of the lenstronomy objects will
 			be the negative of the average (since we want to subtract the
-			average effect not add it).
+			average effect not add it). Pixel scale will be set such that
+			at each redshift a box of 5*r_los is captured.
 		"""
 		# Pull the parameters we need.
 		z_min = self.los_parameters['z_min']
 		z_source = self.source_parameters['z_source']
+		z_lens = self.main_deflector_parameters['z_lens']
 		dz = self.los_parameters['dz']
+		delta_los = self.los_parameters['delta_los']
+		cone_angle = self.los_parameters['cone_angle']
+		m_min = self.los_parameters['m_min']
+		# Units of M_sun
+		m_max = self.los_parameters['m_max']
 		z_range = np.arange(z_min,z_source,dz)
 		# Round the z_range to improve caching hits. Add the dz/2 shift that
 		# gets output by draw_los.
 		z_range = list(np.round(z_range,2)+dz/2)
 
-		# Create an array of the deflection maps.
-		a_x_mean = np.zeros((len(z_range),num_pix,num_pix))
-		a_y_mean = np.zeros((len(z_range),num_pix,num_pix))
-		x_grid, y_grid = util.make_grid(numPix=num_pix,
-			deltapix=pixel_scale)
-		x_axes, y_axes = util.get_axes(x_grid, y_grid)
-
-		# Initialize the average variables we'll want to use for the deflection
-		# angle.
-		for n in range(n_draws):
-			los_model_list, los_kwargs_list, los_z_list = self.draw_los()
-			los_z_list = np.array(los_z_list)
-			for zi, z in enumerate(z_range):
-				# Pull the relevant los models
-				los_at_z = (los_z_list == z).nonzero()[0]
-				if los_at_z.size>0:
-					los_model_z = [los_model_list[i] for i in los_at_z]
-					los_kwargs_z = [los_kwargs_list[i] for i in los_at_z]
-
-					# Create the lens model and calculate the deflection
-					# angles
-					los_lm_z = LensModel(los_model_z,z,z_source,
-						cosmo=self.cosmo.toAstropy())
-					a_x, a_y = los_lm_z.alpha(x_grid, y_grid, los_kwargs_z)
-					a_x_mean[zi] += util.array2image(a_x)
-					a_y_mean[zi] += util.array2image(a_y)
-
-		a_x_mean /= n_draws
-		a_y_mean /= n_draws
-
+		# The lists where we'll store the lenstornomy variables
 		interp_model_list = []
 		interp_kwargs_list = []
 		interp_z_list = []
-		# Make the interpol profile object for each redshift slice with
-		# the negative average deflection angle
+
 		for zi, z in enumerate(z_range):
+			# First we make the grid on which we'll conduct the interpolation.
+			r_los = self.cone_angle_to_radius(z+dz/2,z_lens,z_source,
+				cone_angle)
+			kpc_per_arcsecond = cosmology_utils.kpc_per_arcsecond(z,self.cosmo)
+			r_los = r_los/kpc_per_arcsecond
+
+			# Set the pixel scale to capture a box of dimension 5*r_los.
+			pixel_scale = 5*r_los/num_pix
+			x_grid, y_grid = util.make_grid(numPix=num_pix,
+				deltapix=pixel_scale)
+			x_axes, y_axes = util.get_axes(x_grid, y_grid)
+
+			# Then we create the 2d rendering disk we want to convolve our
+			# NFW with
+			disk_bool = np.zeros(x_grid.shape)
+			disk_bool[np.sqrt(x_grid**2+y_grid**2)<r_los] = 1
+			disk_bool = util.array2image(disk_bool)
+
+			# Next we calculate the NFW parameters for our NFW of average
+			# mass.
+			pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
+			m_average = (power_law.power_law_integrate(m_min,m_max,pl_slope+1)/
+				power_law.power_law_integrate(m_min,m_max,pl_slope))
+			c_average = self.mass_concentration(z,m_average,scatter_mult=0.0)
+
+			# Convert our parameters to the lenstronomy definition
+			r_200_avg = nfw_functions.r_200_from_m(m_average,z,self.cosmo)
+			r_scale_avg = r_200_avg/c_average
+			rho_nfw_avg = nfw_functions.rho_nfw_from_m_c(m_average,c_average,
+				self.cosmo,r_scale=r_scale_avg)
+			r_scale_ang_avg, alpha_Rs_avg = (
+				nfw_functions.convert_to_lenstronomy_NFW(r_scale_avg,z,
+				rho_nfw_avg,z_source,self.cosmo))
+
+			# Get our deflection angle for this NFW profile
+			ax,ay = NFW().derivatives(x_grid,y_grid,r_scale_ang_avg,
+				alpha_Rs_avg)
+			ax = util.array2image(ax)
+			ay = util.array2image(ay)
+
+			# Convolve our deflection angles with the disk
+			ax_conv = fftconvolve(ax,disk_bool,mode='same')
+			ay_conv = fftconvolve(ay,disk_bool,mode='same')
+
+			# Finally, we just need to calculate how many of our
+			# m_average NFW we expect per pixel. So far our convolution
+			# is the deflection angle assuming 1 NFW / pixel.
+			# First we calculate the number of m_avg nfw per kpc^3
+			m_total = power_law.power_law_integrate(m_min,m_max,pl_slope+1)
+			m_total *= pl_norm * delta_los
+			n_total = m_total/m_average
+
+			# Now we multiply by the length of our redshift slice to get per
+			# kpc^2 and then multiply by kpc_per_arcsecond to get per
+			# arcsecond^2
+			dz_in_kpc = self.cosmo.comovingDistance(z-dz/2,z+dz/2)/self.cosmo.h
+			dz_in_kpc /= (1+z-dz/2)
+			# Mpc to kpc
+			dz_in_kpc *= 1000
+			n_total *= dz_in_kpc
+			n_total *= kpc_per_arcsecond**2
+
+			# Final convert from per arcsecond^2 to per pixel
+			n_total *= pixel_scale**2
+
+			ax_conv *= n_total
+			ay_conv *= n_total
+
+			# And now we can return the parameters of our interpol
+			# profile
 			interp_model_list.append('INTERPOL')
 			interp_kwargs_list.append({'grid_interp_x':x_axes,
-				'grid_interp_y':y_axes, 'f_x':-a_x_mean[zi],
-				'f_y':-a_y_mean[zi]})
+				'grid_interp_y':y_axes, 'f_x':-ax_conv,
+				'f_y':-ay_conv})
 			interp_z_list.append(z)
 
 		return (interp_model_list,interp_kwargs_list,interp_z_list)

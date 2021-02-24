@@ -14,6 +14,8 @@ from colossus.halo.concentration import peaks
 from colossus.lss import bias
 from colossus.halo import profile_nfw
 from lenstronomy.Cosmo.lens_cosmo import LensCosmo
+from lenstronomy.LensModel.lens_model import LensModel
+import lenstronomy.Util.util as util
 
 
 class NFWFunctionsTests(unittest.TestCase):
@@ -591,7 +593,7 @@ class LOSDG19Tests(unittest.TestCase):
 		self.los_parameters = {'m_min':1e6, 'm_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':4.0,'r_min':0.5,'r_max':10.0,'c_0':18,
 			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
-			'dex_scatter': 0.0}
+			'dex_scatter': 0.0,'delta_los':1.7}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
@@ -799,7 +801,7 @@ class LOSDG19Tests(unittest.TestCase):
 			self.los_parameters['cone_angle'])
 		power_law_norm = power_law.power_law_integrate(
 			self.los_parameters['m_min'],self.los_parameters['m_max'],pl_slope)
-		n_expected = pl_norm*dV*power_law_norm
+		n_expected = pl_norm*dV*power_law_norm*self.los_parameters['delta_los']
 		n_loops = 1000
 		total = 0
 		for _ in range(n_loops):
@@ -819,7 +821,8 @@ class LOSDG19Tests(unittest.TestCase):
 			self.main_deflector_parameters['z_lens'],self.los_parameters['dz'],
 			self.main_deflector_parameters['M200'],self.los_parameters['r_max'],
 			self.los_parameters['r_min'])
-		n_expected = pl_norm*dV*power_law_norm*halo_boost
+		n_expected = pl_norm*dV*power_law_norm*halo_boost*self.los_parameters[
+			'delta_los']
 		n_loops = 1000
 		total = 0
 		for _ in range(n_loops):
@@ -924,8 +927,45 @@ class LOSDG19Tests(unittest.TestCase):
 		# Test that the interpolation class on average ensures
 		# that each sightline has a deflection of 0.
 		# Set the parameters of our alpha calculation
+		num_pix = 256
+		iml, imk, imz = self.ld.calculate_average_alpha(num_pix)
+		n_draws = 1000
 		num_pix = 64
-		pixel_scale = 0.08
-		n_draws = 1
-		iml, imk, imz = self.ld.calculate_average_alpha(num_pix,pixel_scale,
-			n_draws=n_draws)
+
+		# Test for a few redshifts that the average deflection is 0.
+		for zi in [len(imz)//2,-1]:
+			ax_avg = np.zeros((num_pix,num_pix))
+			ay_avg = np.zeros((num_pix,num_pix))
+			z = imz[zi]
+			pixel_scale = 0.08/(1+z)
+			x_grid, y_grid = util.make_grid(numPix=num_pix,deltapix=pixel_scale)
+			for _ in range(n_draws):
+				z_masses = self.ld.draw_nfw_masses(z)
+				# Don't add anything to the model if no masses were drawn
+				if z_masses.size == 0:
+					continue
+				z_cart_pos = self.ld.sample_los_pos(z,len(z_masses))
+				# Convert the mass and positions to lenstronomy models
+				# and kwargs and append to our lists.
+				model_list, kwargs_list = self.ld.convert_to_lenstronomy(
+					z,z_masses,z_cart_pos)
+				lm = LensModel(model_list,z,
+					self.source_parameters['z_source'],
+					cosmo=self.cosmo.toAstropy())
+				ax, ay = lm.alpha(x_grid,y_grid,kwargs_list)
+				ax = util.array2image(ax)
+				ay = util.array2image(ay)
+				ax_avg += ax
+				ay_avg += ay
+			ax_avg /= n_draws
+			ay_avg /= n_draws
+			# The quickest thing with the interpolation is just to query the
+			# lens model.
+			lm = LensModel([iml[zi]],imz[zi],
+					self.source_parameters['z_source'],
+					cosmo=self.cosmo.toAstropy())
+			imax, imay = lm.alpha(x_grid,y_grid,[imk[zi]])
+			imax = util.array2image(imax)
+			imay = util.array2image(imay)
+			self.assertLess(np.median(np.abs(np.sqrt(ax_avg**2+ay_avg**2)-
+				np.sqrt(imax**2+imay**2))/np.sqrt(ax_avg**2+ay_avg**2)),0.6)
