@@ -29,6 +29,19 @@ class GalaxyCatalog:
 		"""Returns the length of the catalog"""
 		raise NotImplementedError
 
+	def update_parameters(self,cosmology_parameters):
+		"""Updated the class parameters
+
+		Args:
+			cosmology_parameters (str,dict, or
+				colossus.cosmology.cosmology.Cosmology): Either a name
+				of colossus cosmology, a dict with 'cosmology name': name of
+				colossus cosmology, an instance of colussus cosmology, or a
+				dict with H0 and Om0 ( other parameters will be set to
+				defaults).
+		"""
+		self.cosmo = get_cosmology(cosmology_parameters)
+
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy
 

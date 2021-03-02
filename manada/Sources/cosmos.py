@@ -13,6 +13,7 @@ import numpy as np
 import numpy.lib.recfunctions
 from tqdm import tqdm
 from .galaxy_catalog import GalaxyCatalog
+import scipy
 
 HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
 
@@ -31,44 +32,82 @@ class COSMOSCatalog(GalaxyCatalog):
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
+		smoothing_sigma (float): Smooth the source images to avoid
+			contamination from source noise. Units of arcseconds.
 	"""
 
-	def __init__(self, folder, cosmology_parameters):
+	def __init__(self, folder, cosmology_parameters, smoothing_sigma=0.0):
 		super().__init__(cosmology_parameters)
+
+		# Store the smoothing scale
+		self.smoothing_sigma = smoothing_sigma
 
 		# Store the path as a Path object.
 		self.folder = Path(folder)
 
-		# Combine all partial catalog files
-		catalogs = [unfits(str(self.folder / fn)) for fn in [
-			'real_galaxy_catalog_23.5.fits',
-			'real_galaxy_catalog_23.5_fits.fits'
-		]]
+		# Check if we've already populated the catalog
+		self.catalog_path = self.folder/'manada_catalog.npy'
+		self.npy_files_path = self.folder/'npy_files'
+		if self.catalog_path.exists() and self.npy_files_path.exists():
+			self.catalog = np.load(str(self.catalog_path))
 
-		# Duplicate IDENT field crashes numpy's silly merge function.
-		catalogs[1] = numpy.lib.recfunctions.drop_fields(catalogs[1], 'IDENT')
+		else:
+			# Make the directory where I'm going to save the npy files
+			self.npy_files_path.mkdir()
+			# Combine all partial catalog files
+			catalogs = [unfits(str(self.folder / fn)) for fn in [
+				'real_galaxy_catalog_23.5.fits',
+				'real_galaxy_catalog_23.5_fits.fits'
+			]]
 
-		# Custom fields
-		catalogs += [
-			np.zeros(len(catalogs[0]),
-				dtype=[('size_x', np.int),('size_y', np.int),('z', np.float),
-				('pixel_width', np.float)])]
+			# Duplicate IDENT field crashes numpy's silly merge function.
+			catalogs[1] = numpy.lib.recfunctions.drop_fields(catalogs[1], 'IDENT')
 
-		self.catalog = numpy.lib.recfunctions.merge_arrays(
-			catalogs, flatten=True)
+			# Custom fields
+			catalogs += [
+				np.zeros(len(catalogs[0]),
+					dtype=[('size_x', np.int),('size_y', np.int),('z', np.float),
+					('pixel_width', np.float)])]
 
-		self.catalog['pixel_width'] = HUBBLE_ACS_PIXEL_WIDTH
-		self.catalog['z'] = self.catalog['zphot']
+			self.catalog = numpy.lib.recfunctions.merge_arrays(
+				catalogs, flatten=True)
 
-		# Loop over the images to find their sizes.
-		# Why wasn't this just stored in the catalog?
-		for img, meta in self.iter_image_and_metadata(
-			message='Retrieving image sizes'):
-			# Grab the shape of each image.
-			meta['size_x'], meta['size_y'] = img.shape
+			self.catalog['pixel_width'] = HUBBLE_ACS_PIXEL_WIDTH
+			self.catalog['z'] = self.catalog['zphot']
+
+			# Loop over the images to find their sizes.
+			catalog_i = 0
+			for img, meta in self.iter_image_and_metadata_bulk(
+				message='One-time COSMOS startup'):
+				# Grab the shape of each image.
+				meta['size_x'], meta['size_y'] = img.shape
+				# Save the image as its own image.
+				img = img.astype(np.float)
+				np.save(str(self.npy_files_path/('img_%d.npy'%(catalog_i))),img)
+				catalog_i += 1
+
+			np.save(self.catalog_path,self.catalog)
 
 	def __len__(self):
 		return len(self.catalog)
+
+	def update_parameters(self,cosmology_parameters=None,smoothing_sigma=None):
+		"""Updated the class parameters
+
+		Args:
+			cosmology_parameters (str,dict, or
+				colossus.cosmology.cosmology.Cosmology): Either a name
+				of colossus cosmology, a dict with 'cosmology name': name of
+				colossus cosmology, an instance of colussus cosmology, or a
+				dict with H0 and Om0 ( other parameters will be set to
+				defaults).
+			smoothing_sigma (float): Smooth the source images to avoid
+				contamination from source noise. Units of arcseconds.
+		"""
+		if smoothing_sigma is not None:
+			self.smoothing_sigma = smoothing_sigma
+		if cosmology_parameters is not None:
+			super().update_parameters(cosmology_parameters)
 
 	def sample_indices(self,n_galaxies,min_apparent_mag=None,
 		minimum_size_in_pixels=None):
@@ -101,7 +140,7 @@ class COSMOSCatalog(GalaxyCatalog):
 		"""
 		return int(str(fn).split('_n')[-1].split('.')[0])
 
-	def iter_image_and_metadata(self, message=''):
+	def iter_image_and_metadata_bulk(self, message=''):
 		"""Yields the image array and metadata for all of the images
 		in the catalog.
 
@@ -112,6 +151,9 @@ class COSMOSCatalog(GalaxyCatalog):
 		Returns:
 			(generator): A generator that can be iterated over to give
 			lenstronomy kwargs.
+
+		Notes:
+			This will read the fits files.
 		"""
 		catalog_i = 0
 		_pattern = f'real_galaxy_images_23.5_n*.fits'  # noqa: F999
@@ -135,14 +177,16 @@ class COSMOSCatalog(GalaxyCatalog):
 			([np.array, np.void]) A numpy array containing the image
 			metadata and a numpy void type that acts as a dictionary with
 			the metadata.
+
+		Notes:
+			This will read the numpy files made during initialization. This is
+			much faster on average than going for the fits files.
 		"""
-		fn, index = self.catalog[catalog_i][['GAL_FILENAME', 'GAL_HDU']]
-		fn = self.folder / fn.decode()  # 'real_galaxy_images_23.5_n1.fits'
-		img = fits.getdata(fn, ext=index)
-		# For some reason the COSMOS images are in big endian..??
-		# This would cause some functions to fail, others to do weird things
-		# silently! Let's cast it back to normal floats...
-		img = img.astype(np.float)
+		img = np.load(str(self.npy_files_path/('img_%d.npy'%(catalog_i))))
+		# Filter the images if that was requested
+		if self.smoothing_sigma > 0:
+			img = scipy.ndimage.gaussian_filter(img,
+				sigma=self.smoothing_sigma/HUBBLE_ACS_PIXEL_WIDTH)
 		return img, self.catalog[catalog_i]
 
 

@@ -21,7 +21,7 @@ from scipy.signal import fftconvolve
 # TODO Fill this once we have all the parameters
 draw_nfw_masses_DG_19_parameters = ['m_min','m_max','z_min','dz','cone_angle',
 	'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter',
-	'delta_los']
+	'delta_los','alpha_dz_factor']
 
 
 class LOSDG19(LOSBase):
@@ -142,8 +142,7 @@ class LOSDG19(LOSBase):
 
 		return slope_estimate, norm_estimate
 
-	@functools.lru_cache(maxsize=1)
-	def two_halo_boost(self,z,z_lens,dz,lens_m200,r_max,r_min,n_quads=1000):
+	def two_halo_boost(self,z,z_lens,dz,lens_m200,r_max,r_min,n_quads=100):
 		"""Calculates the boost from the two halo term of the host halo at
 		the given redshift.
 
@@ -430,7 +429,9 @@ class LOSDG19(LOSBase):
 		dz = self.los_parameters['dz']
 
 		# Add halos from the starting reshift to the source redshift.
-		z_range = np.arange(z_min,z_source,dz)
+		# Note most of the calculations are done at z + dz/2, so you
+		# want to stop at z_source-dz.
+		z_range = np.arange(z_min,z_source-dz,dz)
 		# Round the z_range to improve caching hits.
 		z_range = list(np.round(z_range,2))
 
@@ -481,12 +482,13 @@ class LOSDG19(LOSBase):
 		z_source = self.source_parameters['z_source']
 		z_lens = self.main_deflector_parameters['z_lens']
 		dz = self.los_parameters['dz']
+		dz *= self.los_parameters['alpha_dz_factor']
 		delta_los = self.los_parameters['delta_los']
 		cone_angle = self.los_parameters['cone_angle']
 		m_min = self.los_parameters['m_min']
 		# Units of M_sun
 		m_max = self.los_parameters['m_max']
-		z_range = np.arange(z_min,z_source,dz)
+		z_range = np.arange(z_min,z_source-dz,dz)
 		# Round the z_range to improve caching hits. Add the dz/2 shift that
 		# gets output by draw_los.
 		z_range = list(np.round(z_range,2)+dz/2)

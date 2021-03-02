@@ -55,8 +55,7 @@ class LOSBase():
 	def update_parameters(self,los_parameters=None,
 		main_deflector_parameters=None,source_parameters=None,
 		cosmology_parameters=None):
-		"""Updated the class parameters and clears the power_law cache if
-		needed.
+		"""Updated the class parameters
 
 		Args:
 			los_parameters (dict): A dictionary containing the type of

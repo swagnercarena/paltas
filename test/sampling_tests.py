@@ -79,4 +79,3 @@ class SamplerTests(unittest.TestCase):
 		self.assertLess(param_dict['e1'],110)
 		self.assertGreater(param_dict['theta_E'],0)
 		self.assertLess(param_dict['theta_E'],1)
-

@@ -3,6 +3,7 @@ import unittest
 import os
 from manada.Sources.galaxy_catalog import GalaxyCatalog
 from manada.Sources.cosmos import COSMOSCatalog, unfits
+from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
 from manada.Utils.cosmology_utils import get_cosmology
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
@@ -10,6 +11,7 @@ from lenstronomy.ImSim.image_model import ImageModel
 from lenstronomy.Data.imaging_data import ImageData
 from lenstronomy.Util.simulation_util import data_configure_simple
 from lenstronomy.Data.psf import PSF
+import scipy
 
 
 class GalaxyCatalogTests(unittest.TestCase):
@@ -21,6 +23,12 @@ class GalaxyCatalogTests(unittest.TestCase):
 		# Just test that the not implemented error is raised.
 		with self.assertRaises(NotImplementedError):
 			self.c.__len__()
+
+	def test_update_parameters(self):
+		# Check that the update parameter call updates the cosmology
+		h = self.c.cosmo.h
+		self.c.update_parameters('WMAP9')
+		self.assertNotEqual(h,self.c.cosmo.h)
 
 	def test_image_and_metadata(self):
 		# Just test that the not implemented error is raised.
@@ -74,6 +82,12 @@ class COSMOSCatalogTests(unittest.TestCase):
 			'bulgefit','fit_status','fit_mad_s','fit_mad_b','fit_dvc_btt',
 		'use_bulgefit','viable_sersic','hlr','flux']
 
+	def tearDown(self):
+		os.remove(self.test_cosmo_folder+'manada_catalog.npy')
+		for i in range(10):
+			os.remove(self.test_cosmo_folder+'npy_files/img_%d.npy'%(i))
+		os.rmdir(self.test_cosmo_folder+'npy_files')
+
 	def test_unfits(self):
 		# Check that the returned arrays have the right elements and size.
 		rfits = os.path.join(self.test_cosmo_folder,
@@ -101,12 +115,32 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# We've trimmed the length to 10, so make sure it returns that
 		self.assertEqual(len(self.c),10)
 
+	def test_update_parameters(self):
+		# Check that the update parameter call updates the cosmology
+		self.c.update_parameters(smoothing_sigma=0.06)
+		self.assertEqual(self.c.smoothing_sigma,0.06)
+
 	def test_image_and_metadata(self):
 		catalog_i = 0
 		image, metadata = self.c.image_and_metadata(catalog_i)
 		np.testing.assert_equal(image.shape,(234, 233))
 		self.assertEqual(metadata['mag_auto'],21.04064178466797)
 		self.assertEqual(metadata['IDENT'],141190)
+
+		# Test that things still work with smoothing
+		smoothing_sigma = 0.06
+		cs = COSMOSCatalog(self.test_cosmo_folder,
+			cosmology_parameters='planck18',
+			smoothing_sigma=smoothing_sigma)
+
+		# Use this opportunity to make sure the catalogs are identical
+		np.testing.assert_equal(cs.catalog,self.c.catalog)
+
+		image_s, metadata_s = cs.image_and_metadata(catalog_i)
+		self.assertGreater(np.max(np.abs(image-image_s)),0.01)
+		image_check = scipy.ndimage.gaussian_filter(image,
+			sigma=smoothing_sigma/HUBBLE_ACS_PIXEL_WIDTH)
+		np.testing.assert_almost_equal(image_check,image_s)
 
 	def test_iter_lightmodel_kwargs_samples(self):
 		# Just test that we get the expected kwargs
@@ -116,10 +150,10 @@ class COSMOSCatalogTests(unittest.TestCase):
 			self.assertTrue(all(elem in lm_kwargs.keys()
 				for elem in lm_keys_required))
 
-	def test_iter_image_and_metadata(self):
+	def test_iter_image_and_metadata_bulk(self):
 		# Just test that image data is returned and that it agrees with
 		# the shape of the images.
-		for image, metadata in self.c.iter_image_and_metadata():
+		for image, metadata in self.c.iter_image_and_metadata_bulk():
 			im_shape = image.shape
 			self.assertEqual(im_shape[0],metadata['size_x'])
 			self.assertEqual(im_shape[1],metadata['size_y'])
