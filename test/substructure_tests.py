@@ -593,7 +593,7 @@ class LOSDG19Tests(unittest.TestCase):
 		self.los_parameters = {'m_min':1e6, 'm_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':4.0,'r_min':0.5,'r_max':10.0,'c_0':18,
 			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
-			'dex_scatter': 0.0,'delta_los':1.7}
+			'dex_scatter': 0.0,'delta_los':1.7,'alpha_dz_factor':1.0}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
