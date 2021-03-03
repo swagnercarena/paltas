@@ -8,6 +8,14 @@ from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
 class SamplerTests(unittest.TestCase):
 
 	def setUp(self):
+
+		# Set up a distribution for our cross_object parameters
+		mean = np.ones(2)
+		cov = np.array([[1.0,0.7],[0.7,1.0]])
+		min_values = np.zeros(2)
+		max_values = np.ones(2)*np.inf
+		tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,
+			max_values)
 		self.config_dict = {
 			'subhalo':{
 				'class': None,
@@ -114,8 +122,8 @@ class DistributionsTests(unittest.TestCase):
 		# normal
 		mean = np.ones(2)
 		cov = np.array([[1.0,0.7],[0.7,1.0]])
-		min_values = np.ones(2)*-np.inf
-		max_values = np.ones(2)*np.inf
+		min_values = None
+		max_values = None
 
 		tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,
 			max_values)

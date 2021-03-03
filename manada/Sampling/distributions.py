@@ -61,15 +61,22 @@ class TruncatedMultivariateNormal():
 		using this in high dimensions.
 	"""
 
-	def __init__(self,mean,covariance,min_values,max_values):
+	def __init__(self,mean,covariance,min_values=None,max_values=None):
 		# Make sure that each of the n-dimensional inputs follows
 		# the desired shape for matrix calculations
 		if len(mean.shape)==1:
 			mean = np.expand_dims(mean,axis=0)
-		if len(min_values.shape)==1:
+		# If none for min_values, set to negative infinity
+		if min_values is None:
+			min_values = np.ones(mean.shape) * -np.inf
+		elif len(min_values.shape)==1:
 			min_values = np.expand_dims(min_values,axis=0)
-		if len(max_values.shape)==1:
+		# If none for max_values, set to positive infinity
+		if max_values is None:
+			max_values = np.ones(mean.shape) * np.inf
+		elif len(max_values.shape)==1:
 			max_values = np.expand_dims(max_values,axis=0)
+
 		self.mean = mean
 		self.covariance = covariance
 		self.L = np.linalg.cholesky(self.covariance)
