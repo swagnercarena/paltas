@@ -240,7 +240,7 @@ class SubhalosDG19(SubhalosBase):
 		n_accepted_draws += np.sum(keep_ind)
 
 		# Get the fraction of rejection to see how much we should sample
-		rejection_frac = 1-np.mean(keep_ind)
+		rejection_frac = max(1-np.mean(keep_ind),1e-1)
 
 		# Keep drawing until we have enough r_subs.
 		while n_accepted_draws<n_subs:

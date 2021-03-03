@@ -8,7 +8,8 @@ set from the input distributions.
 """
 
 # Definte the components we need the sampler to consider.
-lensing_components = ['subhalo','los','main_deflector','source','cosmology']
+lensing_components = ['subhalo','los','main_deflector','source','cosmology',
+	'cross_object']
 
 
 class Sampler():
@@ -19,6 +20,9 @@ class Sampler():
 		configuration_dictionary (dict): An instance of the configuration
 			dictionary that will be used to decide how to sample parameter
 			values.
+	Notes:
+		For examples on how to configure the dict object, see the
+		ConfigurationDict.ipynb example notebook.
 	"""
 
 	def __init__(self,configuration_dictionary):
@@ -74,8 +78,8 @@ class Sampler():
 		dictionary
 
 		Returns:
-			(dict): A dictionary containing the parameter values that were
-			sampled.
+			(dict): A dictionary containing the parameter values that will
+			be sampled.
 		"""
 
 		full_param_dict = {}
