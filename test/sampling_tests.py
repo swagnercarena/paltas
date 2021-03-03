@@ -3,7 +3,7 @@ import unittest
 from manada.Sampling.sampler import Sampler
 from manada.Sampling import distributions
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
-
+import warnings
 
 class SamplerTests(unittest.TestCase):
 
@@ -13,13 +13,12 @@ class SamplerTests(unittest.TestCase):
 		mean = np.ones(2)
 		cov = np.array([[1.0,0.7],[0.7,1.0]])
 		min_values = np.zeros(2)
-		max_values = np.ones(2)*np.inf
 		tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,
-			max_values)
+			None)
 		self.config_dict = {
 			'subhalo':{
 				'class': None,
-				'params':{
+				'parameters':{
 					'sigma_sub':uniform(loc=0,scale=5e-2).rvs,
 					'shmf_plaw_index': norm(loc=-1.83,scale=0.1).rvs,
 					'm_pivot': 1e8,'m_min': 1e6,'m_max': 1e10,
@@ -29,7 +28,7 @@ class SamplerTests(unittest.TestCase):
 			},
 			'los':{
 				'class': None,
-				'params':{
+				'parameters':{
 					'm_min':1e6,'m_max':1e10,'z_min':0.01,
 					'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
 					'c_0':18,'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
@@ -38,7 +37,7 @@ class SamplerTests(unittest.TestCase):
 			},
 			'main_deflector':{
 				'models': None,
-				'params':{
+				'parameters':{
 					'M200': loguniform(a=1e11,b=5e13).rvs,
 					'z_lens': 0.5,
 					'gamma': lognorm(scale=2.01,s=0.1).rvs,
@@ -62,7 +61,7 @@ class SamplerTests(unittest.TestCase):
 			},
 			'cross_object':{
 				'parameters':{
-					'los_delta_los,subhalo_sigma_sub':'REPLACE'
+					'los:delta_los,subhalo:sigma_sub':tmn
 				}
 			}
 		}
@@ -92,6 +91,34 @@ class SamplerTests(unittest.TestCase):
 		self.assertLess(param_dict['e2'],10)
 		self.assertGreater(param_dict['theta_E'],0)
 		self.assertLess(param_dict['theta_E'],1)
+
+	def test_sample(self):
+		# Test that the samples drawn agree with the values put in.]
+		warnings.simplefilter('ignore')
+		sample = self.s.sample()
+
+		# Sample a few times
+		for _ in range(10):
+			# First check that all the expected dicts are in the object
+			expected_dicts = ['subhalo_parameters','los_parameters',
+				'main_deflector_parameters','source_parameters',
+				'cosmology_parameters']
+			for dict_name in expected_dicts:
+				self.assertTrue(dict_name in sample)
+
+			# Now for each dict, check some values
+			self.assertEqual(sample['cosmology_parameters']['cosmology_name'],
+				'planck18')
+			self.assertEqual(sample['source_parameters']['catalog_i'],
+				200)
+			self.assertGreater(sample['main_deflector_parameters']['theta_E'],
+				0)
+			self.assertGreater(sample['main_deflector_parameters']['gamma'],
+				0)
+			self.assertGreater(sample['los_parameters']['delta_los'],
+				0)
+			self.assertGreater(sample['subhalo_parameters']['sigma_sub'],
+				0)
 
 
 class DistributionsTests(unittest.TestCase):
@@ -128,7 +155,8 @@ class DistributionsTests(unittest.TestCase):
 		tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,
 			max_values)
 		# Check this works
-		tmn()
+		draw = tmn()
+		self.assertTupleEqual(draw.shape,(2,))
 		# Test stats for large number of draws
 		draws = tmn(int(1e5))
 		np.testing.assert_almost_equal(np.cov(draws.T),cov,decimal=2)
@@ -140,7 +168,8 @@ class DistributionsTests(unittest.TestCase):
 		tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,
 			max_values)
 		# Check that this works
-		tmn()
+		draw = tmn()
+		self.assertTupleEqual(draw.shape,(2,))
 		# Test the limits for large number of draws
 		draws = tmn(int(1e5))
 		self.assertTrue(np.prod(draws[:,0]>min_values[0]))

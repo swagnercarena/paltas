@@ -6,10 +6,9 @@ drawing samples on the lens parameters.
 This module contains the class used to sample parameters for our train and test
 set from the input distributions.
 """
-
+import warnings
 # Definte the components we need the sampler to consider.
-lensing_components = ['subhalo','los','main_deflector','source','cosmology',
-	'cross_object']
+lensing_components = ['subhalo','los','main_deflector','source','cosmology']
 
 
 class Sampler():
@@ -59,8 +58,8 @@ class Sampler():
 				draw = draw_dict[key]()
 				# Check for consistency
 				if len(params) != len(draw):
-					raise ValueError('Parameters of length %d do'%(len(params)) +
-						' not match draw of length %d'%(len(draw)))
+					raise ValueError('Parameters of length %d do'%(len(params))
+						+ ' not match draw of length %d'%(len(draw)))
 				# Populate the keys
 				for i, param in enumerate(params):
 					param_dict[param] = draw[i]
@@ -81,14 +80,30 @@ class Sampler():
 			(dict): A dictionary containing the parameter values that will
 			be sampled.
 		"""
-
+		# Pull the global warning variable an initialize our dict
 		full_param_dict = {}
 
 		# For each possible component of our lensing add the parameters
 		for component in lensing_components:
 			if component in self.config_dict:
-				draw_dict = self.config_dict[component]
+				draw_dict = self.config_dict[component]['parameters']
 				param_dict = self.draw_from_dict(draw_dict)
-				full_param_dict[component+'parameters'] = param_dict
+				full_param_dict[component+'_parameters'] = param_dict
 
+		# Populate parameters from distributions that span accross objects.
+		if 'cross_object' in self.config_dict:
+			draw_dict = self.config_dict['cross_object']['parameters']
+			cross_dict = self.draw_from_dict(draw_dict)
+			# Go through the params and update the full dict
+			for cross_param in cross_dict:
+				component, param = cross_param.split(':')
+				param_dict = full_param_dict[component+'_parameters']
+				# Warn the user the first time an overwrite happens
+				if param in param_dict:
+					warnings.warn('Parameter in cross dict specified elsewhere!'
+						+ ' Will be overwritten')
+				full_param_dict[component+'_parameters'][param] = (
+					cross_dict[cross_param])
+
+		# Populate the cross objects
 		return full_param_dict

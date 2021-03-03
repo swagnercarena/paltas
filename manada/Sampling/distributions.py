@@ -7,7 +7,6 @@ This module contains classes that define distributions that can be effecitvely
 sampled from.
 """
 import numpy as np
-import numba
 
 
 class MultivariateLogNormal():
@@ -120,5 +119,9 @@ class TruncatedMultivariateNormal():
 			keep_draws[n_accepted:n_accepted+use_keep] = (
 				draws[keep_ind][:use_keep])
 			n_accepted += use_keep
+
+		# Remove first dimension for the n=1 case
+		if n==1:
+			keep_draws = np.squeeze(keep_draws)
 
 		return keep_draws
