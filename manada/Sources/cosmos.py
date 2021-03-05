@@ -113,15 +113,16 @@ class COSMOSCatalog(GalaxyCatalog):
 			super().update_parameters(cosmology_parameters)
 
 	def sample_indices(self,n_galaxies,min_apparent_mag=None,
-		minimum_size_in_pixels=None):
+		minimum_size_in_pixels=None,max_z=None):
 		"""Return n_galaxies array of catalog indices to sample
 
 		Args:
 			n_galaxies (int): Number of indices to return
-			min_apparent_mag (float): minimum apparent magnitude of COSMOS
+			min_apparent_mag (float): The minimum apparent magnitude of COSMOS
 				image
-			minimum_size_in_pixels (int): minimum image width and height
+			minimum_size_in_pixels (int): The minimum image width and height
 				in pixels
+			min_z (float): The maximum redshift for the source
 
 		Returns:
 			(np.array): Array of ints of catalog indices to sample.
@@ -133,6 +134,8 @@ class COSMOSCatalog(GalaxyCatalog):
 			min_size = np.minimum(self.catalog['size_x'],
 				self.catalog['size_y'])
 			is_ok &= min_size >= minimum_size_in_pixels
+		if max_z is not None:
+			is_ok &= self.catalog['z'] < max_z
 		return np.random.choice(np.where(is_ok)[0],size=n_galaxies,
 			replace=True)
 

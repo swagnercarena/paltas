@@ -185,6 +185,14 @@ class COSMOSCatalogTests(unittest.TestCase):
 			minimum_size_in_pixels=minimum_size_in_pixels)
 		np.testing.assert_equal(np.unique(samples),[0,1,3,7])
 
+		# Test the redshift
+		max_z = 0.5
+		samples = self.c.sample_indices(n_galaxies,
+			min_apparent_mag=min_apparent_mag,
+			minimum_size_in_pixels=minimum_size_in_pixels,
+			max_z=max_z)
+		np.testing.assert_equal(np.unique(samples),[0,7])
+
 	def test_lightmodel_list_kwargs(self):
 		# Test that the lightmodel kwargs returned are what we would
 		# expect to pass into lenstronomy.
