@@ -8,7 +8,8 @@ set from the input distributions.
 """
 import warnings
 # Definte the components we need the sampler to consider.
-lensing_components = ['subhalo','los','main_deflector','source','cosmology']
+lensing_components = ['subhalo','los','main_deflector','source','cosmology',
+	'psf','detector']
 
 
 class Sampler():

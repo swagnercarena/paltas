@@ -55,11 +55,11 @@ class GalaxyCatalogTests(unittest.TestCase):
 		with self.assertRaises(NotImplementedError):
 			self.c.sample_indices(n_galaxies)
 
-	def test_lightmodel_kwargs(self):
+	def test_lightmodel_list_kwargs(self):
 		# Just test that the not implemented error is raised.
 		catalog_i = 2
 		with self.assertRaises(NotImplementedError):
-			self.c.lightmodel_kwargs(catalog_i)
+			self.c.lightmodel_list_kwargs(catalog_i)
 
 
 class COSMOSCatalogTests(unittest.TestCase):
@@ -146,8 +146,9 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Just test that we get the expected kwargs
 		n_galaxies = 10
 		lm_keys_required = ['image','center_x','center_y','phi_G','scale']
-		for lm_kwargs in self.c.iter_lightmodel_kwargs_samples(n_galaxies):
-			self.assertTrue(all(elem in lm_kwargs.keys()
+		for lm_list, lm_kwargs in self.c.iter_lightmodel_kwargs_samples(
+			n_galaxies):
+			self.assertTrue(all(elem in lm_kwargs[0].keys()
 				for elem in lm_keys_required))
 
 	def test_iter_image_and_metadata_bulk(self):
@@ -184,23 +185,27 @@ class COSMOSCatalogTests(unittest.TestCase):
 			minimum_size_in_pixels=minimum_size_in_pixels)
 		np.testing.assert_equal(np.unique(samples),[0,1,3,7])
 
-	def test_lightmodel_kwargs(self):
+	def test_lightmodel_list_kwargs(self):
 		# Test that the lightmodel kwargs returned are what we would
 		# expect to pass into lenstronomy.
 		catalog_i = 0
 		image, metadata = self.c.image_and_metadata(catalog_i)
 
 		# First don't change the redshift
-		lm_kwargs = self.c.lightmodel_kwargs(catalog_i,
+		lm_list, lm_kwargs = self.c.lightmodel_list_kwargs(catalog_i,
 			z_new=metadata['z'])
+		lm_kwargs = lm_kwargs[0]
+		self.assertEqual(lm_list[0],'INTERPOL')
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/lm_kwargs['scale']**2)
 		low_z_scale = lm_kwargs['scale']
 
 		# Now change the redshift
 		z_new = 1.0
-		lm_kwargs = self.c.lightmodel_kwargs(catalog_i,
+		lm_list, lm_kwargs = self.c.lightmodel_list_kwargs(catalog_i,
 			z_new=z_new)
+		lm_kwargs = lm_kwargs[0]
+		self.assertEqual(lm_list[0],'INTERPOL')
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/metadata['pixel_width']**2)
 		high_z_scale = lm_kwargs['scale']
@@ -233,8 +238,8 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Create a lens that will do nothing
 		lens_kwargs = [{'theta_E': 0.0, 'e1': 0., 'e2': 0., 'gamma': 0.,
 			'center_x': 0, 'center_y': 0}]
-		source_kwargs = [self.c.lightmodel_kwargs(catalog_i=catalog_i,
-			z_new=metadata['z'])]
+		source_kwargs = [self.c.lightmodel_list_kwargs(catalog_i=catalog_i,
+			z_new=metadata['z'])[1][0]]
 
 		l_image = image_model.image(kwargs_lens=lens_kwargs,
 			kwargs_source=source_kwargs)

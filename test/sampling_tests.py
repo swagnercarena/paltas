@@ -5,6 +5,7 @@ from manada.Sampling import distributions
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
 import warnings
 
+
 class SamplerTests(unittest.TestCase):
 
 	def setUp(self):
@@ -50,13 +51,27 @@ class SamplerTests(unittest.TestCase):
 					'gamma2': norm(loc=0.0,scale=0.05).rvs}
 			},
 			'source':{
-				'class': None,
+				'class_instance': None,
 				'parameters':{
 					'z_source':1.5,'catalog_i':200}
 			},
 			'cosmology':{
 				'parameters':{
 					'cosmology_name': 'planck18'
+				}
+			},
+			'psf':{
+				'parameters':{
+					'psf_type':'GAUSSIAN',
+					'fwhm': 0.1
+				}
+			},
+			'detector':{
+				'parameters':{
+					'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
+					'magnitude_zero_point':25.9463,
+					'exposure_time':5400.0,'sky_brightness':22,
+					'num_exposures':1, 'background_noise':None
 				}
 			},
 			'cross_object':{

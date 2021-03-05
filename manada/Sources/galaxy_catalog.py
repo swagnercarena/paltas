@@ -22,7 +22,9 @@ class GalaxyCatalog:
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 
-	def __init__(self, cosmology_parameters):
+	def __init__(self, cosmology_parameters=None):
+		if cosmology_parameters is None:
+			cosmology_parameters = 'planck18'
 		self.cosmo = get_cosmology(cosmology_parameters)
 
 	def __len__(self):
@@ -68,10 +70,10 @@ class GalaxyCatalog:
 
 		Returns:
 			(generator): A generator that can be iterated over to give
-			lenstronomy kwargs.
+			lenstronomy model lists and kwargs.
 		"""
 		for catalog_i in self.sample_indices(n_galaxies,**selection_kwargs):
-			yield self.lightmodel_kwargs(catalog_i, z_new=z_new)
+			yield self.lightmodel_list_kwargs(catalog_i, z_new=z_new)
 
 	def iter_image_and_metadata(self, message=''):
 		"""Yields the image array and metadata for all of the images
@@ -99,7 +101,7 @@ class GalaxyCatalog:
 		"""
 		return np.random.randint(0, len(self), size=n_galaxies)
 
-	def lightmodel_kwargs(self, catalog_i, z_new=DEFAULT_Z):
+	def lightmodel_list_kwargs(self, catalog_i, z_new=DEFAULT_Z, **kwargs):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 
@@ -108,8 +110,9 @@ class GalaxyCatalog:
 			z_new (float): Redshift to place image at
 
 		Returns:
-			(dict) kwargs for
-			lenstronomy.LightModel.Profiles.interpolation.Interpol
+			(list,list) A list containing the model ['INTERPOL'] and
+				the kwargs for an instance of the class
+				lenstronomy.LightModel.Profiles.interpolation.Interpol
 		"""
 		img, metadata = self.image_and_metadata(catalog_i)
 		z, pixel_width = metadata['z'], metadata['pixel_width']
@@ -126,4 +129,5 @@ class GalaxyCatalog:
 						/ self.cosmo.angularDiameterDistance(z_new))
 
 		# Convert to kwargs for lenstronomy
-		return dict(image=img,center_x=0,center_y=0,phi_G=0,scale=pixel_width)
+		return (['INTERPOL'],
+			[dict(image=img,center_x=0,center_y=0,phi_G=0,scale=pixel_width)])

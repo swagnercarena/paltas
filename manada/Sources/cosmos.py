@@ -36,7 +36,8 @@ class COSMOSCatalog(GalaxyCatalog):
 			contamination from source noise. Units of arcseconds.
 	"""
 
-	def __init__(self, folder, cosmology_parameters, smoothing_sigma=0.0):
+	def __init__(self, folder, cosmology_parameters=None, smoothing_sigma=0.0,
+		**kwargs):
 		super().__init__(cosmology_parameters)
 
 		# Store the smoothing scale
@@ -61,7 +62,8 @@ class COSMOSCatalog(GalaxyCatalog):
 			]]
 
 			# Duplicate IDENT field crashes numpy's silly merge function.
-			catalogs[1] = numpy.lib.recfunctions.drop_fields(catalogs[1], 'IDENT')
+			catalogs[1] = numpy.lib.recfunctions.drop_fields(catalogs[1],
+				'IDENT')
 
 			# Custom fields
 			catalogs += [
@@ -91,7 +93,8 @@ class COSMOSCatalog(GalaxyCatalog):
 	def __len__(self):
 		return len(self.catalog)
 
-	def update_parameters(self,cosmology_parameters=None,smoothing_sigma=None):
+	def update_parameters(self,cosmology_parameters=None,smoothing_sigma=None,
+		**kwargs):
 		"""Updated the class parameters
 
 		Args:
