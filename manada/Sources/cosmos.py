@@ -36,9 +36,18 @@ class COSMOSCatalog(GalaxyCatalog):
 	def __init__(self, folder, cosmology_parameters):
 		super().__init__(cosmology_parameters)
 
-		# Store the path as a Path object.
 		self.folder = Path(folder)
 
+		cached_catalog: Path = self.folder / '_cached_catalog.npy'
+		if cached_catalog.exists():
+			# We built the catalog earlier, load it
+			self.catalog = np.load(cached_catalog)[:]
+		else:
+			# Build a consolidated catalog from the various COSMOS files
+			self._load_catalog()
+			np.save(cached_catalog, self.catalog)
+
+	def _load_catalog(self):
 		# Combine all partial catalog files
 		catalogs = [unfits(str(self.folder / fn)) for fn in [
 			'real_galaxy_catalog_23.5.fits',
