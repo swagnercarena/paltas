@@ -827,7 +827,6 @@ class LOSDG19Tests(unittest.TestCase):
 		total = 0
 		for _ in range(n_loops):
 			total += len(self.ld.draw_nfw_masses(z))
-		print(total/n_loops,n_expected)
 		self.assertAlmostEqual(np.round(total/n_loops),np.round(n_expected))
 
 	def test_sample_los_pos(self):
