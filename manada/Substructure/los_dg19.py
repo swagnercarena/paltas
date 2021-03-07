@@ -17,12 +17,6 @@ import lenstronomy.Util.util as util
 from lenstronomy.LensModel.Profiles.nfw import NFW
 from scipy.signal import fftconvolve
 
-# Define the parameters we expect to find for the DG_19 model
-# TODO Fill this once we have all the parameters
-draw_nfw_masses_DG_19_parameters = ['m_min','m_max','z_min','dz','cone_angle',
-	'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter',
-	'delta_los','alpha_dz_factor']
-
 
 class LOSDG19(LOSBase):
 	"""Class for rendering the line of sight structure according to DG19.
@@ -40,6 +34,10 @@ class LOSDG19(LOSBase):
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
+	# Define the parameters we expect to find for the DG_19 model
+	required_parameters = ['m_min','m_max','z_min','dz','cone_angle',
+		'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter',
+		'delta_los','alpha_dz_factor']
 
 	def __init__(self,los_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
@@ -49,7 +47,7 @@ class LOSDG19(LOSBase):
 			source_parameters,cosmology_parameters)
 
 		# Check that all the needed parameters are present
-		self.check_parameterization(draw_nfw_masses_DG_19_parameters)
+		self.check_parameterization(LOSDG19.required_parameters)
 
 	@staticmethod
 	@numba.njit

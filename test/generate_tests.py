@@ -64,3 +64,10 @@ class GenerateTests(unittest.TestCase):
 		os.remove(os.path.join('test_data','metadata.csv'))
 
 		sys.argv = old_sys
+
+		# Also clean up the test cosmos cache
+		test_cosmo_folder = 'test_data/cosmos/'
+		os.remove(test_cosmo_folder+'manada_catalog.npy')
+		for i in range(10):
+			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
+		os.rmdir(test_cosmo_folder+'npy_files')

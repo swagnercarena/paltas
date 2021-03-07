@@ -16,8 +16,6 @@ from .galaxy_catalog import GalaxyCatalog
 import scipy
 
 HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
-cosmos_parameters = ['minimum_size_in_pixels','min_apparent_mag','max_z',
-	'smoothing_sigma']
 
 
 class COSMOSCatalog(GalaxyCatalog):
@@ -37,15 +35,17 @@ class COSMOSCatalog(GalaxyCatalog):
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources.
 	"""
+	required_parameters = ['minimum_size_in_pixels','min_apparent_mag','max_z',
+		'smoothing_sigma','cosmos_folder']
 
-	def __init__(self, folder, cosmology_parameters, source_parameters):
+	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
 
 		# Check that all the required parameters are present
-		self.check_parameterization(cosmos_parameters)
+		self.check_parameterization(COSMOSCatalog.required_parameters)
 
 		# Store the path as a Path object.
-		self.folder = Path(folder)
+		self.folder = Path(source_parameters['cosmos_folder'])
 
 		# Check if we've already populated the catalog
 		self.catalog_path = self.folder/'manada_catalog.npy'

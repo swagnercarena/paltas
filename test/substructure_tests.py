@@ -808,7 +808,7 @@ class LOSDG19Tests(unittest.TestCase):
 			total += len(self.ld.draw_nfw_masses(z))
 		self.assertAlmostEqual(np.round(total/n_loops),np.round(n_expected))
 
-		z = 0.5
+		z = 0.49
 		pl_slope, pl_norm = self.ld.power_law_dn_dm(
 			z+self.los_parameters['dz']/2,
 			self.los_parameters['m_min'],self.los_parameters['m_max'])
@@ -827,6 +827,7 @@ class LOSDG19Tests(unittest.TestCase):
 		total = 0
 		for _ in range(n_loops):
 			total += len(self.ld.draw_nfw_masses(z))
+		print(total/n_loops,n_expected)
 		self.assertAlmostEqual(np.round(total/n_loops),np.round(n_expected))
 
 	def test_sample_los_pos(self):

@@ -18,12 +18,14 @@ tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 kwargs_numerics = {'supersampling_factor':1}
 numpix = 64
 seed = 10
+
+# Define some general image kwargs for the dataset
 mask_radius = 0.2
 mag_cut = 1.0
 
 # Define the cosmos path
 root_path = manada.__path__[0][:-7]
-cosmos_folder = root_path + '/datasets/cosmos/COSMOS_23.5_training_sample'
+cosmos_folder = root_path + '/test/test_data/cosmos/'
 
 config_dict = {
 	'subhalo':{
@@ -63,9 +65,11 @@ config_dict = {
 		}
 	},
 	'source':{
-		'class_instance': COSMOSCatalog(cosmos_folder),
+		'class': COSMOSCatalog,
 		'parameters':{
-			'z_source':1.5,'catalog_i':200}
+			'z_source':1.5,'catalog_i':5,'cosmos_folder':cosmos_folder,
+			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
+			'smoothing_sigma':0.0}
 	},
 	'cosmology':{
 		'parameters':{

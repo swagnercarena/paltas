@@ -72,10 +72,9 @@ class COSMOSCatalogTests(unittest.TestCase):
 			os.path.abspath(__file__))+'/test_data/cosmos/')
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
-			'min_apparent_mag':None
+			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder
 		}
-		self.c = COSMOSCatalog(self.test_cosmo_folder,
-			cosmology_parameters='planck18',
+		self.c = COSMOSCatalog(cosmology_parameters='planck18',
 			source_parameters=self.source_parameters)
 
 		# Fix the seed so we don't have issues with randomness in tests
@@ -99,8 +98,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Check that trying to initialize a class without the correct
 		# parameters raises a value error.
 		with self.assertRaises(ValueError):
-			COSMOSCatalog(self.test_cosmo_folder,
-				cosmology_parameters='planck18',
+			COSMOSCatalog(cosmology_parameters='planck18',
 				source_parameters={})
 
 	def test_unfits(self):
@@ -146,8 +144,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Test that things still work with smoothing
 		new_sp = copy.deepcopy(self.source_parameters)
 		new_sp['smoothing_sigma'] = 0.06
-		cs = COSMOSCatalog(self.test_cosmo_folder,
-			cosmology_parameters='planck18',
+		cs = COSMOSCatalog(cosmology_parameters='planck18',
 			source_parameters=new_sp)
 
 		# Use this opportunity to make sure the catalogs are identical

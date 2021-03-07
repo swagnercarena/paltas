@@ -14,11 +14,6 @@ import numpy as np
 from ..Utils import power_law, cosmology_utils
 from colossus.halo.concentration import peaks
 
-# Define the parameters we expect to find for the DG_19 model
-draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
-	'm_min','m_max','c_0','conc_xi','conc_beta','conc_m_ref',
-	'dex_scatter']
-
 
 class SubhalosDG19(SubhalosBase):
 	"""Class for rendering the subhalos of a main halos according to DG19.
@@ -36,6 +31,9 @@ class SubhalosDG19(SubhalosBase):
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
+	# Define the parameters we expect to find for the DG_19 model
+	required_parameters = ['sigma_sub','shmf_plaw_index','m_pivot','m_min',
+		'm_max','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter']
 
 	def __init__(self,subhalo_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
@@ -45,7 +43,7 @@ class SubhalosDG19(SubhalosBase):
 			source_parameters,cosmology_parameters)
 
 		# Check that all the needed parameters are present
-		self.check_parameterization(draw_nfw_masses_DG_19_parameters)
+		self.check_parameterization(SubhalosDG19.required_parameters)
 
 	@staticmethod
 	@numba.njit()
