@@ -22,16 +22,28 @@ class GalaxyCatalog:
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 
-	def __init__(self, cosmology_parameters=None):
-		if cosmology_parameters is None:
-			cosmology_parameters = 'planck18'
+	def __init__(self, cosmology_parameters, source_parameters):
 		self.cosmo = get_cosmology(cosmology_parameters)
+		self.source_parameters = source_parameters
 
 	def __len__(self):
 		"""Returns the length of the catalog"""
 		raise NotImplementedError
 
-	def update_parameters(self,cosmology_parameters):
+	def check_parameterization(self,required_params):
+		""" Check that all the required parameters are present in the
+		source_parameters.
+
+		Args:
+			required_params ([str,...]): A list of strings containing the
+				required parameters.
+		"""
+		if not all(elem in self.source_parameters.keys() for
+			elem in required_params):
+			raise ValueError('Not all of the required parameters for the ' +
+				'parameterization are present.')
+
+	def update_parameters(self,cosmology_parameters=None,source_parameters=None):
 		"""Updated the class parameters
 
 		Args:
@@ -41,8 +53,13 @@ class GalaxyCatalog:
 				colossus cosmology, an instance of colussus cosmology, or a
 				dict with H0 and Om0 ( other parameters will be set to
 				defaults).
+			source_parameters (dict): A dictionary containing all the parameters
+				needed to draw sources.
 		"""
-		self.cosmo = get_cosmology(cosmology_parameters)
+		if source_parameters is not None:
+			self.source_parameters = source_parameters
+		if cosmology_parameters is not None:
+			self.cosmo = get_cosmology(cosmology_parameters)
 
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy
@@ -101,7 +118,7 @@ class GalaxyCatalog:
 		"""
 		return np.random.randint(0, len(self), size=n_galaxies)
 
-	def lightmodel_list_kwargs(self, catalog_i, z_new=DEFAULT_Z, **kwargs):
+	def lightmodel_list_kwargs(self, catalog_i, z_new=DEFAULT_Z):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 

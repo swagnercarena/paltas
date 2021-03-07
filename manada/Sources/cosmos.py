@@ -16,6 +16,8 @@ from .galaxy_catalog import GalaxyCatalog
 import scipy
 
 HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
+cosmos_parameters = ['minimum_size_in_pixels','min_apparent_mag','max_z',
+	'smoothing_sigma']
 
 
 class COSMOSCatalog(GalaxyCatalog):
@@ -32,16 +34,15 @@ class COSMOSCatalog(GalaxyCatalog):
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
-		smoothing_sigma (float): Smooth the source images to avoid
-			contamination from source noise. Units of arcseconds.
+		source_parameters (dict): A dictionary containing all the parameters
+			needed to draw sources.
 	"""
 
-	def __init__(self, folder, cosmology_parameters=None, smoothing_sigma=0.0,
-		**kwargs):
-		super().__init__(cosmology_parameters)
+	def __init__(self, folder, cosmology_parameters, source_parameters):
+		super().__init__(cosmology_parameters,source_parameters)
 
-		# Store the smoothing scale
-		self.smoothing_sigma = smoothing_sigma
+		# Check that all the required parameters are present
+		self.check_parameterization(cosmos_parameters)
 
 		# Store the path as a Path object.
 		self.folder = Path(folder)
@@ -93,41 +94,26 @@ class COSMOSCatalog(GalaxyCatalog):
 	def __len__(self):
 		return len(self.catalog)
 
-	def update_parameters(self,cosmology_parameters=None,smoothing_sigma=None,
-		**kwargs):
-		"""Updated the class parameters
-
-		Args:
-			cosmology_parameters (str,dict, or
-				colossus.cosmology.cosmology.Cosmology): Either a name
-				of colossus cosmology, a dict with 'cosmology name': name of
-				colossus cosmology, an instance of colussus cosmology, or a
-				dict with H0 and Om0 ( other parameters will be set to
-				defaults).
-			smoothing_sigma (float): Smooth the source images to avoid
-				contamination from source noise. Units of arcseconds.
-		"""
-		if smoothing_sigma is not None:
-			self.smoothing_sigma = smoothing_sigma
-		if cosmology_parameters is not None:
-			super().update_parameters(cosmology_parameters)
-
-	def sample_indices(self,n_galaxies,min_apparent_mag=None,
-		minimum_size_in_pixels=None,max_z=None):
+	def sample_indices(self,n_galaxies):
 		"""Return n_galaxies array of catalog indices to sample
 
 		Args:
 			n_galaxies (int): Number of indices to return
-			min_apparent_mag (float): The minimum apparent magnitude of COSMOS
-				image
-			minimum_size_in_pixels (int): The minimum image width and height
-				in pixels
-			min_z (float): The maximum redshift for the source
 
 		Returns:
 			(np.array): Array of ints of catalog indices to sample.
+
+		Notes:
+			The minimum apparent magnitude, minimum size in pixels, and
+			minimum redshift are all set by the source parameters dict.
 		"""
 		is_ok = np.ones(len(self), dtype=np.bool_)
+		# Grab the parameter to cut on.
+		min_apparent_mag = self.source_parameters['min_apparent_mag']
+		minimum_size_in_pixels = self.source_parameters['minimum_size_in_pixels']
+		max_z = self.source_parameters['max_z']
+
+		# Get the images that match the cuts.
 		if min_apparent_mag is not None:
 			is_ok &= self.catalog['mag_auto'] < min_apparent_mag
 		if minimum_size_in_pixels is not None:
@@ -189,10 +175,11 @@ class COSMOSCatalog(GalaxyCatalog):
 			much faster on average than going for the fits files.
 		"""
 		img = np.load(str(self.npy_files_path/('img_%d.npy'%(catalog_i))))
+		smoothing_sigma = self.source_parameters['smoothing_sigma']
 		# Filter the images if that was requested
-		if self.smoothing_sigma > 0:
+		if smoothing_sigma > 0:
 			img = scipy.ndimage.gaussian_filter(img,
-				sigma=self.smoothing_sigma/HUBBLE_ACS_PIXEL_WIDTH)
+				sigma=smoothing_sigma/HUBBLE_ACS_PIXEL_WIDTH)
 		return img, self.catalog[catalog_i]
 
 

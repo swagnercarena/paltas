@@ -12,12 +12,14 @@ from lenstronomy.Data.imaging_data import ImageData
 from lenstronomy.Util.simulation_util import data_configure_simple
 from lenstronomy.Data.psf import PSF
 import scipy
+import copy
 
 
 class GalaxyCatalogTests(unittest.TestCase):
 
 	def setUp(self):
-		self.c = GalaxyCatalog(cosmology_parameters='planck18')
+		self.c = GalaxyCatalog(cosmology_parameters='planck18',
+			source_parameters={})
 
 	def test__len__(self):
 		# Just test that the not implemented error is raised.
@@ -68,8 +70,13 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Use a trimmed version of cosmo data for testing.
 		self.test_cosmo_folder = (os.path.dirname(
 			os.path.abspath(__file__))+'/test_data/cosmos/')
+		self.source_parameters = {
+			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
+			'min_apparent_mag':None
+		}
 		self.c = COSMOSCatalog(self.test_cosmo_folder,
-			cosmology_parameters='planck18')
+			cosmology_parameters='planck18',
+			source_parameters=self.source_parameters)
 
 		# Fix the seed so we don't have issues with randomness in tests
 		np.random.seed(10)
@@ -87,6 +94,14 @@ class COSMOSCatalogTests(unittest.TestCase):
 		for i in range(10):
 			os.remove(self.test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(self.test_cosmo_folder+'npy_files')
+
+	def test_check_parameterization(self):
+		# Check that trying to initialize a class without the correct
+		# parameters raises a value error.
+		with self.assertRaises(ValueError):
+			COSMOSCatalog(self.test_cosmo_folder,
+				cosmology_parameters='planck18',
+				source_parameters={})
 
 	def test_unfits(self):
 		# Check that the returned arrays have the right elements and size.
@@ -117,8 +132,9 @@ class COSMOSCatalogTests(unittest.TestCase):
 
 	def test_update_parameters(self):
 		# Check that the update parameter call updates the cosmology
-		self.c.update_parameters(smoothing_sigma=0.06)
-		self.assertEqual(self.c.smoothing_sigma,0.06)
+		self.source_parameters['smoothing_sigma'] = 0.06
+		self.c.update_parameters(source_parameters=self.source_parameters)
+		self.assertEqual(self.c.source_parameters['smoothing_sigma'],0.06)
 
 	def test_image_and_metadata(self):
 		catalog_i = 0
@@ -128,10 +144,11 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.assertEqual(metadata['IDENT'],141190)
 
 		# Test that things still work with smoothing
-		smoothing_sigma = 0.06
+		new_sp = copy.deepcopy(self.source_parameters)
+		new_sp['smoothing_sigma'] = 0.06
 		cs = COSMOSCatalog(self.test_cosmo_folder,
 			cosmology_parameters='planck18',
-			smoothing_sigma=smoothing_sigma)
+			source_parameters=new_sp)
 
 		# Use this opportunity to make sure the catalogs are identical
 		np.testing.assert_equal(cs.catalog,self.c.catalog)
@@ -139,7 +156,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 		image_s, metadata_s = cs.image_and_metadata(catalog_i)
 		self.assertGreater(np.max(np.abs(image-image_s)),0.01)
 		image_check = scipy.ndimage.gaussian_filter(image,
-			sigma=smoothing_sigma/HUBBLE_ACS_PIXEL_WIDTH)
+			sigma=new_sp['smoothing_sigma']/HUBBLE_ACS_PIXEL_WIDTH)
 		np.testing.assert_almost_equal(image_check,image_s)
 
 	def test_iter_lightmodel_kwargs_samples(self):
@@ -171,26 +188,24 @@ class COSMOSCatalogTests(unittest.TestCase):
 
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
-		min_apparent_mag = 22
-		samples = self.c.sample_indices(n_galaxies,
-			min_apparent_mag=min_apparent_mag)
+		new_sp = copy.deepcopy(self.source_parameters)
+		new_sp['min_apparent_mag'] = 22
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		minimum_size_in_pixels = 90
-		min_apparent_mag = 22.5
-		samples = self.c.sample_indices(n_galaxies,
-			min_apparent_mag=min_apparent_mag,
-			minimum_size_in_pixels=minimum_size_in_pixels)
+		new_sp['min_apparent_mag'] = 22.5
+		new_sp['minimum_size_in_pixels'] = 90
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
 		np.testing.assert_equal(np.unique(samples),[0,1,3,7])
 
 		# Test the redshift
-		max_z = 0.5
-		samples = self.c.sample_indices(n_galaxies,
-			min_apparent_mag=min_apparent_mag,
-			minimum_size_in_pixels=minimum_size_in_pixels,
-			max_z=max_z)
+		new_sp['max_z'] = 0.5
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
 		np.testing.assert_equal(np.unique(samples),[0,7])
 
 	def test_lightmodel_list_kwargs(self):

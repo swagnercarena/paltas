@@ -94,7 +94,8 @@ def main():
 	if 'main_deflector' in config_dict:
 		main_model_list = config_dict['main_deflector']['models']
 
-	source_class = config_dict['source']['class_instance']
+	source_class = config_dict['source']['class'](sample['cosmology_parameters'],
+		sample['source_parameters'])
 
 	# Use a pandas dataframe to store the parameter values.
 	metadata = pd.DataFrame()
@@ -167,9 +168,10 @@ def main():
 		# into a source model
 		source_class.update_parameters(
 			cosmology_parameters=sample['cosmology_parameters'],
-			**sample['source_parameters'])
+			source_parameters=sample['source_parameters'])
 		source_model_list, source_kwargs_list = (
-			source_class.lightmodel_list_kwargs(**sample['source_parameters']))
+			source_class.lightmodel_list_kwargs(sample['source_parameters']
+				['catalog_i'],z_new=z_source))
 		source_light_model = LightModel(source_model_list)
 
 		# Put it together into an image model
