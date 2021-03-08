@@ -90,7 +90,7 @@ class GalaxyCatalog:
 			lenstronomy model lists and kwargs.
 		"""
 		for catalog_i in self.sample_indices(n_galaxies,**selection_kwargs):
-			yield self.lightmodel_list_kwargs(catalog_i, z_new=z_new)
+			yield self.draw_source(catalog_i, z_new=z_new)
 
 	def iter_image_and_metadata(self, message=''):
 		"""Yields the image array and metadata for all of the images
@@ -118,7 +118,7 @@ class GalaxyCatalog:
 		"""
 		return np.random.randint(0, len(self), size=n_galaxies)
 
-	def lightmodel_list_kwargs(self, catalog_i, z_new=DEFAULT_Z):
+	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 
@@ -130,7 +130,14 @@ class GalaxyCatalog:
 			(list,list) A list containing the model ['INTERPOL'] and
 				the kwargs for an instance of the class
 				lenstronomy.LightModel.Profiles.interpolation.Interpol
+
+		Notes:
+			If not catalog_i is provided, one that meets the cuts will be
+			selected at random.
 		"""
+		# If no index is provided pick one at random
+		if catalog_i is None:
+			catalog_i = self.sample_indices(1)
 		img, metadata = self.image_and_metadata(catalog_i)
 		z, pixel_width = metadata['z'], metadata['pixel_width']
 

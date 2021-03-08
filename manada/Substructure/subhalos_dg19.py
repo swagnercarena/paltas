@@ -33,7 +33,7 @@ class SubhalosDG19(SubhalosBase):
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ['sigma_sub','shmf_plaw_index','m_pivot','m_min',
-		'm_max','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter']
+		'm_max','c_0','conc_zeta','conc_beta','conc_m_ref','dex_scatter']
 
 	def __init__(self,subhalo_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
@@ -124,7 +124,7 @@ class SubhalosDG19(SubhalosBase):
 		"""
 		# Get the concentration parameters
 		c_0 = self.subhalo_parameters['c_0']
-		xi = self.subhalo_parameters['conc_xi']
+		zeta = self.subhalo_parameters['conc_zeta']
 		beta = self.subhalo_parameters['conc_beta']
 		m_ref = self.subhalo_parameters['conc_m_ref']
 		dex_scatter = self.subhalo_parameters['dex_scatter']
@@ -138,7 +138,7 @@ class SubhalosDG19(SubhalosBase):
 		peak_height_ref = peaks.peakHeight(m_ref*h,0)
 
 		# Now get the concentrations and add scatter
-		concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(
+		concentrations = c_0*(1+z)**(zeta)*(peak_heights/peak_height_ref)**(
 			-beta)
 		if isinstance(concentrations,np.ndarray):
 			conc_scatter = np.random.randn(len(concentrations))*dex_scatter

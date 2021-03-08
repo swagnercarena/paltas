@@ -34,7 +34,7 @@ config_dict = {
 			'sigma_sub':uniform(loc=0,scale=5e-4).rvs,
 			'shmf_plaw_index':-1.83,
 			'm_pivot': 1e8,'m_min': 1e9,'m_max': 1e10,
-			'c_0':18,'conc_xi':-0.2,'conc_beta':0.8,
+			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
 			'conc_m_ref': 1e8,'dex_scatter': 0.1
 		}
 	},
@@ -43,7 +43,7 @@ config_dict = {
 		'parameters':{
 			'm_min':1e9,'m_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
-			'c_0':18,'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.1,'delta_los':uniform(loc=0,scale=5e-3).rvs,
 			'alpha_dz_factor':20.0
 		}
@@ -67,7 +67,7 @@ config_dict = {
 	'source':{
 		'class': COSMOSCatalog,
 		'parameters':{
-			'z_source':1.5,'catalog_i':5,'cosmos_folder':cosmos_folder,
+			'z_source':1.5,'cosmos_folder':cosmos_folder,
 			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
 			'smoothing_sigma':0.0}
 	},

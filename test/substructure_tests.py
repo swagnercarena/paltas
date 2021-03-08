@@ -266,7 +266,7 @@ class SubhalosBaseTests(unittest.TestCase):
 		# Make the subhalo base class we'll use for testing.
 		self.subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
 			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
-			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.0, 'distribution':'DG_19'}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':1, 'center_x':0.0, 'center_y': 0.0}
@@ -292,10 +292,10 @@ class SubhalosBaseTests(unittest.TestCase):
 		# Test that it raises the error if something is missing,
 		# doesn't raise it if everything (and more) is there
 		parameters_extra = ['sigma_sub','shmf_plaw_index','m_pivot','m_min',
-			'm_max','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter',
+			'm_max','c_0','conc_zeta','conc_beta','conc_m_ref','dex_scatter',
 			'extra']
 		parameters_less = ['sigma_sub','shmf_plaw_index','m_pivot','m_min',
-			'm_max','c_0','conc_xi','conc_beta','conc_m_ref']
+			'm_max','c_0','conc_zeta','conc_beta','conc_m_ref']
 
 		# Make sure no error is raised if everything is there
 		self.sb.check_parameterization(parameters_less)
@@ -308,7 +308,7 @@ class SubhalosBaseTests(unittest.TestCase):
 		# Check that the parameters are updated
 		subhalo_parameters = {'sigma_sub':1e-2, 'shmf_plaw_index': -1.83,
 			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
-			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.0, 'distribution':'DG_19'}
 		main_deflector_parameters = {'M200': 1e12, 'z_lens': 0.4,
 			'theta_E':0.32, 'center_x':0.1, 'center_y': 0.1}
@@ -341,7 +341,7 @@ class SubhalosDG19Tests(unittest.TestCase):
 
 		self.subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
 			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
-			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.0, 'distribution':'DG_19'}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':2.38, 'center_x':0.0, 'center_y': 0.0}
@@ -368,7 +368,7 @@ class SubhalosDG19Tests(unittest.TestCase):
 		# Add the parameter we need
 		subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
 			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
-			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.0}
 
 		# Calculate the norm by hand and make sure the statistics agree
@@ -592,7 +592,7 @@ class LOSDG19Tests(unittest.TestCase):
 
 		self.los_parameters = {'m_min':1e6, 'm_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':4.0,'r_min':0.5,'r_max':10.0,'c_0':18,
-			'conc_xi':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
+			'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.0,'delta_los':1.7,'alpha_dz_factor':1.0}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}

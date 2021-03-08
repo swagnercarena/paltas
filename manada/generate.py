@@ -169,9 +169,8 @@ def main():
 		source_class.update_parameters(
 			cosmology_parameters=sample['cosmology_parameters'],
 			source_parameters=sample['source_parameters'])
-		source_model_list, source_kwargs_list = (
-			source_class.lightmodel_list_kwargs(sample['source_parameters']
-				['catalog_i'],z_new=z_source))
+		source_model_list, source_kwargs_list = source_class.draw_source(
+			z_new=z_source)
 		source_light_model = LightModel(source_model_list)
 
 		# Put it together into an image model

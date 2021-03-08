@@ -57,11 +57,11 @@ class GalaxyCatalogTests(unittest.TestCase):
 		with self.assertRaises(NotImplementedError):
 			self.c.sample_indices(n_galaxies)
 
-	def test_lightmodel_list_kwargs(self):
+	def test_draw_source(self):
 		# Just test that the not implemented error is raised.
 		catalog_i = 2
 		with self.assertRaises(NotImplementedError):
-			self.c.lightmodel_list_kwargs(catalog_i)
+			self.c.draw_source(catalog_i)
 
 
 class COSMOSCatalogTests(unittest.TestCase):
@@ -205,14 +205,14 @@ class COSMOSCatalogTests(unittest.TestCase):
 		samples = self.c.sample_indices(n_galaxies)
 		np.testing.assert_equal(np.unique(samples),[0,7])
 
-	def test_lightmodel_list_kwargs(self):
+	def test_draw_source(self):
 		# Test that the lightmodel kwargs returned are what we would
 		# expect to pass into lenstronomy.
 		catalog_i = 0
 		image, metadata = self.c.image_and_metadata(catalog_i)
 
 		# First don't change the redshift
-		lm_list, lm_kwargs = self.c.lightmodel_list_kwargs(catalog_i,
+		lm_list, lm_kwargs = self.c.draw_source(catalog_i,
 			z_new=metadata['z'])
 		lm_kwargs = lm_kwargs[0]
 		self.assertEqual(lm_list[0],'INTERPOL')
@@ -222,7 +222,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 
 		# Now change the redshift
 		z_new = 1.0
-		lm_list, lm_kwargs = self.c.lightmodel_list_kwargs(catalog_i,
+		lm_list, lm_kwargs = self.c.draw_source(catalog_i,
 			z_new=z_new)
 		lm_kwargs = lm_kwargs[0]
 		self.assertEqual(lm_list[0],'INTERPOL')
@@ -237,6 +237,9 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.assertAlmostEqual(lm_kwargs['scale'],metadata['pixel_width']*
 			cosmo.angularDiameterDistance(metadata['z'])/
 			cosmo.angularDiameterDistance(z_new))
+
+		# Test that providing no catalog_i is not a problem
+		lm_list, lm_kwargs = self.c.draw_source(z_new=metadata['z'])
 
 		# Finally test that if we pass these kwargs into a lenstronomy
 		# Interpolation class we get the image we expect.
@@ -258,7 +261,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Create a lens that will do nothing
 		lens_kwargs = [{'theta_E': 0.0, 'e1': 0., 'e2': 0., 'gamma': 0.,
 			'center_x': 0, 'center_y': 0}]
-		source_kwargs = [self.c.lightmodel_list_kwargs(catalog_i=catalog_i,
+		source_kwargs = [self.c.draw_source(catalog_i=catalog_i,
 			z_new=metadata['z'])[1][0]]
 
 		l_image = image_model.image(kwargs_lens=lens_kwargs,

@@ -36,8 +36,8 @@ class LOSDG19(LOSBase):
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ['m_min','m_max','z_min','dz','cone_angle',
-		'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter',
-		'delta_los','alpha_dz_factor']
+		'r_max','r_min','c_0','conc_zeta','conc_beta','conc_m_ref',
+		'dex_scatter','delta_los','alpha_dz_factor']
 
 	def __init__(self,los_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
@@ -334,7 +334,7 @@ class LOSDG19(LOSBase):
 		"""
 		# Get the concentration parameters
 		c_0 = self.los_parameters['c_0']
-		xi = self.los_parameters['conc_xi']
+		zeta = self.los_parameters['conc_zeta']
 		beta = self.los_parameters['conc_beta']
 		m_ref = self.los_parameters['conc_m_ref']
 		dex_scatter = self.los_parameters['dex_scatter']*scatter_mult
@@ -348,7 +348,7 @@ class LOSDG19(LOSBase):
 		peak_height_ref = peaks.peakHeight(m_ref*h,0)
 
 		# Now get the concentrations and add scatter
-		concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(
+		concentrations = c_0*(1+z)**(zeta)*(peak_heights/peak_height_ref)**(
 			-beta)
 		if isinstance(concentrations,np.ndarray):
 			conc_scatter = np.random.randn(len(concentrations))*dex_scatter
