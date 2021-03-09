@@ -22,12 +22,44 @@ class GalaxyCatalog:
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 
-	def __init__(self, cosmology_parameters):
+	def __init__(self, cosmology_parameters, source_parameters):
 		self.cosmo = get_cosmology(cosmology_parameters)
+		self.source_parameters = source_parameters
 
 	def __len__(self):
 		"""Returns the length of the catalog"""
 		raise NotImplementedError
+
+	def check_parameterization(self,required_params):
+		""" Check that all the required parameters are present in the
+		source_parameters.
+
+		Args:
+			required_params ([str,...]): A list of strings containing the
+				required parameters.
+		"""
+		if not all(elem in self.source_parameters.keys() for
+			elem in required_params):
+			raise ValueError('Not all of the required parameters for the ' +
+				'parameterization are present.')
+
+	def update_parameters(self,cosmology_parameters=None,source_parameters=None):
+		"""Updated the class parameters
+
+		Args:
+			cosmology_parameters (str,dict, or
+				colossus.cosmology.cosmology.Cosmology): Either a name
+				of colossus cosmology, a dict with 'cosmology name': name of
+				colossus cosmology, an instance of colussus cosmology, or a
+				dict with H0 and Om0 ( other parameters will be set to
+				defaults).
+			source_parameters (dict): A dictionary containing all the parameters
+				needed to draw sources.
+		"""
+		if source_parameters is not None:
+			self.source_parameters = source_parameters
+		if cosmology_parameters is not None:
+			self.cosmo = get_cosmology(cosmology_parameters)
 
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy
@@ -55,10 +87,10 @@ class GalaxyCatalog:
 
 		Returns:
 			(generator): A generator that can be iterated over to give
-			lenstronomy kwargs.
+			lenstronomy model lists and kwargs.
 		"""
 		for catalog_i in self.sample_indices(n_galaxies,**selection_kwargs):
-			yield self.lightmodel_kwargs(catalog_i, z_new=z_new)
+			yield self.draw_source(catalog_i, z_new=z_new)
 
 	def iter_image_and_metadata(self, message=''):
 		"""Yields the image array and metadata for all of the images
@@ -86,7 +118,7 @@ class GalaxyCatalog:
 		"""
 		return np.random.randint(0, len(self), size=n_galaxies)
 
-	def lightmodel_kwargs(self, catalog_i, z_new=DEFAULT_Z):
+	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 
@@ -95,9 +127,17 @@ class GalaxyCatalog:
 			z_new (float): Redshift to place image at
 
 		Returns:
-			(dict) kwargs for
-			lenstronomy.LightModel.Profiles.interpolation.Interpol
+			(list,list) A list containing the model ['INTERPOL'] and
+				the kwargs for an instance of the class
+				lenstronomy.LightModel.Profiles.interpolation.Interpol
+
+		Notes:
+			If not catalog_i is provided, one that meets the cuts will be
+			selected at random.
 		"""
+		# If no index is provided pick one at random
+		if catalog_i is None:
+			catalog_i = self.sample_indices(1)
 		img, metadata = self.image_and_metadata(catalog_i)
 		z, pixel_width = metadata['z'], metadata['pixel_width']
 
@@ -113,4 +153,5 @@ class GalaxyCatalog:
 						/ self.cosmo.angularDiameterDistance(z_new))
 
 		# Convert to kwargs for lenstronomy
-		return dict(image=img,center_x=0,center_y=0,phi_G=0,scale=pixel_width)
+		return (['INTERPOL'],
+			[dict(image=img,center_x=0,center_y=0,phi_G=0,scale=pixel_width)])

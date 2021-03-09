@@ -3,6 +3,7 @@ import unittest
 import os
 from manada.Sources.galaxy_catalog import GalaxyCatalog
 from manada.Sources.cosmos import COSMOSCatalog, unfits
+from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
 from manada.Utils.cosmology_utils import get_cosmology
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
@@ -10,17 +11,26 @@ from lenstronomy.ImSim.image_model import ImageModel
 from lenstronomy.Data.imaging_data import ImageData
 from lenstronomy.Util.simulation_util import data_configure_simple
 from lenstronomy.Data.psf import PSF
+import scipy
+import copy
 
 
 class GalaxyCatalogTests(unittest.TestCase):
 
 	def setUp(self):
-		self.c = GalaxyCatalog(cosmology_parameters='planck18')
+		self.c = GalaxyCatalog(cosmology_parameters='planck18',
+			source_parameters={})
 
 	def test__len__(self):
 		# Just test that the not implemented error is raised.
 		with self.assertRaises(NotImplementedError):
 			self.c.__len__()
+
+	def test_update_parameters(self):
+		# Check that the update parameter call updates the cosmology
+		h = self.c.cosmo.h
+		self.c.update_parameters('WMAP9')
+		self.assertNotEqual(h,self.c.cosmo.h)
 
 	def test_image_and_metadata(self):
 		# Just test that the not implemented error is raised.
@@ -47,11 +57,11 @@ class GalaxyCatalogTests(unittest.TestCase):
 		with self.assertRaises(NotImplementedError):
 			self.c.sample_indices(n_galaxies)
 
-	def test_lightmodel_kwargs(self):
+	def test_draw_source(self):
 		# Just test that the not implemented error is raised.
 		catalog_i = 2
 		with self.assertRaises(NotImplementedError):
-			self.c.lightmodel_kwargs(catalog_i)
+			self.c.draw_source(catalog_i)
 
 
 class COSMOSCatalogTests(unittest.TestCase):
@@ -60,8 +70,12 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Use a trimmed version of cosmo data for testing.
 		self.test_cosmo_folder = (os.path.dirname(
 			os.path.abspath(__file__))+'/test_data/cosmos/')
-		self.c = COSMOSCatalog(self.test_cosmo_folder,
-			cosmology_parameters='planck18')
+		self.source_parameters = {
+			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
+			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder
+		}
+		self.c = COSMOSCatalog(cosmology_parameters='planck18',
+			source_parameters=self.source_parameters)
 
 		# Fix the seed so we don't have issues with randomness in tests
 		np.random.seed(10)
@@ -73,6 +87,19 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.rfkeys = ['IDENT','mag_auto','flux_radius','zphot','sersicfit',
 			'bulgefit','fit_status','fit_mad_s','fit_mad_b','fit_dvc_btt',
 		'use_bulgefit','viable_sersic','hlr','flux']
+
+	def tearDown(self):
+		os.remove(self.test_cosmo_folder+'manada_catalog.npy')
+		for i in range(10):
+			os.remove(self.test_cosmo_folder+'npy_files/img_%d.npy'%(i))
+		os.rmdir(self.test_cosmo_folder+'npy_files')
+
+	def test_check_parameterization(self):
+		# Check that trying to initialize a class without the correct
+		# parameters raises a value error.
+		with self.assertRaises(ValueError):
+			COSMOSCatalog(cosmology_parameters='planck18',
+				source_parameters={})
 
 	def test_unfits(self):
 		# Check that the returned arrays have the right elements and size.
@@ -101,6 +128,12 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# We've trimmed the length to 10, so make sure it returns that
 		self.assertEqual(len(self.c),10)
 
+	def test_update_parameters(self):
+		# Check that the update parameter call updates the cosmology
+		self.source_parameters['smoothing_sigma'] = 0.06
+		self.c.update_parameters(source_parameters=self.source_parameters)
+		self.assertEqual(self.c.source_parameters['smoothing_sigma'],0.06)
+
 	def test_image_and_metadata(self):
 		catalog_i = 0
 		image, metadata = self.c.image_and_metadata(catalog_i)
@@ -108,18 +141,34 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.assertEqual(metadata['mag_auto'],21.04064178466797)
 		self.assertEqual(metadata['IDENT'],141190)
 
+		# Test that things still work with smoothing
+		new_sp = copy.deepcopy(self.source_parameters)
+		new_sp['smoothing_sigma'] = 0.06
+		cs = COSMOSCatalog(cosmology_parameters='planck18',
+			source_parameters=new_sp)
+
+		# Use this opportunity to make sure the catalogs are identical
+		np.testing.assert_equal(cs.catalog,self.c.catalog)
+
+		image_s, metadata_s = cs.image_and_metadata(catalog_i)
+		self.assertGreater(np.max(np.abs(image-image_s)),0.01)
+		image_check = scipy.ndimage.gaussian_filter(image,
+			sigma=new_sp['smoothing_sigma']/HUBBLE_ACS_PIXEL_WIDTH)
+		np.testing.assert_almost_equal(image_check,image_s)
+
 	def test_iter_lightmodel_kwargs_samples(self):
 		# Just test that we get the expected kwargs
 		n_galaxies = 10
 		lm_keys_required = ['image','center_x','center_y','phi_G','scale']
-		for lm_kwargs in self.c.iter_lightmodel_kwargs_samples(n_galaxies):
-			self.assertTrue(all(elem in lm_kwargs.keys()
+		for lm_list, lm_kwargs in self.c.iter_lightmodel_kwargs_samples(
+			n_galaxies):
+			self.assertTrue(all(elem in lm_kwargs[0].keys()
 				for elem in lm_keys_required))
 
-	def test_iter_image_and_metadata(self):
+	def test_iter_image_and_metadata_bulk(self):
 		# Just test that image data is returned and that it agrees with
 		# the shape of the images.
-		for image, metadata in self.c.iter_image_and_metadata():
+		for image, metadata in self.c.iter_image_and_metadata_bulk():
 			im_shape = image.shape
 			self.assertEqual(im_shape[0],metadata['size_x'])
 			self.assertEqual(im_shape[1],metadata['size_y'])
@@ -136,37 +185,47 @@ class COSMOSCatalogTests(unittest.TestCase):
 
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
-		min_apparent_mag = 22
-		samples = self.c.sample_indices(n_galaxies,
-			min_apparent_mag=min_apparent_mag)
+		new_sp = copy.deepcopy(self.source_parameters)
+		new_sp['min_apparent_mag'] = 22
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		minimum_size_in_pixels = 90
-		min_apparent_mag = 22.5
-		samples = self.c.sample_indices(n_galaxies,
-			min_apparent_mag=min_apparent_mag,
-			minimum_size_in_pixels=minimum_size_in_pixels)
+		new_sp['min_apparent_mag'] = 22.5
+		new_sp['minimum_size_in_pixels'] = 90
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
 		np.testing.assert_equal(np.unique(samples),[0,1,3,7])
 
-	def test_lightmodel_kwargs(self):
+		# Test the redshift
+		new_sp['max_z'] = 0.5
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
+		np.testing.assert_equal(np.unique(samples),[0,7])
+
+	def test_draw_source(self):
 		# Test that the lightmodel kwargs returned are what we would
 		# expect to pass into lenstronomy.
 		catalog_i = 0
 		image, metadata = self.c.image_and_metadata(catalog_i)
 
 		# First don't change the redshift
-		lm_kwargs = self.c.lightmodel_kwargs(catalog_i,
+		lm_list, lm_kwargs = self.c.draw_source(catalog_i,
 			z_new=metadata['z'])
+		lm_kwargs = lm_kwargs[0]
+		self.assertEqual(lm_list[0],'INTERPOL')
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/lm_kwargs['scale']**2)
 		low_z_scale = lm_kwargs['scale']
 
 		# Now change the redshift
 		z_new = 1.0
-		lm_kwargs = self.c.lightmodel_kwargs(catalog_i,
+		lm_list, lm_kwargs = self.c.draw_source(catalog_i,
 			z_new=z_new)
+		lm_kwargs = lm_kwargs[0]
+		self.assertEqual(lm_list[0],'INTERPOL')
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/metadata['pixel_width']**2)
 		high_z_scale = lm_kwargs['scale']
@@ -178,6 +237,9 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.assertAlmostEqual(lm_kwargs['scale'],metadata['pixel_width']*
 			cosmo.angularDiameterDistance(metadata['z'])/
 			cosmo.angularDiameterDistance(z_new))
+
+		# Test that providing no catalog_i is not a problem
+		lm_list, lm_kwargs = self.c.draw_source(z_new=metadata['z'])
 
 		# Finally test that if we pass these kwargs into a lenstronomy
 		# Interpolation class we get the image we expect.
@@ -199,8 +261,8 @@ class COSMOSCatalogTests(unittest.TestCase):
 		# Create a lens that will do nothing
 		lens_kwargs = [{'theta_E': 0.0, 'e1': 0., 'e2': 0., 'gamma': 0.,
 			'center_x': 0, 'center_y': 0}]
-		source_kwargs = [self.c.lightmodel_kwargs(catalog_i=catalog_i,
-			z_new=metadata['z'])]
+		source_kwargs = [self.c.draw_source(catalog_i=catalog_i,
+			z_new=metadata['z'])[1][0]]
 
 		l_image = image_model.image(kwargs_lens=lens_kwargs,
 			kwargs_source=source_kwargs)

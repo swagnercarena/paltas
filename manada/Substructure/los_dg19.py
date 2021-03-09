@@ -17,12 +17,6 @@ import lenstronomy.Util.util as util
 from lenstronomy.LensModel.Profiles.nfw import NFW
 from scipy.signal import fftconvolve
 
-# Define the parameters we expect to find for the DG_19 model
-# TODO Fill this once we have all the parameters
-draw_nfw_masses_DG_19_parameters = ['m_min','m_max','z_min','dz','cone_angle',
-	'r_max','r_min','c_0','conc_xi','conc_beta','conc_m_ref','dex_scatter',
-	'delta_los']
-
 
 class LOSDG19(LOSBase):
 	"""Class for rendering the line of sight structure according to DG19.
@@ -40,6 +34,10 @@ class LOSDG19(LOSBase):
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
+	# Define the parameters we expect to find for the DG_19 model
+	required_parameters = ('m_min','m_max','z_min','dz','cone_angle',
+		'r_max','r_min','c_0','conc_zeta','conc_beta','conc_m_ref',
+		'dex_scatter','delta_los','alpha_dz_factor')
 
 	def __init__(self,los_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
@@ -49,7 +47,7 @@ class LOSDG19(LOSBase):
 			source_parameters,cosmology_parameters)
 
 		# Check that all the needed parameters are present
-		self.check_parameterization(draw_nfw_masses_DG_19_parameters)
+		self.check_parameterization(LOSDG19.required_parameters)
 
 	@staticmethod
 	@numba.njit
@@ -142,8 +140,7 @@ class LOSDG19(LOSBase):
 
 		return slope_estimate, norm_estimate
 
-	@functools.lru_cache(maxsize=1)
-	def two_halo_boost(self,z,z_lens,dz,lens_m200,r_max,r_min,n_quads=1000):
+	def two_halo_boost(self,z,z_lens,dz,lens_m200,r_max,r_min,n_quads=100):
 		"""Calculates the boost from the two halo term of the host halo at
 		the given redshift.
 
@@ -337,7 +334,7 @@ class LOSDG19(LOSBase):
 		"""
 		# Get the concentration parameters
 		c_0 = self.los_parameters['c_0']
-		xi = self.los_parameters['conc_xi']
+		zeta = self.los_parameters['conc_zeta']
 		beta = self.los_parameters['conc_beta']
 		m_ref = self.los_parameters['conc_m_ref']
 		dex_scatter = self.los_parameters['dex_scatter']*scatter_mult
@@ -351,7 +348,7 @@ class LOSDG19(LOSBase):
 		peak_height_ref = peaks.peakHeight(m_ref*h,0)
 
 		# Now get the concentrations and add scatter
-		concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(
+		concentrations = c_0*(1+z)**(zeta)*(peak_heights/peak_height_ref)**(
 			-beta)
 		if isinstance(concentrations,np.ndarray):
 			conc_scatter = np.random.randn(len(concentrations))*dex_scatter
@@ -430,7 +427,9 @@ class LOSDG19(LOSBase):
 		dz = self.los_parameters['dz']
 
 		# Add halos from the starting reshift to the source redshift.
-		z_range = np.arange(z_min,z_source,dz)
+		# Note most of the calculations are done at z + dz/2, so you
+		# want to stop at z_source-dz.
+		z_range = np.arange(z_min,z_source-dz,dz)
 		# Round the z_range to improve caching hits.
 		z_range = list(np.round(z_range,2))
 
@@ -481,12 +480,13 @@ class LOSDG19(LOSBase):
 		z_source = self.source_parameters['z_source']
 		z_lens = self.main_deflector_parameters['z_lens']
 		dz = self.los_parameters['dz']
+		dz *= self.los_parameters['alpha_dz_factor']
 		delta_los = self.los_parameters['delta_los']
 		cone_angle = self.los_parameters['cone_angle']
 		m_min = self.los_parameters['m_min']
 		# Units of M_sun
 		m_max = self.los_parameters['m_max']
-		z_range = np.arange(z_min,z_source,dz)
+		z_range = np.arange(z_min,z_source-dz,dz)
 		# Round the z_range to improve caching hits. Add the dz/2 shift that
 		# gets output by draw_los.
 		z_range = list(np.round(z_range,2)+dz/2)

@@ -14,11 +14,6 @@ import numpy as np
 from ..Utils import power_law, cosmology_utils
 from colossus.halo.concentration import peaks
 
-# Define the parameters we expect to find for the DG_19 model
-draw_nfw_masses_DG_19_parameters = ['sigma_sub','shmf_plaw_index','m_pivot',
-	'm_min','m_max','c_0','conc_xi','conc_beta','conc_m_ref',
-	'dex_scatter']
-
 
 class SubhalosDG19(SubhalosBase):
 	"""Class for rendering the subhalos of a main halos according to DG19.
@@ -36,6 +31,10 @@ class SubhalosDG19(SubhalosBase):
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
+	# Define the parameters we expect to find for the DG_19 model
+	required_parameters = ('sigma_sub','shmf_plaw_index','m_pivot','m_min',
+		'm_max','c_0','conc_zeta','conc_beta','conc_m_ref','dex_scatter',
+		'k1','k2')
 
 	def __init__(self,subhalo_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
@@ -45,7 +44,7 @@ class SubhalosDG19(SubhalosBase):
 			source_parameters,cosmology_parameters)
 
 		# Check that all the needed parameters are present
-		self.check_parameterization(draw_nfw_masses_DG_19_parameters)
+		self.check_parameterization(SubhalosDG19.required_parameters)
 
 	@staticmethod
 	@numba.njit()
@@ -92,10 +91,12 @@ class SubhalosDG19(SubhalosBase):
 		# Units of m_sun
 		m_max = self.subhalo_parameters['m_max']
 		z_lens = self.main_deflector_parameters['z_lens']
+		k1 = self.subhalo_parameters['k1']
+		k2 = self.subhalo_parameters['k2']
 
 		# Calculate the overall norm of the power law. This includes host
 		# scaling, sigma_sub, and the area of interest.
-		f_host = self.host_scaling_function(host_m200,z_lens)
+		f_host = self.host_scaling_function(host_m200,z_lens,k1=k1,k2=k2)
 
 		# In DG_19 subhalos are rendered up until 3*theta_E.
 		# Colossus return in MPC per h per radian so must be converted to kpc
@@ -126,7 +127,7 @@ class SubhalosDG19(SubhalosBase):
 		"""
 		# Get the concentration parameters
 		c_0 = self.subhalo_parameters['c_0']
-		xi = self.subhalo_parameters['conc_xi']
+		zeta = self.subhalo_parameters['conc_zeta']
 		beta = self.subhalo_parameters['conc_beta']
 		m_ref = self.subhalo_parameters['conc_m_ref']
 		dex_scatter = self.subhalo_parameters['dex_scatter']
@@ -140,7 +141,7 @@ class SubhalosDG19(SubhalosBase):
 		peak_height_ref = peaks.peakHeight(m_ref*h,0)
 
 		# Now get the concentrations and add scatter
-		concentrations = c_0*(1+z)**(xi)*(peak_heights/peak_height_ref)**(
+		concentrations = c_0*(1+z)**(zeta)*(peak_heights/peak_height_ref)**(
 			-beta)
 		if isinstance(concentrations,np.ndarray):
 			conc_scatter = np.random.randn(len(concentrations))*dex_scatter
@@ -240,7 +241,7 @@ class SubhalosDG19(SubhalosBase):
 		n_accepted_draws += np.sum(keep_ind)
 
 		# Get the fraction of rejection to see how much we should sample
-		rejection_frac = 1-np.mean(keep_ind)
+		rejection_frac = max(1-np.mean(keep_ind),1e-1)
 
 		# Keep drawing until we have enough r_subs.
 		while n_accepted_draws<n_subs:
