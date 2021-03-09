@@ -7,6 +7,7 @@ source catalog into sources to be passed to lenstronomy.
 """
 import numpy as np
 from ..Utils.cosmology_utils import get_cosmology
+import copy
 
 DEFAULT_Z = 2.
 
@@ -21,10 +22,14 @@ class GalaxyCatalog:
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
+	required_parameters = ('random_rotation',)
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		self.cosmo = get_cosmology(cosmology_parameters)
-		self.source_parameters = source_parameters
+		self.source_parameters = copy.deepcopy(source_parameters)
+
+		# Check that all the required parameters are present
+		self.check_parameterization(GalaxyCatalog.required_parameters)
 
 	def __len__(self):
 		"""Returns the length of the catalog"""
@@ -43,7 +48,8 @@ class GalaxyCatalog:
 			raise ValueError('Not all of the required parameters for the ' +
 				'parameterization are present.')
 
-	def update_parameters(self,cosmology_parameters=None,source_parameters=None):
+	def update_parameters(self,cosmology_parameters=None,
+		source_parameters=None):
 		"""Updated the class parameters
 
 		Args:
@@ -57,7 +63,7 @@ class GalaxyCatalog:
 				needed to draw sources.
 		"""
 		if source_parameters is not None:
-			self.source_parameters = source_parameters
+			self.source_parameters.update(source_parameters)
 		if cosmology_parameters is not None:
 			self.cosmo = get_cosmology(cosmology_parameters)
 
@@ -152,6 +158,12 @@ class GalaxyCatalog:
 		pixel_width *= (self.cosmo.angularDiameterDistance(z)
 						/ self.cosmo.angularDiameterDistance(z_new))
 
+		if self.source_parameters['random_rotation']:
+			phi_G = np.random.rand()*2*np.pi
+		else:
+			phi_G = 0
+
 		# Convert to kwargs for lenstronomy
 		return (['INTERPOL'],
-			[dict(image=img,center_x=0,center_y=0,phi_G=0,scale=pixel_width)])
+			[dict(image=img,center_x=0,center_y=0,phi_G=phi_G,
+				scale=pixel_width)])

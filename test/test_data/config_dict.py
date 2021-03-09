@@ -70,7 +70,7 @@ config_dict = {
 		'parameters':{
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
 			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
-			'smoothing_sigma':0.0}
+			'smoothing_sigma':0.0,'random_rotation':True}
 	},
 	'cosmology':{
 		'parameters':{

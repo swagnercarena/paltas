@@ -19,7 +19,7 @@ class GalaxyCatalogTests(unittest.TestCase):
 
 	def setUp(self):
 		self.c = GalaxyCatalog(cosmology_parameters='planck18',
-			source_parameters={})
+			source_parameters={'random_rotation':False})
 
 	def test__len__(self):
 		# Just test that the not implemented error is raised.
@@ -72,7 +72,8 @@ class COSMOSCatalogTests(unittest.TestCase):
 			os.path.abspath(__file__))+'/test_data/cosmos/')
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
-			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder
+			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
+			'random_rotation':False
 		}
 		self.c = COSMOSCatalog(cosmology_parameters='planck18',
 			source_parameters=self.source_parameters)
@@ -240,6 +241,15 @@ class COSMOSCatalogTests(unittest.TestCase):
 
 		# Test that providing no catalog_i is not a problem
 		lm_list, lm_kwargs = self.c.draw_source(z_new=metadata['z'])
+
+		# Test that we get rotations when we set that source parameter to
+		# True
+		self.source_parameters['random_rotation'] = True
+		self.c.update_parameters(source_parameters=self.source_parameters)
+		lm_list, lm_kwargs = self.c.draw_source(z_new=metadata['z'])
+		self.assertNotEqual(lm_kwargs[0]['phi_G'],0)
+		self.source_parameters['random_rotation'] = False
+		self.c.update_parameters(source_parameters=self.source_parameters)
 
 		# Finally test that if we pass these kwargs into a lenstronomy
 		# Interpolation class we get the image we expect.

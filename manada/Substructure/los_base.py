@@ -32,9 +32,10 @@ class LOSBase():
 
 		# Save the parameters as a copy to avoid any misunderstanding on the
 		# user end.
-		self.los_parameters = copy.copy(los_parameters)
-		self.main_deflector_parameters = copy.copy(main_deflector_parameters)
-		self.source_parameters = copy.copy(source_parameters)
+		self.los_parameters = copy.deepcopy(los_parameters)
+		self.main_deflector_parameters = copy.deepcopy(
+			main_deflector_parameters)
+		self.source_parameters = copy.deepcopy(source_parameters)
 
 		# Turn our cosmology parameters into a colossus cosmology instance
 		self.cosmo = get_cosmology(cosmology_parameters)

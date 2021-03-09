@@ -31,9 +31,10 @@ class SubhalosBase():
 		source_parameters,cosmology_parameters):
 
 		# Save the parameters as a copy to avoid user confusion
-		self.subhalo_parameters = copy.copy(subhalo_parameters)
-		self.main_deflector_parameters = copy.copy(main_deflector_parameters)
-		self.source_parameters = copy.copy(source_parameters)
+		self.subhalo_parameters = copy.deepcopy(subhalo_parameters)
+		self.main_deflector_parameters = copy.deepcopy(
+			main_deflector_parameters)
+		self.source_parameters = copy.deepcopy(source_parameters)
 
 		# Turn our cosmology parameters into a colossus cosmology instance
 		self.cosmo = get_cosmology(cosmology_parameters)
@@ -54,8 +55,7 @@ class SubhalosBase():
 	def update_parameters(self,subhalo_parameters=None,
 		main_deflector_parameters=None,source_parameters=None,
 		cosmology_parameters=None):
-		"""Updated the class parameters and clears the power_law cache if
-		needed.
+		"""Updated the class parameters
 
 		Args:
 			los_parameters (dict): A dictionary containing the type of
@@ -76,12 +76,11 @@ class SubhalosBase():
 			starting a new class.
 		"""
 		if subhalo_parameters is not None:
-			self.subhalo_parameters = copy.copy(subhalo_parameters)
+			self.subhalo_parameters.update(subhalo_parameters)
 		if main_deflector_parameters is not None:
-			self.main_deflector_parameters = copy.copy(
-				main_deflector_parameters)
+			self.main_deflector_parameters.update(main_deflector_parameters)
 		if source_parameters is not None:
-			self.source_parameters = copy.copy(source_parameters)
+			self.source_parameters.update(source_parameters)
 		if cosmology_parameters is not None:
 			self.cosmo = get_cosmology(cosmology_parameters)
 
