@@ -17,8 +17,8 @@ save_folder. If save_folder doesn't exist it will be created.
 import numpy as np
 import argparse, os, sys
 from importlib import import_module
-from .Sampling.sampler import Sampler
-from .Utils.cosmology_utils import get_cosmology
+from manada.Sampling.sampler import Sampler
+from manada.Utils.cosmology_utils import get_cosmology
 from tqdm import tqdm
 import pandas as pd
 from lenstronomy.LensModel.profile_list_base import ProfileListBase
