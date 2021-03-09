@@ -199,7 +199,8 @@ def main():
 			image[r<=config_module.mask_radius] = 0
 
 		# Save the image and the metadata
-		np.save(os.path.join(args.save_folder,'image_%d.npy'%(nt)),image)
+		np.save(os.path.join(args.save_folder,'image_%07d.npy'%(nt)),
+			image)
 		meta_values = {}
 		for component in sample:
 			for key in sample[component]:

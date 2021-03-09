@@ -57,7 +57,7 @@ config_dict = {
 			'M200': 1e13,
 			'z_lens': 0.5,
 			'gamma': lognorm(scale=2.01,s=0.05).rvs,
-			'theta_E': lognorm(scale=1.1,s=0.05).rvs,
+			'theta_E': lognorm(scale=1.1,s=0.1).rvs,
 			'e1': norm(loc=0.0,scale=0.05).rvs,
 			'e2': norm(loc=0.0,scale=0.05).rvs,
 			'center_x': norm(loc=0.0,scale=0.16).rvs,
