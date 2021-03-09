@@ -267,7 +267,7 @@ class SubhalosBaseTests(unittest.TestCase):
 		self.subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
 			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
 			'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
-			'dex_scatter': 0.0, 'distribution':'DG_19'}
+			'dex_scatter': 0.0}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':1, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
@@ -342,8 +342,8 @@ class SubhalosDG19Tests(unittest.TestCase):
 		self.subhalo_parameters = {'sigma_sub':4e-2, 'shmf_plaw_index': -1.83,
 			'm_pivot': 1e8, 'm_min': 1e6, 'm_max': 1e9, 'c_0':18,
 			'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
-			'dex_scatter': 0.0, 'distribution':'DG_19'}
-		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
+			'dex_scatter': 0.0, 'k1':0.88,'k2':1.7}
+		self.main_deflector_parameters = {'M200': 1.1e13, 'z_lens': 0.5,
 			'theta_E':2.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
 		self.cosmology_parameters = {'cosmology_name': 'planck18'}
@@ -396,8 +396,22 @@ class SubhalosDG19Tests(unittest.TestCase):
 			total_subs += len(masses)
 		self.assertEqual(np.round(total_subs/n_loops),desired_count)
 
+		# Now make sure that getting rid of mass and redshift power law
+		# removes the host_scaling_function contribution
+		self.sd.subhalo_parameters['k1'] = 0
+		self.sd.subhalo_parameters['k2'] = 0
+		total_subs = 0
+		n_loops = 5000
+		for _ in range(n_loops):
+			masses = self.sd.draw_nfw_masses()
+			total_subs += len(masses)
+		self.assertEqual(np.round(total_subs/n_loops),np.round(
+			desired_count/f_host))
+
 		# Now just give some parameters for an HE0435-1223 galaxy and make sure
 		# what we return is reasonable as a sanity check on units.
+		self.sd.subhalo_parameters['k1'] = 0.88
+		self.sd.subhalo_parameters['k2'] = 1.7
 		self.sd.subhalo_parameters['sigma_sub'] = 4e-2
 		self.sd.main_deflector_parameters['theta_E'] = 0.38
 		total_subs = 0

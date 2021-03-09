@@ -35,7 +35,8 @@ config_dict = {
 			'shmf_plaw_index':-1.83,
 			'm_pivot': 1e8,'m_min': 1e9,'m_max': 1e10,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
-			'conc_m_ref': 1e8,'dex_scatter': 0.1
+			'conc_m_ref': 1e8,'dex_scatter': 0.1, 'k1':0.88,
+			'k2':1.7
 		}
 	},
 	'los':{

@@ -33,7 +33,8 @@ class SubhalosDG19(SubhalosBase):
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ['sigma_sub','shmf_plaw_index','m_pivot','m_min',
-		'm_max','c_0','conc_zeta','conc_beta','conc_m_ref','dex_scatter']
+		'm_max','c_0','conc_zeta','conc_beta','conc_m_ref','dex_scatter',
+		'k1','k2']
 
 	def __init__(self,subhalo_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
@@ -90,10 +91,12 @@ class SubhalosDG19(SubhalosBase):
 		# Units of m_sun
 		m_max = self.subhalo_parameters['m_max']
 		z_lens = self.main_deflector_parameters['z_lens']
+		k1 = self.subhalo_parameters['k1']
+		k2 = self.subhalo_parameters['k2']
 
 		# Calculate the overall norm of the power law. This includes host
 		# scaling, sigma_sub, and the area of interest.
-		f_host = self.host_scaling_function(host_m200,z_lens)
+		f_host = self.host_scaling_function(host_m200,z_lens,k1=k1,k2=k2)
 
 		# In DG_19 subhalos are rendered up until 3*theta_E.
 		# Colossus return in MPC per h per radian so must be converted to kpc
