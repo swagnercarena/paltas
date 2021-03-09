@@ -32,9 +32,9 @@ class SubhalosDG19(SubhalosBase):
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 	# Define the parameters we expect to find for the DG_19 model
-	required_parameters = ['sigma_sub','shmf_plaw_index','m_pivot','m_min',
+	required_parameters = ('sigma_sub','shmf_plaw_index','m_pivot','m_min',
 		'm_max','c_0','conc_zeta','conc_beta','conc_m_ref','dex_scatter',
-		'k1','k2']
+		'k1','k2')
 
 	def __init__(self,subhalo_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):

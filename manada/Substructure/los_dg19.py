@@ -35,9 +35,9 @@ class LOSDG19(LOSBase):
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 	# Define the parameters we expect to find for the DG_19 model
-	required_parameters = ['m_min','m_max','z_min','dz','cone_angle',
+	required_parameters = ('m_min','m_max','z_min','dz','cone_angle',
 		'r_max','r_min','c_0','conc_zeta','conc_beta','conc_m_ref',
-		'dex_scatter','delta_los','alpha_dz_factor']
+		'dex_scatter','delta_los','alpha_dz_factor')
 
 	def __init__(self,los_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):

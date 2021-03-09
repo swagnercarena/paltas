@@ -35,8 +35,8 @@ class COSMOSCatalog(GalaxyCatalog):
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources.
 	"""
-	required_parameters = ['minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder']
+	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
+		'smoothing_sigma','cosmos_folder')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
