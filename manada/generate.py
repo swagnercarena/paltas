@@ -94,8 +94,8 @@ def main():
 	if 'main_deflector' in config_dict:
 		main_model_list = config_dict['main_deflector']['models']
 
-	source_class = config_dict['source']['class'](sample['cosmology_parameters'],
-		sample['source_parameters'])
+	source_class = config_dict['source']['class'](
+		sample['cosmology_parameters'],sample['source_parameters'])
 
 	# Use a pandas dataframe to store the parameter values.
 	metadata = pd.DataFrame()
