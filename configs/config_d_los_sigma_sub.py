@@ -23,7 +23,7 @@ seed = 10
 
 # Define some general image kwargs for the dataset
 mask_radius = 0.5
-mag_cut = 2.0
+mag_cut = 10.0
 
 # Define the cosmos path
 root_path = manada.__path__[0][:-7]

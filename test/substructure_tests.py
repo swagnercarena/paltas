@@ -841,7 +841,7 @@ class LOSDG19Tests(unittest.TestCase):
 		total = 0
 		for _ in range(n_loops):
 			total += len(self.ld.draw_nfw_masses(z))
-		self.assertAlmostEqual(np.round(total/n_loops),np.round(n_expected))
+		self.assertLess(np.abs(total/n_loops-n_expected),1.0)
 
 	def test_sample_los_pos(self):
 		# Test that the positions for the los halos are within the los cone.

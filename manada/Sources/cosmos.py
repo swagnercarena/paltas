@@ -36,7 +36,7 @@ class COSMOSCatalog(GalaxyCatalog):
 			needed to draw sources.
 	"""
 	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation')
+		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
@@ -112,6 +112,7 @@ class COSMOSCatalog(GalaxyCatalog):
 		min_apparent_mag = self.source_parameters['min_apparent_mag']
 		minimum_size_in_pixels = self.source_parameters['minimum_size_in_pixels']
 		max_z = self.source_parameters['max_z']
+		min_flux_radius = self.source_parameters['min_flux_radius']
 
 		# Get the images that match the cuts.
 		if min_apparent_mag is not None:
@@ -122,6 +123,8 @@ class COSMOSCatalog(GalaxyCatalog):
 			is_ok &= min_size >= minimum_size_in_pixels
 		if max_z is not None:
 			is_ok &= self.catalog['z'] < max_z
+		if min_flux_radius is not None:
+			is_ok &= self.catalog['flux_radius'] > min_flux_radius
 		return np.random.choice(np.where(is_ok)[0],size=n_galaxies,
 			replace=True)
 
