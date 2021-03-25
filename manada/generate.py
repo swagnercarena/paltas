@@ -20,6 +20,7 @@ from importlib import import_module
 from manada.Sampling.sampler import Sampler
 from manada.Utils.cosmology_utils import get_cosmology
 from manada.Sources.galaxy_catalog import GalaxyCatalog
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
 from lenstronomy.LensModel.profile_list_base import ProfileListBase
@@ -46,6 +47,8 @@ def parse_args():
 	parser.add_argument('save_folder', help='Folder to save images to')
 	parser.add_argument('--n', default=1, dest='n', type=int,
 		help='Size of dataset to generate (default 1)')
+	parser.add_argument('--save_png_too', action='store_true',
+		help='Also save a PNG for each image, for debugging')
 	args = parser.parse_args()
 	return args
 
@@ -212,8 +215,10 @@ def main():
 			image[r<=config_module.mask_radius] = 0
 
 		# Save the image and the metadata
-		np.save(os.path.join(args.save_folder,'image_%07d.npy'%(nt)),
-			image)
+		filename = os.path.join(args.save_folder, 'image_%07d' % nt)
+		np.save(filename, image)
+		if args.save_png_too:
+			plt.imsave(filename + '.png', image)
 		for component in sample:
 			for key in sample[component]:
 				meta_values[component+'_'+key] = sample[component][key]
