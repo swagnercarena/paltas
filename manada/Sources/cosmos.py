@@ -209,7 +209,6 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 			catalog_i = self.sample_indices(1)
 		metadata =self.catalog[catalog_i]
 
-
 		z_scaling = self.z_scale_factor(metadata['z'], z_new)
 
 		# Get sercic info for this particular galaxy
@@ -234,6 +233,12 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 				e2=e2,
 				R_sersic=sercic_info['r_half'] * z_scaling,
 				n_sersic=sercic_info['n'])])
+
+	def image_and_metadata(self, catalog_i):
+		raise NotImplementedError
+
+	def iter_image_and_metadata_bulk(self, message=''):
+		raise NotImplementedError
 
 
 def unfits(fn, pandas=False):
