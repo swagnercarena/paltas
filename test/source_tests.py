@@ -20,6 +20,7 @@ class GalaxyCatalogTests(unittest.TestCase):
 	def setUp(self):
 		self.c = GalaxyCatalog(cosmology_parameters='planck18',
 			source_parameters={'random_rotation':False})
+		self.cosmo = get_cosmology('planck18')
 
 	def test__len__(self):
 		# Just test that the not implemented error is raised.
@@ -62,6 +63,40 @@ class GalaxyCatalogTests(unittest.TestCase):
 		catalog_i = 2
 		with self.assertRaises(NotImplementedError):
 			self.c.draw_source(catalog_i)
+
+	def test_draw_phi(self):
+		# Test that draw_phi returns a uniform distribution when
+		# it should
+		phis = []
+		for _ in range(100):
+			phis.append(self.c.draw_phi())
+		np.testing.assert_almost_equal(np.array(phis),np.zeros(len(phis)))
+
+		phis = []
+		for _ in range(100):
+			phis.append(self.c.draw_phi(old_phi=0.2))
+		np.testing.assert_almost_equal(np.array(phis),
+			np.zeros(len(phis))+0.2)
+
+		# Modify the source_parameters to include rotations
+		self.c.update_parameters(source_parameters={'random_rotation':True})
+		phis = []
+		for _ in range(int(1e5)):
+			phis.append(self.c.draw_phi(old_phi=0.0))
+		self.assertGreater(np.min(phis),0.0)
+		self.assertLess(np.max(phis),2*np.pi)
+		self.assertAlmostEqual(np.mean(phis),np.pi,places=1)
+
+	def test_z_scale_factor(self):
+		# Test that the scale factor is reasonable
+		z_old = 0.2
+		z_new = 0.2
+		self.assertAlmostEqual(self.c.z_scale_factor(z_old,z_new),1.0)
+
+		z_new = 1.5
+		self.assertAlmostEqual(self.c.z_scale_factor(z_old,z_new),
+			self.cosmo.angularDiameterDistance(z_old)/
+			self.cosmo.angularDiameterDistance(z_new))
 
 
 class COSMOSCatalogTests(unittest.TestCase):

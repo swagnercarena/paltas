@@ -204,6 +204,22 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 		self.sercic_info['r_half'] *= HUBBLE_ACS_PIXEL_WIDTH
 
 	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z):
+		"""Creates lenstronomy interpolation lightmodel kwargs from
+			a catalog image.
+
+		Args:
+			catalog_i (int): Index of image in catalog
+			z_new (float): Redshift to place image at
+
+		Returns:
+			(list,list) A list containing the model ['INTERPOL'] and
+				the kwargs for an instance of the class
+				lenstronomy.LightModel.Profiles.interpolation.Interpol
+
+		Notes:
+			If not catalog_i is provided, one that meets the cuts will be
+			selected at random.
+		"""
 		# If no index is provided pick one at random
 		if catalog_i is None:
 			catalog_i = self.sample_indices(1)
@@ -235,9 +251,37 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 				n_sersic=sercic_info['n'])])
 
 	def image_and_metadata(self, catalog_i):
+		"""Returns the image array and metadata for one galaxy
+
+		Parameters:
+			catalog_i (int): The catalog index
+
+		Returns
+			([np.array, np.void]) A numpy array containing the image
+			metadata and a numpy void type that acts as a dictionary with
+			the metadata.
+
+		Notes:
+			This will read the numpy files made during initialization. This is
+			much faster on average than going for the fits files.
+		"""
 		raise NotImplementedError
 
 	def iter_image_and_metadata_bulk(self, message=''):
+		"""Yields the image array and metadata for all of the images
+		in the catalog.
+
+		Args:
+			message (str): If the iterator uses tqdm, this message
+				will be displayed.
+
+		Returns:
+			(generator): A generator that can be iterated over to give
+			lenstronomy kwargs.
+
+		Notes:
+			This will read the fits files.
+		"""
 		raise NotImplementedError
 
 
