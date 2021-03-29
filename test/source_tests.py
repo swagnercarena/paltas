@@ -73,7 +73,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
 			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
-			'random_rotation':False
+			'random_rotation':False, 'min_flux_radius':None
 		}
 		self.c = COSMOSCatalog(cosmology_parameters='planck18',
 			source_parameters=self.source_parameters)
@@ -205,6 +205,12 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		np.testing.assert_equal(np.unique(samples),[0,7])
+
+		# Test the minimum flux radius
+		new_sp['min_flux_radius'] = 20
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
+		np.testing.assert_equal(np.unique(samples),[0])
 
 	def test_draw_source(self):
 		# Test that the lightmodel kwargs returned are what we would

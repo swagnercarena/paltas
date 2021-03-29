@@ -19,6 +19,7 @@ import argparse, os, sys
 from importlib import import_module
 from manada.Sampling.sampler import Sampler
 from manada.Utils.cosmology_utils import get_cosmology
+from manada.Sources.galaxy_catalog import GalaxyCatalog
 from tqdm import tqdm
 import pandas as pd
 from lenstronomy.LensModel.profile_list_base import ProfileListBase
@@ -104,7 +105,12 @@ def main():
 	# Generate our images
 	pbar = tqdm(total=args.n)
 	nt = 0
+	tries = 0
 	while nt < args.n:
+		# We always try
+		tries += 1
+		# Save the parameter values
+		meta_values = {}
 		# Draw our parameters
 		sample = sampler.sample()
 		z_lens = sample['main_deflector_parameters']['z_lens']
@@ -169,8 +175,15 @@ def main():
 		source_class.update_parameters(
 			cosmology_parameters=sample['cosmology_parameters'],
 			source_parameters=sample['source_parameters'])
-		source_model_list, source_kwargs_list = source_class.draw_source(
-			z_new=z_source)
+		# For catalog objects we also want to save the catalog index
+		if isinstance(source_class,GalaxyCatalog):
+			catalog_i = source_class.sample_indices(1)
+			meta_values['source_parameters_catalog_i'] = catalog_i[0]
+			source_model_list, source_kwargs_list = source_class.draw_source(
+				catalog_i=catalog_i,z_new=z_source)
+		else:
+			source_model_list, source_kwargs_list = source_class.draw_source(
+				z_new=z_source)
 		source_light_model = LightModel(source_model_list)
 
 		# Put it together into an image model
@@ -201,7 +214,6 @@ def main():
 		# Save the image and the metadata
 		np.save(os.path.join(args.save_folder,'image_%07d.npy'%(nt)),
 			image)
-		meta_values = {}
 		for component in sample:
 			for key in sample[component]:
 				meta_values[component+'_'+key] = sample[component][key]
@@ -224,6 +236,7 @@ def main():
 	# Make sure anything left in the metadata DataFrame is written out
 	metadata.to_csv(metadata_path, index=None, mode='a',header=None)
 	pbar.close()
+	print('Dataset generation complete. Acceptance rate: %.3f'%(args.n/tries))
 
 
 if __name__ == '__main__':

@@ -51,6 +51,7 @@ class GenerateTests(unittest.TestCase):
 			[0.5]*10)
 		self.assertListEqual(list(metadata['source_parameters_z_source']),
 			[1.5]*10)
+		self.assertGreater(np.std(metadata['source_parameters_catalog_i']),0)
 		self.assertListEqual(list(metadata['psf_parameters_fwhm']),
 			[0.1]*10)
 		# Check that the subhalo_parameters_sigma_sub are being drawn
