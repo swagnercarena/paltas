@@ -145,25 +145,57 @@ class GalaxyCatalog:
 		if catalog_i is None:
 			catalog_i = self.sample_indices(1)
 		img, metadata = self.image_and_metadata(catalog_i)
-		z, pixel_width = metadata['z'], metadata['pixel_width']
+		pixel_width = metadata['pixel_width']
 
 		# With this, lenstronomy will preserve the scale/units of
 		# the input image (in a configuration without lensing,
 		# same pixel widths, etc.)
 		img = img / pixel_width**2
 
+		pixel_width *= self.z_scale_factor(metadata['z'], z_new)
+
+		# Convert to kwargs for lenstronomy
+		return (
+			['INTERPOL'],
+			[dict(
+				image=img,
+				center_x=0, center_y=0,
+				phi_G=self.draw_phi(),
+				scale=pixel_width)])
+
+	def draw_phi(self, old_phi=0.):
+		"""Draws an angle for the interpolation of the given source.
+
+		Args:
+			old_phi (float): The original angle of the image being loaded.
+
+		Returns:
+			(float): The new angle to use in the interpolation class.
+
+		Notes:
+			The original angle will be returned if no rotation is speciifed
+			in the source parameters.
+		"""
+		if self.source_parameters['random_rotation']:
+			phi = np.random.rand() * 2 * np.pi
+		else:
+			phi = 0
+		return (phi + old_phi) % (2 * np.pi)
+
+	def z_scale_factor(self, z_old, z_new):
+		"""Return multiplication factor for object/pixel size for moving its
+		redshift from z_old to z_new.
+
+		Args:
+			z_old (float): The original redshift of the object.
+			z_new (float): The redshift the object will be placed at.
+
+		Returns:
+			(float): The multiplicative pixel size.
+		"""
 		# Pixel length ~ angular diameter distance
 		# (colossus uses funny /h units, but for ratios it
 		#  fortunately doesn't matter)
-		pixel_width *= (self.cosmo.angularDiameterDistance(z)
-						/ self.cosmo.angularDiameterDistance(z_new))
-
-		if self.source_parameters['random_rotation']:
-			phi_G = np.random.rand()*2*np.pi
-		else:
-			phi_G = 0
-
-		# Convert to kwargs for lenstronomy
-		return (['INTERPOL'],
-			[dict(image=img,center_x=0,center_y=0,phi_G=phi_G,
-				scale=pixel_width)])
+		return (
+			self.cosmo.angularDiameterDistance(z_old)
+			/ self.cosmo.angularDiameterDistance(z_new))

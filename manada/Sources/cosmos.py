@@ -9,10 +9,11 @@ from pathlib import Path
 import astropy
 import astropy.table
 from astropy.io import fits
+from lenstronomy.Util.param_util import phi_q2_ellipticity
 import numpy as np
 import numpy.lib.recfunctions
 from tqdm import tqdm
-from .galaxy_catalog import GalaxyCatalog
+from .galaxy_catalog import GalaxyCatalog, DEFAULT_Z
 import scipy
 
 HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
@@ -184,6 +185,104 @@ class COSMOSCatalog(GalaxyCatalog):
 			img = scipy.ndimage.gaussian_filter(img,
 				sigma=smoothing_sigma/HUBBLE_ACS_PIXEL_WIDTH)
 		return img, self.catalog[catalog_i]
+
+
+class COSMOSSersicCatalog(COSMOSCatalog):
+	"""As COSMOSCatalog, but produces the best-fit single elliptic Sersic
+	profiles instead of real galaxy images
+	"""
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
+		_fit_results = self.catalog['sersicfit'].astype(np.float)
+		self.sercic_info = {
+			p: _fit_results[:, i]
+			for i, p in enumerate(
+				'intensity r_half n q boxiness x0 y0 phi'.split())}
+		# Convert half-light radius from pixels to arcseconds
+		self.sercic_info['r_half'] *= HUBBLE_ACS_PIXEL_WIDTH
+
+	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z):
+		"""Creates lenstronomy interpolation lightmodel kwargs from
+			a catalog image.
+
+		Args:
+			catalog_i (int): Index of image in catalog
+			z_new (float): Redshift to place image at
+
+		Returns:
+			(list,list) A list containing the model ['INTERPOL'] and
+				the kwargs for an instance of the class
+				lenstronomy.LightModel.Profiles.interpolation.Interpol
+
+		Notes:
+			If not catalog_i is provided, one that meets the cuts will be
+			selected at random.
+		"""
+		# If no index is provided pick one at random
+		if catalog_i is None:
+			catalog_i = self.sample_indices(1)
+		metadata =self.catalog[catalog_i]
+
+		z_scaling = self.z_scale_factor(metadata['z'], z_new)
+
+		# Get sercic info for this particular galaxy
+		sercic_info = {
+			p: self.sercic_info[p][catalog_i]
+			for p in self.sercic_info}
+
+		# Convert (phi, q) -> (e1, e2), after applying possible random rotation
+		# Using py_func to avoid numba caching trouble
+		# (and it's a trivial func anyway)
+		e1, e2 = phi_q2_ellipticity.py_func(
+			self.draw_phi(sercic_info['phi']),
+			sercic_info['q'])
+
+		# Convert to kwargs for lenstronomy
+		return (
+			['SERSIC_ELLIPSE'],
+			[dict(
+				# Scale by pixel area before z-scaling, as in parent draw_source
+				amp=sercic_info['intensity'] / metadata['pixel_width'] ** 2,
+				e1=e1,
+				e2=e2,
+				R_sersic=sercic_info['r_half'] * z_scaling,
+				n_sersic=sercic_info['n'])])
+
+	def image_and_metadata(self, catalog_i):
+		"""Returns the image array and metadata for one galaxy
+
+		Parameters:
+			catalog_i (int): The catalog index
+
+		Returns
+			([np.array, np.void]) A numpy array containing the image
+			metadata and a numpy void type that acts as a dictionary with
+			the metadata.
+
+		Notes:
+			This will read the numpy files made during initialization. This is
+			much faster on average than going for the fits files.
+		"""
+		raise NotImplementedError
+
+	def iter_image_and_metadata_bulk(self, message=''):
+		"""Yields the image array and metadata for all of the images
+		in the catalog.
+
+		Args:
+			message (str): If the iterator uses tqdm, this message
+				will be displayed.
+
+		Returns:
+			(generator): A generator that can be iterated over to give
+			lenstronomy kwargs.
+
+		Notes:
+			This will read the fits files.
+		"""
+		raise NotImplementedError
 
 
 def unfits(fn, pandas=False):

@@ -2,7 +2,7 @@ import numpy as np
 import unittest
 import os
 from manada.Sources.galaxy_catalog import GalaxyCatalog
-from manada.Sources.cosmos import COSMOSCatalog, unfits
+from manada.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
 from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
 from manada.Utils.cosmology_utils import get_cosmology
 from lenstronomy.LensModel.lens_model import LensModel
@@ -20,6 +20,7 @@ class GalaxyCatalogTests(unittest.TestCase):
 	def setUp(self):
 		self.c = GalaxyCatalog(cosmology_parameters='planck18',
 			source_parameters={'random_rotation':False})
+		self.cosmo = get_cosmology('planck18')
 
 	def test__len__(self):
 		# Just test that the not implemented error is raised.
@@ -62,6 +63,40 @@ class GalaxyCatalogTests(unittest.TestCase):
 		catalog_i = 2
 		with self.assertRaises(NotImplementedError):
 			self.c.draw_source(catalog_i)
+
+	def test_draw_phi(self):
+		# Test that draw_phi returns a uniform distribution when
+		# it should
+		phis = []
+		for _ in range(100):
+			phis.append(self.c.draw_phi())
+		np.testing.assert_almost_equal(np.array(phis),np.zeros(len(phis)))
+
+		phis = []
+		for _ in range(100):
+			phis.append(self.c.draw_phi(old_phi=0.2))
+		np.testing.assert_almost_equal(np.array(phis),
+			np.zeros(len(phis))+0.2)
+
+		# Modify the source_parameters to include rotations
+		self.c.update_parameters(source_parameters={'random_rotation':True})
+		phis = []
+		for _ in range(int(1e5)):
+			phis.append(self.c.draw_phi(old_phi=0.0))
+		self.assertGreater(np.min(phis),0.0)
+		self.assertLess(np.max(phis),2*np.pi)
+		self.assertAlmostEqual(np.mean(phis),np.pi,places=1)
+
+	def test_z_scale_factor(self):
+		# Test that the scale factor is reasonable
+		z_old = 0.2
+		z_new = 0.2
+		self.assertAlmostEqual(self.c.z_scale_factor(z_old,z_new),1.0)
+
+		z_new = 1.5
+		self.assertAlmostEqual(self.c.z_scale_factor(z_old,z_new),
+			self.cosmo.angularDiameterDistance(z_old)/
+			self.cosmo.angularDiameterDistance(z_new))
 
 
 class COSMOSCatalogTests(unittest.TestCase):
@@ -285,9 +320,69 @@ class COSMOSCatalogTests(unittest.TestCase):
 		np.testing.assert_almost_equal(l_image,image)
 
 
-def _check_lightmodel_kwargs(kwargs):
-	assert isinstance(kwargs, dict)
-	assert 'image' in kwargs
-	img = kwargs['image']
-	assert isinstance(img, np.ndarray)
-	assert 0 < img[0, 0] < np.inf
+class COSMOSSercicCatalogTests(COSMOSCatalogTests):
+
+	def setUp(self):
+		super().setUp()
+		self.c = COSMOSSersicCatalog(
+			cosmology_parameters='planck18',
+			source_parameters=self.source_parameters)
+
+	def test_iter_image_and_metadata_bulk(self):
+		with self.assertRaises(NotImplementedError):
+			self.c.iter_image_and_metadata_bulk()
+
+	def test_image_and_metadata(self):
+		with self.assertRaises(NotImplementedError):
+			self.c.image_and_metadata(catalog_i=2)
+
+	def test_iter_lightmodel_kwargs_samples(self):
+		# Just test that we get the expected kwargs
+		n_galaxies = 10
+		lm_keys_required = 'amp e1 e2 R_sersic n_sersic'.split()
+		for lm_list, lm_kwargs in self.c.iter_lightmodel_kwargs_samples(
+			n_galaxies):
+			self.assertTrue(all(elem in lm_kwargs[0].keys()
+				for elem in lm_keys_required))
+
+	def test_draw_source(self):
+		# Check lenstronomy eats what we are feeding it
+		catalog_i = 2
+		z_new = 1.0
+		metadata = self.c.catalog[catalog_i]
+
+		# Test providing catalog_i
+		lm_list, lm_kwargs = self.c.draw_source(catalog_i, z_new=z_new)
+		self.assertEqual(lm_list[0],'SERSIC_ELLIPSE')
+
+		# Test providing no catalog_i
+		self.c.draw_source(z_new=z_new)
+
+		# Test that we get rotations when we set that source parameter to
+		# True
+		self.source_parameters['random_rotation'] = True
+		self.c.update_parameters(source_parameters=self.source_parameters)
+		_, lm_kwargs_rotated = self.c.draw_source(
+			catalog_i=catalog_i, z_new=z_new)
+		self.assertNotEqual(lm_kwargs[0]['e1'], lm_kwargs_rotated[0]['e1'])
+		self.assertNotEqual(lm_kwargs[0]['e2'], lm_kwargs_rotated[0]['e2'])
+		self.source_parameters['random_rotation'] = False
+		self.c.update_parameters(source_parameters=self.source_parameters)
+
+		# Finally test that if we pass these kwargs into lenstronomy
+		# we do not crash
+		lens_model = LensModel(['SPEP'])
+		light_model = LightModel(['SERSIC_ELLIPSE'])
+		n_pixels = 200
+		image_model = ImageModel(
+			data_class=ImageData(**data_configure_simple(numPix=n_pixels,
+				deltaPix=metadata['pixel_width'])),
+			psf_class=PSF(psf_type='GAUSSIAN',
+				fwhm=0.1 * metadata['pixel_width']),
+			lens_model_class=lens_model,source_model_class=light_model)
+		lens_kwargs = [{'theta_E': 0.0, 'e1': 0., 'e2': 0., 'gamma': 0.,
+			'center_x': 0, 'center_y': 0}]
+		source_kwargs = [self.c.draw_source(catalog_i=catalog_i,
+			z_new=metadata['z'])[1][0]]
+
+		image_model.image(kwargs_lens=lens_kwargs, kwargs_source=source_kwargs)
