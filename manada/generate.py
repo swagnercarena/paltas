@@ -205,8 +205,8 @@ def main():
 			if mag < config_module.mag_cut:
 				continue
 
-		if (not hasattr(config_module, 'magically_no_noise')
-				or not config_module.magically_no_noise):
+		if (not hasattr(config_module, 'no_noise')
+				or config_module.no_noise is False):
 			image += single_band.noise_for_model(image)
 
 		# Mask out an interior region of the image if requested

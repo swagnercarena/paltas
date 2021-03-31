@@ -6,6 +6,9 @@ from manada.Configs.config_d_los_sigma_sub import *
 # (in case someone loads both configs)
 config_dict = deepcopy(config_dict)
 
+# Force no noise
+no_noise = True
+
 # This forces the selection of only one source.
 config_dict['source']['parameters'] = {'z_source':1.5,
 	'cosmos_folder':cosmos_folder,'max_z':0.05,'minimum_size_in_pixels':650,
