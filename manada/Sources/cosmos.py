@@ -203,13 +203,16 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 		# Convert half-light radius from pixels to arcseconds
 		self.sercic_info['r_half'] *= HUBBLE_ACS_PIXEL_WIDTH
 
-	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z):
+	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z, phi=None):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 
 		Args:
 			catalog_i (int): Index of image in catalog
 			z_new (float): Redshift to place image at
+			phi (float): Rotation to apply to the image.
+				If not provided, use random or original rotation
+				depending on source_parameters['random_rotation']
 
 		Returns:
 			(list,list) A list containing the model ['INTERPOL'] and
@@ -220,10 +223,8 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 			If not catalog_i is provided, one that meets the cuts will be
 			selected at random.
 		"""
-		# If no index is provided pick one at random
-		if catalog_i is None:
-			catalog_i = self.sample_indices(1)
-		metadata =self.catalog[catalog_i]
+		catalog_i, phi = self.fill_catalog_i_phi_defaults(catalog_i, phi)
+		metadata = self.catalog[catalog_i]
 
 		z_scaling = self.z_scale_factor(metadata['z'], z_new)
 
@@ -236,7 +237,7 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 		# Using py_func to avoid numba caching trouble
 		# (and it's a trivial func anyway)
 		e1, e2 = phi_q2_ellipticity.py_func(
-			self.draw_phi(sercic_info['phi']),
+			(sercic_info['phi'] + phi) % (2 * np.pi),
 			sercic_info['q'])
 
 		# Convert to kwargs for lenstronomy

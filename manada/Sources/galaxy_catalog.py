@@ -124,13 +124,38 @@ class GalaxyCatalog:
 		"""
 		return np.random.randint(0, len(self), size=n_galaxies)
 
-	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z):
+	def fill_catalog_i_phi_defaults(self, catalog_i=None, phi=None):
+		"""Return catalog index and source rotation angle.
+
+		Args:
+			catalog_i (int): Index of image in catalog
+				If not provided or None, will be sampled from catalog.
+			phi (float): Rotation to apply to the image.
+				If not provided or None, will either randomize or use 0,
+				depending on source_parameters['random_rotation'].
+		"""
+		# If no index is provided pick one at random
+		if catalog_i is None:
+			catalog_i = self.sample_indices(1).item()
+		# If no rotation is provided, pick one at random or use original
+		# orientation
+		if phi is None:
+			if self.source_parameters['random_rotation']:
+				phi = self.draw_phi()
+			else:
+				phi = 0
+		return catalog_i, phi
+
+	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z, phi=None):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 
 		Args:
 			catalog_i (int): Index of image in catalog
 			z_new (float): Redshift to place image at
+			phi (float): Rotation to apply to the image.
+				If not provided, randomize or use 0, depending on
+				source_parameters['random_rotation']
 
 		Returns:
 			(list,list) A list containing the model ['INTERPOL'] and
@@ -141,9 +166,7 @@ class GalaxyCatalog:
 			If not catalog_i is provided, one that meets the cuts will be
 			selected at random.
 		"""
-		# If no index is provided pick one at random
-		if catalog_i is None:
-			catalog_i = self.sample_indices(1)
+		catalog_i, phi = self.fill_catalog_i_phi_defaults(catalog_i, phi)
 		img, metadata = self.image_and_metadata(catalog_i)
 		pixel_width = metadata['pixel_width']
 
@@ -160,27 +183,17 @@ class GalaxyCatalog:
 			[dict(
 				image=img,
 				center_x=0, center_y=0,
-				phi_G=self.draw_phi(),
+				phi_G=phi,
 				scale=pixel_width)])
 
-	def draw_phi(self, old_phi=0.):
-		"""Draws an angle for the interpolation of the given source.
-
-		Args:
-			old_phi (float): The original angle of the image being loaded.
+	@staticmethod
+	def draw_phi():
+		"""Draws a random rotation angle for the interpolation of the source.
 
 		Returns:
 			(float): The new angle to use in the interpolation class.
-
-		Notes:
-			The original angle will be returned if no rotation is speciifed
-			in the source parameters.
 		"""
-		if self.source_parameters['random_rotation']:
-			phi = np.random.rand() * 2 * np.pi
-		else:
-			phi = 0
-		return (phi + old_phi) % (2 * np.pi)
+		return np.random.rand() * 2 * np.pi
 
 	def z_scale_factor(self, z_old, z_new):
 		"""Return multiplication factor for object/pixel size for moving its

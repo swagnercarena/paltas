@@ -179,11 +179,13 @@ def main():
 			cosmology_parameters=sample['cosmology_parameters'],
 			source_parameters=sample['source_parameters'])
 		# For catalog objects we also want to save the catalog index
+		# and the (possibly randomized) additional rotation angle
 		if isinstance(source_class,GalaxyCatalog):
-			catalog_i = source_class.sample_indices(1)
-			meta_values['source_parameters_catalog_i'] = catalog_i[0]
+			catalog_i, phi = source_class.fill_catalog_i_phi_defaults()
+			meta_values['source_parameters_catalog_i'] = catalog_i
+			meta_values['source_parameters_phi'] = phi
 			source_model_list, source_kwargs_list = source_class.draw_source(
-				catalog_i=catalog_i,z_new=z_source)
+				catalog_i=catalog_i, phi=phi, z_new=z_source)
 		else:
 			source_model_list, source_kwargs_list = source_class.draw_source(
 				z_new=z_source)

@@ -65,27 +65,13 @@ class GalaxyCatalogTests(unittest.TestCase):
 			self.c.draw_source(catalog_i)
 
 	def test_draw_phi(self):
-		# Test that draw_phi returns a uniform distribution when
-		# it should
-		phis = []
-		for _ in range(100):
-			phis.append(self.c.draw_phi())
-		np.testing.assert_almost_equal(np.array(phis),np.zeros(len(phis)))
-
-		phis = []
-		for _ in range(100):
-			phis.append(self.c.draw_phi(old_phi=0.2))
-		np.testing.assert_almost_equal(np.array(phis),
-			np.zeros(len(phis))+0.2)
-
-		# Modify the source_parameters to include rotations
-		self.c.update_parameters(source_parameters={'random_rotation':True})
+		# Test that draw_phi returns a uniform distribution
 		phis = []
 		for _ in range(int(1e5)):
-			phis.append(self.c.draw_phi(old_phi=0.0))
+			phis.append(self.c.draw_phi())
 		self.assertGreater(np.min(phis),0.0)
 		self.assertLess(np.max(phis),2*np.pi)
-		self.assertAlmostEqual(np.mean(phis),np.pi,places=1)
+		self.assertAlmostEqual(np.mean(phis), np.pi, places=1)
 
 	def test_z_scale_factor(self):
 		# Test that the scale factor is reasonable
@@ -246,6 +232,30 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		np.testing.assert_equal(np.unique(samples),[0])
+
+	def test_fill_catalog_i_phi_defaults(self):
+		# Use the user-specified catalog_i & phi_G if provided
+		self.assertEqual(
+			self.c.fill_catalog_i_phi_defaults(catalog_i=42, phi=42.),
+			(42, 42.))
+
+		# Sample random catalog indices otherwise
+		results = np.array([
+			self.c.fill_catalog_i_phi_defaults()
+			for _ in range(100)])
+		self.assertGreater(
+			len(np.unique(results[:, 0])),
+			# Catalog may be << 100 items (indeed, just 10 for this test)
+			min(len(self.c) * 0.5, 50))
+		# phis should all be zero -- random_rotation is False
+		self.assertTrue(np.all(results[:, 1] == 0))
+
+		# Repeat with random_rotation True; now phis should all be distinct
+		self.c.update_parameters(source_parameters={'random_rotation': True})
+		results = np.array([
+			self.c.fill_catalog_i_phi_defaults()
+			for _ in range(100)])
+		self.assertEqual(len(np.unique(results[:, 1])), 100)
 
 	def test_draw_source(self):
 		# Test that the lightmodel kwargs returned are what we would
