@@ -19,7 +19,10 @@ tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 # Define the numerics kwargs
 kwargs_numerics = {'supersampling_factor':1}
 numpix = 64
-seed = 10
+
+# How often to repeat non-substructure parameters (e.g. source galaxy)
+# while generating images
+repeat_non_substructure = 1
 
 # Define some general image kwargs for the dataset
 mask_radius = 0.5
