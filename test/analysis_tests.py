@@ -1,10 +1,56 @@
 import unittest
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from manada import Analysis
 from scipy.stats import multivariate_normal
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+
+class DatasetGenerationTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		self.fake_test_folder = (os.path.dirname(
+			os.path.abspath(__file__))+'/test_data/fake_train/')
+
+	def test_normalize_inputs(self):
+		# Test that normalizing inputs works as expected. First normalize
+		# the metadata and make sure it agrees with hand computed values.
+		metadata = pd.read_csv(self.fake_test_folder + 'metadata.csv')
+		learning_params = ['subhalos_sigma_sub','los_delta_los',
+			'main_theta_E','subhalos_conc_beta']
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+			learning_params,input_norm_path)
+
+		# Check that the norms agree with what we would expect
+		for lp in learning_params:
+			self.assertAlmostEqual(np.mean(metadata[lp]),norm_dict['mean'][lp])
+			self.assertAlmostEqual(np.std(metadata[lp]),norm_dict['std'][lp])
+
+		# Change the metadata, but make sure the previous value is returned
+		metadata['subhalos_conc_beta'] *= 2
+		norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+			learning_params,input_norm_path)
+		for lp in ['subhalos_sigma_sub','los_delta_los','main_theta_E']:
+			self.assertAlmostEqual(np.mean(metadata[lp]),norm_dict['mean'][lp])
+			self.assertAlmostEqual(np.std(metadata[lp]),norm_dict['std'][lp])
+		self.assertAlmostEqual(np.mean(metadata['subhalos_conc_beta']),
+			norm_dict['mean']['subhalos_conc_beta']*2)
+
+		# Finally check that the code complains if there are some parameters
+		# missing in the norm
+		with self.assertRaises(ValueError):
+			learning_params = ['subhalos_sigma_sub','los_delta_los',
+				'main_theta_E','subhalos_conc_beta','not_there']
+			norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+				learning_params,input_norm_path)
+
+		# Get rid of the file we made
+		os.remove(input_norm_path)
 
 
 class MSELossTests(unittest.TestCase):
