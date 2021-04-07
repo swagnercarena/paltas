@@ -96,8 +96,7 @@ class DatasetGenerationTests(unittest.TestCase):
 		# Test that a reasonable tf record is generated.
 		metadata = pd.read_csv(self.fake_test_folder + 'metadata.csv')
 		learning_params = ['subhalo_parameters_sigma_sub',
-			'los_parameters_delta_los','main_deflector_parameters_theta_E',
-			'subhalo_parameters_conc_beta']
+			'los_parameters_delta_los','main_deflector_parameters_theta_E']
 		metadata_path = self.fake_test_folder + 'metadata.csv'
 		tf_record_path = self.fake_test_folder + 'tf_record_test'
 		input_norm_path = self.fake_test_folder + 'norms.csv'
@@ -126,12 +125,20 @@ class DatasetGenerationTests(unittest.TestCase):
 					data_features[param] = tf.io.FixedLenFeature(
 						[],tf.float32)
 			return tf.io.parse_single_example(example,data_features)
-		batch_size = 20
+		batch_size = 10
 		dataset = raw_dataset.map(parse_image).batch(batch_size)
+
+		# Normalize the metadata to get agreement.
+		metadata[learning_params] -= np.mean(
+			metadata[learning_params].to_numpy(),axis=0)
+		metadata[learning_params] /= np.std(
+			metadata[learning_params].to_numpy(),axis=0)
+
 		self.dataset_comparison(metadata,learning_params,dataset,batch_size,
 			num_npy)
 
 		# Clean up the file now that we're done
+		os.remove(input_norm_path)
 		os.remove(tf_record_path)
 
 
