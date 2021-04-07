@@ -70,12 +70,17 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 	"""
 	# Pull the list of numpy filepaths from the directory
 	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
+	print(npy_folder)
+	print(npy_file_list,'npy_file_listhere')
 	# Open label csv
 	metadata = pd.read_csv(metadata_path, index_col=None)
 
 	# If normalization file is provided use / write it
 	if input_norm_path is not None:
 		norm_dict = normalize_inputs(metadata,learning_params,input_norm_path)
+	else:
+		norm_dict = None
+
 	# Initialize the writer object and write the lens data
 	with tf.io.TFRecordWriter(tf_record_path) as writer:
 		for npy_file in tqdm(npy_file_list):
@@ -97,10 +102,15 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 					int64_list=tf.train.Int64List(value=[index]))
 			}
 			# Add all of the lens parameters to the feature dictionary
-			for lens_param in learning_params:
-				feature[lens_param] = tf.train.Feature(
-					float_list=tf.train.FloatList(
-						value=[metadata[lens_param][index]]))
+			for param in learning_params:
+				value = metadata[param][index]
+				# Normalize if needed
+				if norm_dict is not None:
+					value -= norm_dict['mean'][param]
+					value /= norm_dict['std'][param]
+				# Write the feature
+				feature[param] = tf.train.Feature(
+					float_list=tf.train.FloatList(value=[value]))
 			# Create the tf example object
 			example = tf.train.Example(features=tf.train.Features(
 				feature=feature))
