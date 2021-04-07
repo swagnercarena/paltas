@@ -231,7 +231,9 @@ def main():
 			if args.save_png_too:
 				plt.imsave(filename + '.png', image)
 			for component in sample:
-				base = sub_sample if component in ('subhalo', 'los') else sample
+				_sub_components = ('subhalo_parameters', 'los_parameters')
+				base = (sub_sample if component in _sub_components
+						else sample)
 				for key in base[component]:
 					meta_values[component+'_'+key] = base[component][key]
 			metadata = metadata.append(meta_values,ignore_index=True)
