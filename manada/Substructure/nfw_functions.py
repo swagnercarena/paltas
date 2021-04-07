@@ -159,7 +159,7 @@ def m_c_from_rho_r_scale(rho_nfw,r_scale,cosmo,z):
 	"""
 	# The equations do not have a simple closed form, so we're going to
 	# cheat and interpolate
-	c_eval = np.logspace(-1,2,1000)
+	c_eval = np.logspace(-1,3,1000)
 	h = cosmo.h
 	# rho_c is returned in units of M_sun*h^2/kpc^3
 	rho_c = cosmo.rho_c(z)*h**2
