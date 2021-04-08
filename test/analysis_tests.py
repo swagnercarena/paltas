@@ -5,6 +5,7 @@ import tensorflow as tf
 import glob
 from manada import Analysis
 from scipy.stats import multivariate_normal
+from lenstronomy.SimulationAPI.observation_api import SingleBand
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -14,6 +15,7 @@ class DatasetGenerationTests(unittest.TestCase):
 	def setUp(self):
 		# Set up a random seed for consistency
 		np.random.seed(2)
+		tf.random.set_seed(2)
 		self.fake_test_folder = (os.path.dirname(
 			os.path.abspath(__file__))+'/test_data/fake_train/')
 
@@ -91,6 +93,44 @@ class DatasetGenerationTests(unittest.TestCase):
 
 		# Get rid of the file we made
 		os.remove(input_norm_path)
+
+	def test_kwargs_detector_to_tf(self):
+		# Test that pushing numpy images through lenstronomy returns the
+		# same results as the tensorflow version.
+		kwargs_detector = {'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
+			'magnitude_zero_point':25.9463,'exposure_time':5400.0,
+			'sky_brightness':22,'num_exposures':1, 'background_noise':None}
+		# image = np.random.rand(64,64)
+		image = np.zeros((8,8))
+		tf_image = tf.constant(image,dtype=tf.float32)
+
+		# Make our own single band for comparison
+		single_band = SingleBand(**kwargs_detector)
+
+		# Draw a bunch of realizations to make sure that something similar
+		# is returned
+		np_total = []
+		tf_total = []
+		for _ in range(1000):
+			np_total.append(single_band.noise_for_model(image))
+			tf_total.append(
+				Analysis.dataset_generation.kwargs_detector_to_tf_noise(
+					tf_image,kwargs_detector).numpy())
+		np.testing.assert_allclose(np.std(np_total,axis=0),
+			np.std(tf_total,axis=0),rtol=0.2)
+
+		# Repeat with an image of roughly mean 100
+		image = np.ones((8,8))*100 + np.random.randn(8,8)*2
+		tf_image = tf.constant(image,dtype=tf.float32)
+		np_total = []
+		tf_total = []
+		for _ in range(1000):
+			np_total.append(single_band.noise_for_model(image))
+			tf_total.append(
+				Analysis.dataset_generation.kwargs_detector_to_tf_noise(
+					tf_image,kwargs_detector).numpy())
+		np.testing.assert_allclose(np.std(np_total,axis=0),
+			np.std(tf_total,axis=0),rtol=0.2)
 
 	def test_generate_tf_record(self):
 		# Test that a reasonable tf record is generated.
@@ -203,31 +243,22 @@ class DatasetGenerationTests(unittest.TestCase):
 			npy_counts += batch_size
 		self.assertEqual(npy_counts,num_npy*n_epochs)
 
-		# # Finally, just check that the noise statistics follow what we've
-		# # specified in the baobab configuration file.
-		# dataset = data_tools.build_tf_dataset(self.tf_record_path,
-		# 		self.lens_params,batch_size,n_epochs,self.baobab_config_path,
-		# 		norm_images=False)
-		# for batch in dataset:
-		# 	for image_i in range(len(batch[0].numpy())):
-		# 		image = batch[0].numpy()[image_i]
-		# 		self.assertGreater(np.std(image[:2,:,0]),5e-3)
-		# 		self.assertGreater(np.std(image[-2:,:,0]),5e-3)
-		# 		self.assertGreater(np.std(image[:,:2,0]),5e-3)
-		# 		self.assertGreater(np.std(image[:,-2:,0]),5e-3)
-
-		# # Check that multiple calls to the same dataset returns different data
-		# sums = []
-		# dataset = data_tools.build_tf_dataset(self.tf_record_path,
-		# 		self.lens_params,batch_size,2,self.baobab_config_path,
-		# 		norm_images=False)
-		# for batch in dataset:
-		# 	sum_cur = 0
-		# 	for image_i in range(len(batch[0].numpy())):
-		# 		image = batch[0].numpy()[image_i]
-		# 		sum_cur += np.sum(np.abs(image))
-		# 	sums.append(sum_cur)
-		# self.assertNotEqual(sums[0],sums[1])
+		# Finally, just check that the noise statistics follow what we've
+		# specified in the baobab configuration file.
+		kwargs_detector = {'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
+			'magnitude_zero_point':25.9463,'exposure_time':5400.0,
+			'sky_brightness':22,'num_exposures':1, 'background_noise':None}
+		dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,learning_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=kwargs_detector)
+		npy_counts = 0
+		for batch in dataset:
+			for image_i in range(len(batch[0].numpy())):
+				image = batch[0].numpy()[image_i]
+				self.assertGreater(np.std(image[:2,:,0]),5e-2)
+				self.assertGreater(np.std(image[-2:,:,0]),5e-2)
+				self.assertGreater(np.std(image[:,:2,0]),5e-2)
+				self.assertGreater(np.std(image[:,-2:,0]),5e-2)
 
 		# Clean up the file now that we're done
 		os.remove(input_norm_path)

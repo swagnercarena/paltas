@@ -12,6 +12,7 @@ import tensorflow as tf
 import pandas as pd
 import glob, os
 from tqdm import tqdm
+from lenstronomy.SimulationAPI.observation_api import SingleBand
 import warnings
 
 
@@ -51,6 +52,34 @@ def normalize_inputs(metadata,learning_params,input_norm_path):
 		norm_dict.to_csv(input_norm_path)
 
 	return norm_dict
+
+
+def kwargs_detector_to_tf_noise(image,kwargs_detector):
+	""" Add noise to the tf tensor provided in agreement with kwargs_detector
+
+	Args:
+		image (tf.Tensor): A tensorflow tensor containing the image
+		kwargs_detector (dict): A dictionary containing the detector kwargs
+			used to generate the noise on the fly.
+
+	Returns:
+		(tf.Tensor): A tensorflow tensor containing the noise.
+	"""
+	# Use lenstronomy to do our noise calculations (lenstronomy is well
+	# tested and is very flexible in its noise inputs).
+	single_band = SingleBand(**kwargs_detector)
+
+	# Add the background noise.
+	noise = tf.random.normal(tf.shape(image)) * single_band.background_noise
+
+	# Add the poisson noise. We have to redo the functions to be tf friendly
+	variance = tf.maximum(single_band.flux_iid(image),tf.zeros_like(image))
+	variance = tf.sqrt(variance) / single_band.exposure_time
+	if single_band._data_count_unit == 'ADU':
+		variance /= single_band.ccd_gain
+	noise += tf.random.normal(tf.shape(image)) * variance
+
+	return noise
 
 
 def generate_tf_record(npy_folder,learning_params,metadata_path,
@@ -143,7 +172,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 
 	# Load a noise model from baobab using the baobab config file.
 	if kwargs_detector is not None:
-		noise_function = None
+		noise_function = kwargs_detector_to_tf_noise
 	else:
 		warnings.warn('No noise will be added')
 		noise_function = None
@@ -164,7 +193,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 			parsed_dataset['width'],1))
 		# Add the noise using the baobab noise function (which is a tf graph)
 		if noise_function is not None:
-			image = noise_function.add_noise(image)
+			image = noise_function(image,kwargs_detector)
 
 		# If the images must be normed divide by the std
 		if norm_images:
