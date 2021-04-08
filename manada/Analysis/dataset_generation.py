@@ -12,6 +12,7 @@ import tensorflow as tf
 import pandas as pd
 import glob, os
 from tqdm import tqdm
+import warnings
 
 
 def normalize_inputs(metadata,learning_params,input_norm_path):
@@ -19,8 +20,8 @@ def normalize_inputs(metadata,learning_params,input_norm_path):
 
 	Args:
 		metadata(pd.DataFrame): A pandas object containing the metadata
-		learning_params (str): A list of strings containing the parameters
-			that the network is expected to learn.
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn.
 		input_norm_path (str): The path to a csv that contains the
 			normalization to be applied to the output parameters. If the
 			file already exists it will be read, if no file exists it will
@@ -58,8 +59,8 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 
 	Args:
 		root_path (str): The path to the folder containing the numpy files.
-		learning_params (str): A list of strings containing the parameters
-			that the network is expected to learn.
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn.
 		metadata_path (str):  The path to the csv file containing the
 			image metadata.
 		tf_record_path (str): The path to which the tf_record will be saved
@@ -70,8 +71,6 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 	"""
 	# Pull the list of numpy filepaths from the directory
 	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
-	print(npy_folder)
-	print(npy_file_list,'npy_file_listhere')
 	# Open label csv
 	metadata = pd.read_csv(metadata_path, index_col=None)
 
@@ -116,3 +115,70 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 				feature=feature))
 			# Write out the example to the TFRecord file
 			writer.write(example.SerializeToString())
+
+
+def generate_tf_dataset(tf_record_path,learning_params,batch_size,
+	n_epochs,norm_images=False,kwargs_detector=None):
+	"""	Generate a TFDataset that a model can be trained with.
+
+	Args:
+		tf_record_paths (str) A string specifying the paths to the tf_records
+			that will be used in the dataset.
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn.
+		batch_size (int): The batch size that will be used for training
+		n_epochs (int): The number of training epochs. The dataset object will
+			deal with iterating over the data for repeated epochs.
+		norm_images (bool): If True, images will be normalized to have std 1.
+		kwargs_detector (dict): A dictionary containing the detector kwargs
+			used to generate the noise on the fly. If None no additional
+			noise will be added.
+
+	Notes:
+		Do not use kwargs_detector if noise was already added during dataset
+		generation.
+	"""
+	# Read the TFRecords
+	raw_dataset = tf.data.TFRecordDataset(tf_record_path)
+
+	# Load a noise model from baobab using the baobab config file.
+	if kwargs_detector is not None:
+		noise_function = None
+	else:
+		warnings.warn('No noise will be added')
+		noise_function = None
+
+	# Create the feature decoder that will be used
+	def parse_image_features(example):
+		data_features = {
+			'image': tf.io.FixedLenFeature([],tf.string),
+			'height': tf.io.FixedLenFeature([],tf.int64),
+			'width': tf.io.FixedLenFeature([],tf.int64),
+			'index': tf.io.FixedLenFeature([],tf.int64),
+		}
+		for param in learning_params:
+			data_features[param] = tf.io.FixedLenFeature([],tf.float32)
+		parsed_dataset = tf.io.parse_single_example(example,data_features)
+		image = tf.io.decode_raw(parsed_dataset['image'],out_type=float)
+		image = tf.reshape(image,(parsed_dataset['height'],
+			parsed_dataset['width'],1))
+		# Add the noise using the baobab noise function (which is a tf graph)
+		if noise_function is not None:
+			image = noise_function.add_noise(image)
+
+		# If the images must be normed divide by the std
+		if norm_images:
+			image = image / tf.math.reduce_std(image)
+		lens_param_values = tf.stack([parsed_dataset[param] for param in
+			learning_params])
+		return image,lens_param_values
+
+	# Select the buffer size to be slightly larger than the batch
+	buffer_size = int(batch_size*1.2)
+
+	# Set the feature decoder as the mapping function. Drop the remainder
+	# in the case that batch_size does not divide the number of training
+	# points exactly
+	dataset = raw_dataset.map(parse_image_features).repeat(n_epochs).shuffle(
+		buffer_size=buffer_size).batch(batch_size)
+	return dataset

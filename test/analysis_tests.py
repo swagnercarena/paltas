@@ -108,7 +108,6 @@ class DatasetGenerationTests(unittest.TestCase):
 		# Probe the number of npy files to make sure the total number of files
 		# each epoch matches what is expected
 		num_npy = len(glob.glob(self.fake_test_folder+'image_*.npy'))
-		print(num_npy)
 
 		# Open up this TFRecord file and take a look inside
 		raw_dataset = tf.data.TFRecordDataset(tf_record_path)
@@ -136,6 +135,99 @@ class DatasetGenerationTests(unittest.TestCase):
 
 		self.dataset_comparison(metadata,learning_params,dataset,batch_size,
 			num_npy)
+
+		# Clean up the file now that we're done
+		os.remove(input_norm_path)
+		os.remove(tf_record_path)
+
+	def test_generate_tf_dataset(self):
+		# Test that build_tf_dataset has the correct batching behaviour and
+		# returns the same data contained in the npy files and csv.
+		num_npy = len(glob.glob(self.fake_test_folder+'image_*.npy'))
+
+		learning_params = ['subhalo_parameters_sigma_sub',
+			'los_parameters_delta_los','main_deflector_parameters_theta_E']
+		metadata_path = self.fake_test_folder + 'metadata.csv'
+		tf_record_path = self.fake_test_folder + 'tf_record_test'
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
+			learning_params,metadata_path,tf_record_path,
+			input_norm_path=input_norm_path)
+
+		# Try batch size 10
+		batch_size = 10
+		n_epochs = 1
+		norm_images = False
+		dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,learning_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=None)
+		npy_counts = 0
+		for batch in dataset:
+			self.assertListEqual(batch[0].get_shape().as_list(),
+				[batch_size,64,64,1])
+			self.assertListEqual(batch[1].get_shape().as_list(),
+				[batch_size,3])
+			npy_counts += batch_size
+		self.assertEqual(npy_counts,num_npy*n_epochs)
+
+		# Try batch size 5 and n_epochs 2
+		batch_size = 5
+		n_epochs = 2
+		dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,learning_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=None)
+		npy_counts = 0
+		for batch in dataset:
+			self.assertListEqual(batch[0].get_shape().as_list(),
+				[batch_size,64,64,1])
+			self.assertListEqual(batch[1].get_shape().as_list(),
+				[batch_size,3])
+			npy_counts += batch_size
+		self.assertEqual(npy_counts,num_npy*n_epochs)
+
+		# Try normalizing the data
+		batch_size = 5
+		n_epochs = 2
+		norm_images=True
+		dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,learning_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=None)
+		npy_counts = 0
+		for batch in dataset:
+			self.assertListEqual(batch[0].get_shape().as_list(),
+				[batch_size,64,64,1])
+			self.assertListEqual(batch[1].get_shape().as_list(),
+				[batch_size,3])
+			for image in batch[0].numpy():
+				self.assertAlmostEqual(np.std(image),1,places=4)
+			npy_counts += batch_size
+		self.assertEqual(npy_counts,num_npy*n_epochs)
+
+		# # Finally, just check that the noise statistics follow what we've
+		# # specified in the baobab configuration file.
+		# dataset = data_tools.build_tf_dataset(self.tf_record_path,
+		# 		self.lens_params,batch_size,n_epochs,self.baobab_config_path,
+		# 		norm_images=False)
+		# for batch in dataset:
+		# 	for image_i in range(len(batch[0].numpy())):
+		# 		image = batch[0].numpy()[image_i]
+		# 		self.assertGreater(np.std(image[:2,:,0]),5e-3)
+		# 		self.assertGreater(np.std(image[-2:,:,0]),5e-3)
+		# 		self.assertGreater(np.std(image[:,:2,0]),5e-3)
+		# 		self.assertGreater(np.std(image[:,-2:,0]),5e-3)
+
+		# # Check that multiple calls to the same dataset returns different data
+		# sums = []
+		# dataset = data_tools.build_tf_dataset(self.tf_record_path,
+		# 		self.lens_params,batch_size,2,self.baobab_config_path,
+		# 		norm_images=False)
+		# for batch in dataset:
+		# 	sum_cur = 0
+		# 	for image_i in range(len(batch[0].numpy())):
+		# 		image = batch[0].numpy()[image_i]
+		# 		sum_cur += np.sum(np.abs(image))
+		# 	sums.append(sum_cur)
+		# self.assertNotEqual(sums[0],sums[1])
 
 		# Clean up the file now that we're done
 		os.remove(input_norm_path)
