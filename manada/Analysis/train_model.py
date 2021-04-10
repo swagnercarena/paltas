@@ -63,7 +63,7 @@ def main():
 	# for training
 	npy_folder_train = config_module.npy_folder_train
 	# Number of steps per epoch is number of examples over the batch size
-	npy_file_list = glob.glob(os.path.join(npy_folder_train,'img_*.npy'))
+	npy_file_list = glob.glob(os.path.join(npy_folder_train,'image_*.npy'))
 	steps_per_epoch = len(npy_file_list)//batch_size
 	# The path to the fodler containing the npy images
 	# for validation
@@ -127,14 +127,14 @@ def main():
 	# Load the loss function
 	if loss_function == 'mse':
 		num_outputs = num_params
-		loss = loss_functions.MSELoss(num_outputs,flip_pairs).loss
+		loss = loss_functions.MSELoss(num_params,flip_pairs).loss
 	elif loss_function == 'diag':
 		num_outputs = num_params*2
-		loss = loss_functions.DiagonalCovarianceLoss(num_outputs,
+		loss = loss_functions.DiagonalCovarianceLoss(num_params,
 			flip_pairs).loss
 	elif loss_function == 'full':
 		num_outputs = num_params + int(num_params*(num_params+1)/2)
-		loss = loss_functions.FullCovarianceLoss(num_outputs,flip_pairs).loss
+		loss = loss_functions.FullCovarianceLoss(num_params,flip_pairs).loss
 	else:
 		raise ValueError('%s loss not in the list of supported losses'%(
 			loss_function))
@@ -153,7 +153,7 @@ def main():
 	mse_loss = loss_functions.MSELoss(num_params,flip_pairs).loss
 
 	# Compile our model
-	model.compile(loss=loss,optimizer=adam,metric=[loss,mse_loss])
+	model.compile(loss=loss,optimizer=adam,metrics=[loss,mse_loss])
 
 	print('Is model built: ' + str(model.built))
 
