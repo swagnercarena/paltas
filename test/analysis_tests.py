@@ -512,3 +512,26 @@ class FullCovarianceLossTest(unittest.TestCase):
 		loss = loss_class.loss(yttf,yptf)
 
 		self.assertAlmostEqual(np.sum(loss.numpy()),scipy_nlp,places=4)
+
+
+class ConvModelsTest(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		tf.random.set_seed(2)
+
+	def test_build_resnet_50(self):
+		# Just test that the model dimensions behave as we would expect
+		image_size = (100,100,1)
+		num_outputs = 8
+
+		model = Analysis.conv_models.build_resnet_50(image_size,num_outputs)
+
+		# Check shapes
+		self.assertTupleEqual((None,100,100,1),model.input_shape)
+		self.assertTupleEqual((None,100,100,1),model.input_shape)
+		self.assertEqual(175,len(model.layers))
+
+		# Check that the model compiles
+		model.compile(loss='mean_squared_error')
