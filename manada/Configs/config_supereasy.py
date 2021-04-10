@@ -28,7 +28,7 @@ config_dict['detector']['parameters'].update(dict(
     sky_brightness=99.))
 
 # Turn off the Poisson readout noise
-magically_no_noise = True
+no_noise = True
 
 # Turn off PSF
 config_dict['psf']['parameters']['fwhm'] = 1e-9

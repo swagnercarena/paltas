@@ -48,7 +48,7 @@ class Sampler():
 
 		# Iterate through the keys in the draw_dict and populate the values of
 		# param_dict correctly.
-		for key in draw_dict:
+		for key in sorted(draw_dict):
 			# If the key implies that multiple parameters will be drawn from
 			# the distribution, draw the value and then iterate through the
 			# parameters.
