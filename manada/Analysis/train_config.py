@@ -1,5 +1,3 @@
-
-
 batch_size = 128
 # The number of epochs to train for
 n_epochs = 30

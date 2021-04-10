@@ -6,7 +6,7 @@ dataset.
 import argparse, os, sys, glob
 from importlib import import_module
 import tensorflow as tf
-from . import dataset_generation, loss_functions, conv_models
+from manada.Analysis import dataset_generation, loss_functions, conv_models
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
 
