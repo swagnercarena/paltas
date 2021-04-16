@@ -10,6 +10,7 @@ from .subhalos_base import SubhalosBase
 from . import nfw_functions
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.Cosmo.lens_cosmo import LensCosmo
+import lenstronomy.Util.param_util as param_util
 import pandas as pd
 import os
 import numpy as np
@@ -17,9 +18,16 @@ from helpers.SimulationAnalysis import readHlist, SimulationAnalysis
 import astropy
 from astropy.cosmology import WMAP9 as cosmo
 import re
+from astropy.cosmology import FlatLambdaCDM
 
 # Define the parameters we expect to find for reading from the simulation catalog
-draw_simulation_catalog_parameters = ['rockstar_path','m_min', 'get_main']
+#rockstar_path (str): path to rockstar directory
+#m_min (float): minumum halo mass
+#get_main (bool): if True, return parameters for main deflector as well as subhalos 
+#return_at_infall (bool): if True, calculate subhalo concentration and scale radius at infall 
+#subhalo_profile: profile for subhalos (currently implemented: NFW, TNFW, NFW_ELLIPSE)
+
+draw_simulation_catalog_parameters = ['rockstar_path','m_min', 'get_main', 'return_at_infall','subhalo_profile']
 
 
 class SubhalosCatalog(SubhalosBase):
@@ -63,6 +71,15 @@ class SubhalosCatalog(SubhalosBase):
 		return float(re.search(r'\d+\.\d+', filename).group(0))
 
 	def get_scale_factor(self,rockstar_dir, redshift):
+		"""Returns the filename and scale factor for the
+		hlist at redshift=redshift 
+		Args:
+			rockstar_dir (str): The path to the desired rockstar directory
+			redshift (float): The redshift of the lens 
+		Returns:
+			(float): The scale factor
+			(str): The filename of the hlist file at scale factor = scale_factor 
+		"""
 		hlist_file_names =  os.listdir(rockstar_dir + str('hlists'))
 		scale_factors  = []
 		for filename in hlist_file_names:
@@ -71,49 +88,77 @@ class SubhalosCatalog(SubhalosBase):
 		nfile = np.argmin(np.abs((1./scale_factors-1)-redshift))
 		return scale_factors[nfile], hlist_file_names[nfile]
 
-	def load_host_and_subs(self,rockstar_dir, hlist_fname, cosmo):
+	def load_host_and_subs(self,rockstar_dir, hlist_fname, scale_factor, cosmo, return_at_infall=False):
+		"""Returns host and subhalo parameters at redshift z_lens
+		for subhalos concentration and scale_radius are returned at 
+		snapshot where 'vmax' is maximized 
+
+		Args:
+			rockstar_dir (str): The path to the desired rockstar directory
+			hlist_fnmae (str): Name of hlist file at redshift=z_lens
+			scale_factor (float): The scale factor at redshift=z_lens 
+			cosmology_parameters (str,dict, or
+				colossus.cosmology.cosmology.Cosmology): Either a name
+				of colossus cosmology, a dict with 'cosmology name': name of
+				colossus cosmology, an instance of colussus cosmology, or a
+				dict with H0 and Om0 ( other parameters will be set to defaults).	
+
+		Returns:
+			sub (dir): A directory containing subhalo parameters
+				for subhalos with mass greater than m_min 
+			main (dir): a directory containing main halo parameters 
+                """
 		# fields we want from hlist halo catalog
-		fields = ['treeRootId', 'upid', 'x', 'y', 'z', 'rvir','rs', 'm200c', 'id', 'mvir', 'scale']
+		fields = ['treeRootId', 'upid', 'x', 'y', 'z', 'rvir','rs', 'm200c', 'id', 'mvir', 'scale', 'b_to_a', 'c_to_a', 'A[x]', 'A[y]','A[z]']
 		sim = SimulationAnalysis(trees_dir=rockstar_dir+'trees')
 
-		# read in z=0 halos
-		halos = readHlist(os.path.join(rockstar_dir+'hlists', 'hlist_1.00000.list'),fields=fields)
+		#get host at z=0.0 
+		halos0 = readHlist(os.path.join(rockstar_dir+'hlists', 'hlist_1.00000.list'),fields=fields)
+		host0 = halos0[0]
+
+		# get z=redshift halos
+		halos = readHlist(os.path.join(rockstar_dir+'hlists', hlist_fname),fields=fields)
 
 		# get host
-		host = halos[0]
+		host = halos[halos['treeRootId']==host0['treeRootId']][0]
 
 		# get subhalos
 		subhalos = halos[halos['upid']==host['id']]
 
-		# get z=redshift halos
-		halos05 = readHlist(os.path.join(rockstar_dir+'hlists', hlist_fname),fields=fields)
-
-		# get host
-		host05 = halos05[halos05['treeRootId']==host['treeRootId']][0]
-
-		# get subhalos
-		subhalos05 = halos05[halos05['upid']==host05['id']]
+		#only return subhalos with mass greater than m_min 
+		mask = subhalos['m200c'] > self.subhalo_parameters['m_min']
+		subhalos = subhalos[mask]
 
 		concentration = []
 		rs = []
 
 		#get subhalos parameters at infall
-		for i in range(len(subhalos05)):
-			sub_tree = sim.load_main_branch(subhalos05['treeRootId'][i])
-			ind_vpeak = np.argmax(sub_tree['vmax'])
-			rshift = 1./(sub_tree['scale']) - 1.
+		if(return_at_infall == True):
+			for i in range(len(subhalos)):
+				sub_tree = sim.load_main_branch(subhalos['treeRootId'][i])
+				ind_vpeak = np.argmax(sub_tree['vmax'])
+				rshift = 1./(sub_tree['scale']) - 1.
 			#calculate r200
-			r200s = nfw_functions.r_200_from_m(subhalos05['m200c'])
-			c_vpeak = (r200s/sub_tree['rs'])[ind_vpeak]
-			concentration.append(c_vpeak)
-			rs.append((sub_tree['rs']*sub_tree['scale'])[ind_vpeak]) #change from comoving to physical coords
-		return host, subhalos, host05, subhalos05, np.array(c), np.array(r)
+				r200s = nfw_functions.r_200_from_m(subhalos['m200c'][i], 
+					self.main_deflector_parameters['z_lens'], cosmo)
+				c_vpeak = (r200s/sub_tree['rs'])[ind_vpeak]
+				concentration.append(c_vpeak)
+				rs.append((sub_tree['rs']*sub_tree['scale'])[ind_vpeak]) #change from comoving to physical coords
+		else:
+			c_vpeak = np.zeros(len(subhalos))
+			rs = np.zeros(len(subhalos))
+		sub, host = self.get_subhalo_catalog(subhalos, host, scale_factor, cosmo, np.array(c_vpeak), np.array(rs), self.subhalo_parameters['get_main'], return_at_infall)
+
+		return sub, host 
 
 	def rotate_project(self,x, y, z, theta_x, theta_y, theta_z):
 		"""
 		rotates with the three Euler angles and projects in the z'-axis after rotation
 		See e.g. https://en.wikipedia.org/wiki/3D_projection#Perspective_projection
-		"""
+                Args:
+
+                Returns:
+                """
 		c_x, s_x = np.cos(theta_x), np.sin(theta_x)
 		c_y, s_y = np.cos(theta_y), np.sin(theta_y)
 		c_z, s_z = np.cos(theta_z), np.sin(theta_z)
@@ -121,7 +166,7 @@ class SubhalosCatalog(SubhalosBase):
 		y_ = s_x * (c_y * z + s_y * (s_z * y + c_z * x)) + c_x * (c_z * y - s_z * x)
 		return x_, y_
 
-	def get_subhalo_catalog(self,subhalos, host, minimum_mass, scale_factor, cosmo, sub_c, sub_rs, delta_vir, return_host =True):
+	def get_subhalo_catalog(self,subhalos, host, scale_factor, cosmo, sub_c, sub_rs, return_host =True,return_at_infall=False):
 		"""Generates catalog of subhalo parameters necessary for lensing.
 
 				Args:
@@ -140,7 +185,7 @@ class SubhalosCatalog(SubhalosBase):
 			the host halo catalog will be empty.
 				"""
 
-		columns = ('x', 'y', 'z', 'c', 'rs', 'm200')
+		columns = ('x', 'y', 'z', 'c', 'rs', 'rvir', 'm200', 'A[x]', 'A[y]', 'A[z]', 'b_to_a', 'c_to_a')
 		sub = pd.DataFrame(columns=columns)
 		main = pd.DataFrame(columns=columns)
 
@@ -150,27 +195,38 @@ class SubhalosCatalog(SubhalosBase):
 		center_y = host['y']
 		center_z = host['z']
 
-		mask = np.log10(subhalos['M200c']) > minimum_mass
+		sub['m200'] = subhalos['m200c']/h
+		sub['x'] = (subhalos['x'] - center_x)*1000*scale_factor/h
+		sub['y'] = (subhalos['y'] - center_y)*1000*scale_factor/h
+		sub['z'] = (subhalos['z'] - center_z)*1000*scale_factor/h
+		sub['A[x]'] = (subhalos['A[x]'])*scale_factor/h
+		sub['A[y]'] = (subhalos['A[y]'])*scale_factor/h
+		sub['A[z]'] = (subhalos['A[z]'])*scale_factor/h
+		sub['b_to_a'] = subhalos['b_to_a']
+		sub['c_to_a'] = subhalos['c_to_a']
+		sub['rvir'] = subhalos['rvir']*scale_factor/h 
 
-		sub['c'] = sub_c[mask]
-		sub['m200'] = subhalos['M200c'][mask]
-		sub['x'] = (subhalos['x'][mask] - center_x)*1000*scale_factor/h
-		sub['y'] = (subhalos['y'][mask] - center_y)*1000*scale_factor/h
-		sub['z'] = (subhalos['z'][mask] - center_z)*1000*scale_factor/h
-		sub['rs'] = sub_rs['rs'][mask]
+		if(return_at_infall == True): 
+			sub['rs'] = sub_rs
+			sub['c'] = sub_c
+		else:
+			sub['rs'] = subhalos['rs']*scale_factor/h 
+			r200s = nfw_functions.r_200_from_m(subhalos['m200c'], self.main_deflector_parameters['z_lens'],self.cosmo)
+			sub['c'] = r200s/subhalos['rs']
 
 		if return_host == True:
-			r200 = [host['rvir']*((host['m200c']*delta_vir)/(200*host['mvir']))**(1./3.)]
-			main['c'] = r200/host05['rs']
-			main['m200'] = [host['m200c']]
+			r200 = [nfw_functions.r_200_from_m(host['m200c'], self.main_deflector_parameters['z_lens'],self.cosmo)]
+			main['c'] = r200/host['rs']
+			main['m200'] = [host['m200c']/h]
 			main['x'] = [0]
 			main['y'] = [0]
 			main['z'] = [0]
-			main['rs'] = [host['rs']*scale_factor]
+			main['rs'] = [host['rs']*scale_factor/h]
+			main['rvir'] = [host['rvir']*scale_factor/h]
 
 		return sub, main
 
-	def generate_analytic(self,sub, host, cosmo, z_source, z_lens, include_host=True):
+	def generate_analytic(self,sub, host, cosmo_base, z_source, z_lens, include_host=True, subhalo_profile='NFW'):
 		"""Generates analytic lensing profile from list of subhalos.
 
 		Args:
@@ -188,39 +244,74 @@ class SubhalosCatalog(SubhalosBase):
 				and the lenstronomy kwargs.
 		"""
 
-		h = cosmo.h
+		h = cosmo_base.h
 
-		sub_x, sub_y = rotate_project(sub['x'], sub['y'], sub['z'], 0, 0, 0)
+		sub_x, sub_y = self.rotate_project(sub['x'], sub['y'], sub['z'], 0, 0, 0)
+
+		cosmo = FlatLambdaCDM(H0 = cosmo_base.H0, Om0 = cosmo_base.Om0)
 
 		lens_cosmo = LensCosmo(z_lens=z_lens, z_source=z_source, cosmo=cosmo)
 
-		Rs_angle, alpha_Rs = lens_cosmo.nfw_physical2angle(M=sub['m200']/h, c=sub['c'])
+		Rs_angle, alpha_Rs = lens_cosmo.nfw_physical2angle(M=sub['m200'], c=sub['c'])
 
 		alpha_Rs = alpha_Rs.values
 
 		xx = lens_cosmo.phys2arcsec_lens(sub_x/1000.).values
 		yy = lens_cosmo.phys2arcsec_lens(sub_y/1000.).values
-		rr = lens_cosmo.phys2arcsec_lens(sub['rs']/1000/h).values
+		rr = lens_cosmo.phys2arcsec_lens(sub['rs']/1000).values
 
 		if(include_host==True):
-			host_x, host_y = rotate_project(host['x'], host['y'], host['z'], theta_x, theta_y, theta_z)
+			host_x, host_y = self.rotate_project(host['x'], host['y'], host['z'], 0, 0, 0)
 
-			Rs_angle_host, alpha_Rs_host = lens_cosmo.nfw_physical2angle(M=host['m200']/h, c=host['c'])
+			Rs_angle_host, alpha_Rs_host = lens_cosmo.nfw_physical2angle(M=host['m200'], c=host['c'])
 
 			xx_host = lens_cosmo.phys2arcsec_lens(host_x/1000.)
 			yy_host = lens_cosmo.phys2arcsec_lens(host_y/1000.)
-			rr_host = lens_cosmo.phys2arcsec_lens(host['rs']/1000/h)
+			rr_host = lens_cosmo.phys2arcsec_lens(host['rs']/1000)
 
-			rr = np.insert(rr, 0, float(rr_host.values))
-			xx = np.insert(xx, 0, float(xx_host.values))
-			yy = np.insert(yy, 0, float(yy_host.values))
-
-			alpha_Rs = np.insert(alpha_Rs, 0, float(alpha_Rs_host.values))
-
-		lens_analytic = LensModel(lens_model_list=['NFW']*len(alpha_Rs), lens_redshift_list=[z_lens]*len(alpha_Rs), z_source=z_source, cosmo=cosmo, multi_plane=False)
+			rtrunc_host = lens_cosmo.phys2arcsec_lens(host['rvir']/1000) 
 
 
-		kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
+		if(subhalo_profile=='NFW_ELLIPSE'):
+			ellipse_x, ellipse_y = self.rotate_project(sub['A[x]']+sub['x'], sub['A[y]']+sub['y'], sub['A[z]']+sub['z'], 0, 0, 0)
+			rz = sub['A[z]']/np.sqrt(sub['A[x]']**2 + sub['A[y]']**2 + sub['A[z]']**2)
+			q = rz+np.sqrt(sub['b_to_a']*sub['c_to_a'])*(1-rz)
+			ellipse_x = ellipse_x - sub_x
+			ellipse_y = ellipse_y - sub_y 
+			z = [-1,0]
+			phi = [] 
+			for i in range(len(ellipse_x)):
+				if(ellipse_x[i]<0):
+					theta = np.array([ellipse_y[i], ellipse_x[i]])
+					phi.append(np.arccos(np.dot(z,theta)/(np.linalg.norm(theta)*np.linalg.norm(z))))
+				else:
+					theta = np.array([-ellipse_y[i], -ellipse_x[i]])
+					phi.append(np.arccos(np.dot(z,theta)/(np.linalg.norm(theta)*np.linalg.norm(z))))
+
+			e1 = []
+			e2 = []
+			for i in range(len(phi)):
+			    ee1, ee2 = param_util.phi_q2_ellipticity(phi=phi[i], q=q[i])
+			    e1.append(ee1)
+			    e2.append(ee2)
+
+		if(subhalo_profile=='NFW'): 
+			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
+		elif(subhalo_profile=='TNFW'):
+			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i],'r_trunc': 5*rr[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
+		elif(subhalo_profile=='NFW_ELLIPSE'):
+			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i],  'e1': e1[i], 'e2': e2[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
+		else:
+			print('Subhalo profile not implemented. Defaulting to NFW')
+			subhalo_profile='NFW'
+			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
+		profiles = [subhalo_profile]*len(alpha_Rs)
+
+		if(include_host == True):
+			profiles.append('NFW_ELLIPSE')
+			kwargs_new.append({'Rs': rr_host.values[0], 'alpha_Rs': alpha_Rs_host.values[0],  'e1': 0, 'e2': 0,  'center_x': 0, 'center_y':0})
+#			kwargs_new.append({'Rs': rr_host.values[0], 'alpha_Rs': alpha_Rs_host.values[0],  'r_trunc':rtrunc_host.values[0], 'center_x': 0, 'center_y':0})
+		lens_analytic = LensModel(lens_model_list=profiles, lens_redshift_list=z_lens, z_source=z_source, cosmo=cosmo, multi_plane=False)
 
 		return lens_analytic, kwargs_new
 
@@ -236,12 +327,11 @@ class SubhalosCatalog(SubhalosBase):
 		"""
 		redshift = self.main_deflector_parameters['z_lens']
 		rockstar_dir = self.subhalo_parameters['rockstar_path']
-		delta_vir = ht.delta_vir(self.cosmo, redshift)
+	
 		scale_factor, hlist_fname = self.get_scale_factor(rockstar_dir, redshift) #is this correct?
 
-		host, subhalos, host05, subhalos05, sub_c, sub_rs = self.load_host_and_subs(rockstar_dir, scale_factor, self.cosmo)
-		sub, host = self.get_subhalo_catalog(subhalos05, host05, self.subhalo_parameters['m_min'], scale_factor, self.cosmo, sub_c, sub_rs, delta_vir, self.subhalo_parameters['get_main'])
+		sub, host = self.load_host_and_subs(rockstar_dir, hlist_fname, scale_factor, self.cosmo, self.subhalo_parameters['return_at_infall'])
 
-		lens, kwargs = self.generate_analytic(sub, host, self.cosmo, self.source_parameters['z_source'], redshift, self.subhalo_parameters['get_main'])
+		lens, kwargs = self.generate_analytic(sub, host, self.cosmo, self.source_parameters['z_source'], redshift, self.subhalo_parameters['get_main'], self.subhalo_parameters['subhalo_profile'])
 		return (lens, kwargs)
 
