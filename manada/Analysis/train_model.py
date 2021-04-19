@@ -116,10 +116,10 @@ def main():
 	# We shouldn't be adding random noise to validation images. They should
 	# be generated with noise
 	if kwargs_detector is not None:
-		print('Make sure your validation images already have noise! Noise' +
+		print('Make sure your validation images already have noise! Noise ' +
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
-		learning_params,batch_size,n_epochs,norm_images=norm_images,
+		learning_params,batch_size,1,norm_images=norm_images,
 		kwargs_detector=None)
 
 	print('Initializing the model')
@@ -149,11 +149,8 @@ def main():
 	# We'll use Adam for graident descent
 	adam = Adam(lr=learning_rate,amsgrad=False)
 
-	# We'll always track the mse loss on the validation set
-	mse_loss = loss_functions.MSELoss(num_params,flip_pairs).loss
-
 	# Compile our model
-	model.compile(loss=loss,optimizer=adam,metrics=[loss,mse_loss])
+	model.compile(loss=loss,optimizer=adam,metrics=[loss])
 
 	print('Is model built: ' + str(model.built))
 
