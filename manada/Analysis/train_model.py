@@ -70,6 +70,8 @@ def main():
 	# The path to the fodler containing the npy images
 	# for validation
 	npy_folder_val = config_module.npy_folder_val
+	# Get the number of validation files as well
+	n_val_npy = len(glob.glob(os.path.join(npy_folder_val,'image_*.npy')))
 	# A list of the paths to the training metadata
 	metadata_paths_train = config_module.metadata_paths_train
 	# The path to the validation metadata
@@ -123,7 +125,7 @@ def main():
 		print('Make sure your validation images already have noise! Noise ' +
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
-		learning_params,batch_size,1,norm_images=norm_images,
+		learning_params,n_val_npy,1,norm_images=norm_images,
 		kwargs_detector=None)
 
 	print('Initializing the model')
