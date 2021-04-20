@@ -194,7 +194,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 			parsed_dataset['width'],1))
 		# Add the noise using the baobab noise function (which is a tf graph)
 		if noise_function is not None:
-			image = noise_function(image,kwargs_detector)
+			image += noise_function(image,kwargs_detector)
 
 		# If the images must be normed divide by the std
 		if norm_images:
