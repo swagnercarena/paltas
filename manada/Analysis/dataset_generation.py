@@ -151,8 +151,9 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	"""	Generate a TFDataset that a model can be trained with.
 
 	Args:
-		tf_record_paths (str) A string specifying the paths to the tf_records
-			that will be used in the dataset.
+		tf_record_paths (str, or [str,...]) A string specifying the paths to
+			the tf_records that will be used in the dataset. Can also be a list
+			of strings for specifying multiple tf_record_paths.
 		learning_params ([str,...]): A list of strings containing the
 			parameters that the network is expected to learn.
 		batch_size (int): The batch size that will be used for training

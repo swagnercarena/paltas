@@ -50,8 +50,8 @@ def main():
 	img_size = config_module.img_size
 	# A random seed to us
 	random_seed = config_module.random_seed
-	# The path to the tf_record for the training images
-	tfr_train_path = config_module.tfr_train_path
+	# A list of the paths to the tf_records for the training images
+	tfr_train_paths = config_module.tfr_train_paths
 	# The path to the tf_record for the validation images
 	tfr_val_path = config_module.tfr_val_path
 	# The list of learning parameters to use
@@ -59,17 +59,19 @@ def main():
 	num_params = len(learning_params)
 	# Which parameters to consider flipping
 	flip_pairs = config_module.flip_pairs
-	# The path to the fodler containing the npy images
+	# A list to the paths of the fodlers containing the npy images
 	# for training
-	npy_folder_train = config_module.npy_folder_train
+	npy_folders_train = config_module.npy_folders_train
 	# Number of steps per epoch is number of examples over the batch size
-	npy_file_list = glob.glob(os.path.join(npy_folder_train,'image_*.npy'))
-	steps_per_epoch = len(npy_file_list)//batch_size
+	n_npy_files = 0
+	for npy_folder in npy_folders_train:
+		n_npy_files += len(glob.glob(os.path.join(npy_folder,'image_*.npy')))
+	steps_per_epoch = n_npy_files//batch_size
 	# The path to the fodler containing the npy images
 	# for validation
 	npy_folder_val = config_module.npy_folder_val
-	# The path to the training metadata
-	metadata_path_train = config_module.metadata_path_train
+	# A list of the paths to the training metadata
+	metadata_paths_train = config_module.metadata_paths_train
 	# The path to the validation metadata
 	metadata_path_val = config_module.metadata_path_val
 	# The path to the csv file to read from / write to for normalization
@@ -94,12 +96,14 @@ def main():
 	# Check for tf records for train and validation and prepare them
 	# if needed
 	print('Checking for training data.')
-	if not os.path.exists(tfr_train_path):
-		print('Generating new TFRecord at %s'%(tfr_train_path))
-		dataset_generation.generate_tf_record(npy_folder_train,learning_params,
-			metadata_path_train,tfr_train_path,input_norm_path)
-	else:
-		print('TFRecord found at %s'%(tfr_train_path))
+	for i, tf_path in enumerate(tfr_train_paths):
+		if not os.path.exists(tf_path):
+			print('Generating new TFRecord at %s'%(tf_path))
+			dataset_generation.generate_tf_record(npy_folders_train[i],
+				learning_params,metadata_paths_train[i],tf_path,
+				input_norm_path)
+		else:
+			print('TFRecord found at %s'%(tf_path))
 
 	print('Checking for validation data.')
 	if not os.path.exists(tfr_val_path):
@@ -110,7 +114,7 @@ def main():
 		print('TFRecord found at %s'%(tfr_val_path))
 
 	# Turn our tf records into tf datasets for training and validation
-	tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_path,
+	tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
 		learning_params,batch_size,n_epochs,norm_images=norm_images,
 		kwargs_detector=kwargs_detector)
 	# We shouldn't be adding random noise to validation images. They should

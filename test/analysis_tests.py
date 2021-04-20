@@ -7,6 +7,7 @@ from manada import Analysis
 from scipy.stats import multivariate_normal
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 import os
+from shutil import copyfile
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -260,9 +261,28 @@ class DatasetGenerationTests(unittest.TestCase):
 				self.assertGreater(np.std(image[:,:2,0]),5e-2)
 				self.assertGreater(np.std(image[:,-2:,0]),5e-2)
 
+		# Test that passing in multiple tf_records works
+		second_tf_record = tf_record_path + '2'
+		copyfile(tf_record_path, second_tf_record)
+		batch_size = 10
+		n_epochs = 1
+		norm_images = False
+		dataset = Analysis.dataset_generation.generate_tf_dataset(
+			[tf_record_path,second_tf_record],learning_params,batch_size,
+			n_epochs,norm_images=norm_images,kwargs_detector=None)
+		npy_counts = 0
+		for batch in dataset:
+			self.assertListEqual(batch[0].get_shape().as_list(),
+				[batch_size,64,64,1])
+			self.assertListEqual(batch[1].get_shape().as_list(),
+				[batch_size,3])
+			npy_counts += batch_size
+		self.assertEqual(npy_counts,num_npy*n_epochs*2)
+
 		# Clean up the file now that we're done
 		os.remove(input_norm_path)
 		os.remove(tf_record_path)
+		os.remove(second_tf_record)
 
 
 class MSELossTests(unittest.TestCase):
