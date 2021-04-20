@@ -7,10 +7,10 @@ img_size = (64,64,1)
 random_seed = 2
 # The path to the tf_record for the training images
 tfr_train_path = (
-	'/scratch/users/swagnerc/manada/datasets/single_source/tf_record')
+	'/lscratch/swagnerc/tf_record')
 # The path to the tf_record for the validation images
 tfr_val_path = (
-	'/scratch/users/swagnerc/manada/datasets/single_source_val/tf_record')
+	'/lscratch/swagnerc/tf_record_val')
 # The list of learning parameters to use
 learning_params = ['subhalo_parameters_sigma_sub',
 	'main_deflector_parameters_theta_E','main_deflector_parameters_gamma1',
@@ -22,13 +22,13 @@ learning_params = ['subhalo_parameters_sigma_sub',
 flip_pairs = [[2,3],[5,6]]
 # The path to the fodler containing the npy images
 # for training
-npy_folder_train = '/scratch/users/swagnerc/manada/datasets/single_source/'
+npy_folder_train = '/scratch/users/swagnerc/manada/datasets/single_source_1/'
 # The path to the fodler containing the npy images
 # for validation
 npy_folder_val = '/scratch/users/swagnerc/manada/datasets/single_source_val/'
 # The path to the training metadata
 metadata_path_train = (
-	'/scratch/users/swagnerc/manada/datasets/single_source/metadata.csv')
+	'/scratch/users/swagnerc/manada/datasets/single_source_1/metadata.csv')
 # The path to the validation metadata
 metadata_path_val = (
 	'/scratch/users/swagnerc/manada/datasets/single_source_val/metadata.csv')
@@ -48,4 +48,4 @@ model_type = 'resnet50'
 # Where to save the model weights
 model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_diag.h5'
 # The learning rate for the model
-learning_rate = 1e-5
+learning_rate = 1e-6
