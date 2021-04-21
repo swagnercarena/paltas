@@ -209,6 +209,8 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	# Set the feature decoder as the mapping function. Drop the remainder
 	# in the case that batch_size does not divide the number of training
 	# points exactly
-	dataset = raw_dataset.map(parse_image_features).repeat(n_epochs).shuffle(
-		buffer_size=buffer_size).batch(batch_size)
+	dataset = raw_dataset.map(parse_image_features,
+		num_parallel_calls=tf.data.experimental.AUTOTUNE).repeat(
+		n_epochs).shuffle(buffer_size=buffer_size).batch(batch_size).prefetch(
+		tf.data.experimental.AUTOTUNE)
 	return dataset
