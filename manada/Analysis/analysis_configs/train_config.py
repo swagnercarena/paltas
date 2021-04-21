@@ -17,7 +17,7 @@ learning_params = ['subhalo_parameters_sigma_sub',
 	'main_deflector_parameters_center_x','main_deflector_parameters_center_y',
 	'los_parameters_delta_los']
 # Which parameters to consider flipping
-flip_pairs = [[2,3],[5,6]]
+flip_pairs = None
 # The path to the fodler containing the npy images
 # for training
 npy_folders_train = [
