@@ -91,6 +91,8 @@ def main():
 	model_weights = config_module.model_weights
 	# The learning rate for the model
 	learning_rate = config_module.learning_rate
+	# Whether or not to apply a random rotation to the input image
+	random_rotation = config_module.random_rotation
 
 	# Set the random seed for our network
 	tf.random.set_seed(random_seed)
@@ -147,7 +149,8 @@ def main():
 
 	# Load the model
 	if model_type == 'resnet50':
-		model = conv_models.build_resnet_50(img_size,num_outputs)
+		model = conv_models.build_resnet_50(img_size,num_outputs,
+			random_rotation=random_rotation)
 	else:
 		raise ValueError('%s model not in the list of supported models'%(
 			model_type))

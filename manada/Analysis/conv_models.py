@@ -11,13 +11,15 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 
 
-def build_resnet_50(img_size,num_outputs):
+def build_resnet_50(img_size,num_outputs,random_rotation=False):
 	"""	Build the traditional resnet 50 model.
 
 	Args:
 		img_size ((int,int,int)): A tuple with shape (pix,pix,freq) that
 			describes the size of the input images.
 		num_outputs (int): The number of outputs to predict
+		random_rotation (bool): If true, apply a random rotation to the
+			input image.
 
 	Returns:
 		(keras.Model): An instance of the ResNet50 model implemented in
@@ -27,6 +29,12 @@ def build_resnet_50(img_size,num_outputs):
 	use_bias = True
 	# Initialzie the inputs
 	inputs = layers.Input(shape=img_size)
+
+	if random_rotation:
+		x = layers.experimental.preprocessing.RandomRotation(0.5)(inputs)
+		x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(x)
+	else:
+		x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(inputs)
 
 	# Build the first resnet stack
 	x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(inputs)
