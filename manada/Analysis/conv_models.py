@@ -31,7 +31,7 @@ def build_resnet_50(img_size,num_outputs,random_rotation=False):
 	inputs = layers.Input(shape=img_size)
 
 	if random_rotation:
-		x = layers.experimental.preprocessing.RandomRotation(0.5)(inputs)
+		# x = layers.experimental.preprocessing.RandomRotation(0.5)(inputs)
 		x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(x)
 	else:
 		x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(inputs)

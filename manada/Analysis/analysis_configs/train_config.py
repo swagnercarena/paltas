@@ -1,6 +1,6 @@
-batch_size = 128
+batch_size = 1024
 # The number of epochs to train for
-n_epochs = 30
+n_epochs = 60
 # The size of the images in the training set
 img_size = (64,64,1)
 # A random seed to us
