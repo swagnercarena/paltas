@@ -156,8 +156,12 @@ def main():
 		raise ValueError('%s model not in the list of supported models'%(
 			model_type))
 
+	# Use learning rate decay for optimal learning
+	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.96,
+		staircase=True)
 	# We'll use Adam for graident descent
-	adam = Adam(lr=learning_rate,amsgrad=False)
+	adam = Adam(lr=lr_schedule,amsgrad=False)
 
 	# Compile our model
 	model.compile(loss=loss,optimizer=adam,metrics=[loss])
@@ -170,11 +174,14 @@ def main():
 	except:
 		print('No weights found. Saving new weights to %s'%(model_weights))
 
+	# Set up the callbacks for our training
 	callbacks = []
+	# If requested, save our model progress to a tensorboard directory
 	if args.tensorboard_dir is not None:
 		tensorboard = TensorBoard(log_dir=args.tensorboard_dir,
 			update_freq='batch')
 		callbacks.append(tensorboard)
+	# Save the model weights as long as the validation loss is decreasing
 	modelcheckpoint = ModelCheckpoint(model_weights,monitor='val_loss',
 		save_best_only=True,save_freq='epoch')
 	callbacks.append(modelcheckpoint)
