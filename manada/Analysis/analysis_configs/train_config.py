@@ -49,6 +49,6 @@ model_type = 'resnet50'
 # Where to save the model weights
 model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_diag.h5'
 # The learning rate for the model
-learning_rate = 1e-6
+learning_rate = 1e-2
 # Whether or not to use random rotation of the input images
 random_rotation = False

@@ -25,14 +25,14 @@ npy_folders_train = [
 	for i in range(1,451)]
 # The path to the fodler containing the npy images
 # for validation
-npy_folder_val = '/scratch/users/swagnerc/manada/datasets/more_500k/000451/'
+npy_folder_val = '/scratch/users/swagnerc/manada/datasets/more_500k/000000/'
 # The path to the training metadata
 metadata_paths_train = [
 	'/scratch/users/swagnerc/manada/datasets/more_500k/%06d/metadata.csv'%(i)
 	for i in range(1,451)]
 # The path to the validation metadata
 metadata_path_val = (
-	'/scratch/users/swagnerc/manada/datasets/more_500k/000451/metadata.csv')
+	'/scratch/users/swagnerc/manada/datasets/more_500k/000000/metadata.csv')
 # The path to the csv file to read from / write to for normalization
 # of learning parameters.
 input_norm_path = npy_folders_train[0] + 'norms.csv'
@@ -47,7 +47,7 @@ loss_function = 'mse'
 # A string specifying which model to use
 model_type = 'alexnet'
 # Where to save the model weights
-model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_diag.h5'
+model_weights = '/scratch/users/swagnerc/manada/model_weights/alexnet_mse.h5'
 # The learning rate for the model
 learning_rate = 1e-6
 # Whether or not to use random rotation of the input images
