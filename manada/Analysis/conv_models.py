@@ -11,15 +11,13 @@ from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 
 
-def build_resnet_50(img_size,num_outputs,random_rotation=False):
+def build_resnet_50(img_size,num_outputs):
 	"""	Build the traditional resnet 50 model.
 
 	Args:
 		img_size ((int,int,int)): A tuple with shape (pix,pix,freq) that
 			describes the size of the input images.
 		num_outputs (int): The number of outputs to predict
-		random_rotation (bool): If true, apply a random rotation to the
-			input image.
 
 	Returns:
 		(keras.Model): An instance of the ResNet50 model implemented in
@@ -30,11 +28,7 @@ def build_resnet_50(img_size,num_outputs,random_rotation=False):
 	# Initialzie the inputs
 	inputs = layers.Input(shape=img_size)
 
-	if random_rotation:
-		# x = layers.experimental.preprocessing.RandomRotation(0.5)(inputs)
-		x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(x)
-	else:
-		x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(inputs)
+	x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(inputs)
 
 	# Build the first resnet stack
 	x = layers.ZeroPadding2D(padding=((3,3),(3,3)),name='conv1_pad')(inputs)
@@ -54,5 +48,49 @@ def build_resnet_50(img_size,num_outputs,random_rotation=False):
 
 	# Construct the model
 	model = Model(inputs=inputs,outputs=outputs)
+
+	return model
+
+
+def build_alexnet(img_size,num_outputs):
+	""" Build the alexnet model
+
+	"""
+	inputs = layers.Input(shape=img_size)
+	x = layers.Conv2D(filters=64, kernel_size=(5,5), strides=(2,2),
+		padding='valid', activation='relu', input_shape=img_size)(inputs)
+	x = layers.MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same')(x)
+
+	x = layers.Conv2D(filters=192, kernel_size=(5,5), strides=(1,1),
+		padding='same', activation='relu')(x)
+	x = layers.MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same')(x)
+
+	# Layer 3
+	x = layers.Conv2D(filters=384, kernel_size=(3,3), strides=(1,1),
+		padding='same', activation='relu')(x)
+
+	# Layer 4
+	x = layers.Conv2D(filters=384, kernel_size=(3,3), strides=(1,1),
+		padding='same', activation='relu')(x)
+
+	# Layer 5
+	x = layers.Conv2D(filters=256, kernel_size=(3,3), strides=(1,1),
+		padding='same', activation='relu')(x)
+	x = layers.MaxPooling2D(pool_size=(3,3), strides=(2,2), padding='same')(x)
+
+	# Pass to fully connected layers
+	x = layers.Flatten()(x)
+
+	# Layer 6
+	x = layers.Dense(4096, activation='relu')(x)
+
+	# Layer 7
+	x = layers.Dense(4096, activation='relu')(x)
+
+	# Output
+	outputs = layers.Dense(num_outputs)(x)
+
+	# Construct model
+	model = Model(inputs=inputs, outputs=outputs)
 
 	return model
