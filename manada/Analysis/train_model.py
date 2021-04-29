@@ -9,6 +9,7 @@ import tensorflow as tf
 from manada.Analysis import dataset_generation, loss_functions, conv_models
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
 from tensorflow.keras.optimizers import Adam
+import pandas as pd
 
 
 def parse_args():
@@ -104,8 +105,7 @@ def main():
 		if not os.path.exists(tf_path):
 			print('Generating new TFRecord at %s'%(tf_path))
 			dataset_generation.generate_tf_record(npy_folders_train[i],
-				learning_params,metadata_paths_train[i],tf_path,
-				input_norm_path)
+				learning_params,metadata_paths_train[i],tf_path)
 		else:
 			print('TFRecord found at %s'%(tf_path))
 
@@ -113,14 +113,22 @@ def main():
 	if not os.path.exists(tfr_val_path):
 		print('Generating new TFRecord at %s'%(tfr_val_path))
 		dataset_generation.generate_tf_record(npy_folder_val,learning_params,
-			metadata_path_val,tfr_val_path,input_norm_path)
+			metadata_path_val,tfr_val_path)
 	else:
 		print('TFRecord found at %s'%(tfr_val_path))
+
+	# Normalize outputs if requested
+	if input_norm_path is not None:
+		print('Checking for normalization csv')
+		metadata = pd.read_csv(metadata_paths_train)
+		dataset_generation.normalize_inputs(metadata,learning_params,
+			input_norm_path)
 
 	# Turn our tf records into tf datasets for training and validation
 	tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
 		learning_params,batch_size,n_epochs,norm_images=norm_images,
-		kwargs_detector=kwargs_detector,random_rotation=random_rotation)
+		input_norm_path=input_norm_path,kwargs_detector=kwargs_detector,
+		random_rotation=random_rotation)
 	# We shouldn't be adding random noise to validation images. They should
 	# be generated with noise
 	if kwargs_detector is not None:
@@ -128,7 +136,7 @@ def main():
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
 		learning_params,n_val_npy,1,norm_images=norm_images,
-		kwargs_detector=None)
+		input_norm_path=input_norm_path,kwargs_detector=None)
 
 	print('Initializing the model')
 
