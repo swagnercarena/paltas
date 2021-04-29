@@ -250,6 +250,9 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		# Rotate the image if requested
 		if random_rotation:
 			image = rotate_image(image,parsed_dataset)
+			# Need to reshape again so that shape is known by keras
+			image = tf.reshape(image,(parsed_dataset['height'],
+				parsed_dataset['width'],1))
 
 		# Add the noise using the baobab noise function (which is a tf graph)
 		if noise_function is not None:

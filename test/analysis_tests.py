@@ -617,7 +617,7 @@ class ConvModelsTest(unittest.TestCase):
 		# Check shapes
 		self.assertTupleEqual((None,100,100,1),model.input_shape)
 		self.assertTupleEqual((None,100,100,1),model.input_shape)
-		self.assertEqual(175,len(model.layers))
+		self.assertEqual(123,len(model.layers))
 
 		# Check that the model compiles
 		model.compile(loss='mean_squared_error')
