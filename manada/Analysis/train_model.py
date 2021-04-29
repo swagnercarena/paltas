@@ -161,7 +161,7 @@ def main():
 		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.96,
 		staircase=True)
 	# We'll use Adam for graident descent
-	adam = Adam(lr=lr_schedule,amsgrad=False)
+	adam = Adam(learning_rate=lr_schedule,amsgrad=False)
 
 	# Compile our model
 	model.compile(loss=loss,optimizer=adam,metrics=[loss])
