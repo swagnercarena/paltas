@@ -218,8 +218,3 @@ def stack3(x, filters, blocks, stride1=2, groups=32, name=None):
 		x = block3(x, filters, groups=groups, conv_shortcut=False,
 			name=name + '_block' + str(i))
 	return x
-
-
-##############################################################################
-# Code for the RandomRotation
-
