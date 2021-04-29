@@ -6,6 +6,11 @@ import glob
 from manada import Analysis
 from scipy.stats import multivariate_normal
 from lenstronomy.SimulationAPI.observation_api import SingleBand
+from lenstronomy.LensModel.lens_model import LensModel
+from lenstronomy.LightModel.light_model import LightModel
+from lenstronomy.ImSim.image_model import ImageModel
+from lenstronomy.SimulationAPI.data_api import DataAPI
+from lenstronomy.Data.psf import PSF
 import os
 from shutil import copyfile
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -140,10 +145,8 @@ class DatasetGenerationTests(unittest.TestCase):
 			'los_parameters_delta_los','main_deflector_parameters_theta_E']
 		metadata_path = self.fake_test_folder + 'metadata.csv'
 		tf_record_path = self.fake_test_folder + 'tf_record_test'
-		input_norm_path = self.fake_test_folder + 'norms.csv'
 		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
-			learning_params,metadata_path,tf_record_path,
-			input_norm_path=input_norm_path)
+			learning_params,metadata_path,tf_record_path)
 		self.assertTrue(os.path.exists(tf_record_path))
 
 		# Probe the number of npy files to make sure the total number of files
@@ -168,18 +171,75 @@ class DatasetGenerationTests(unittest.TestCase):
 		batch_size = 10
 		dataset = raw_dataset.map(parse_image).batch(batch_size)
 
-		# Normalize the metadata to get agreement.
-		metadata[learning_params] -= np.mean(
-			metadata[learning_params].to_numpy(),axis=0)
-		metadata[learning_params] /= np.std(
-			metadata[learning_params].to_numpy(),axis=0)
-
 		self.dataset_comparison(metadata,learning_params,dataset,batch_size,
 			num_npy)
 
 		# Clean up the file now that we're done
-		os.remove(input_norm_path)
 		os.remove(tf_record_path)
+
+	def test_rotate_image(self):
+		# Test that rotating an image and resimulating it with the new
+		# parameters both give good values
+		# Put together all the lenstronomy tools we'll need.
+		lens_model_list = ['PEMD','SHEAR']
+		kwargs_spemd = {'gamma': 1.96,'theta_E': 1.0, 'e1': -0.34, 'e2': 0.02,
+			'center_x': -0.05, 'center_y': 0.12}
+		kwargs_shear = {'gamma1': 0.05, 'gamma2': 0.02}
+		lens_model_kwargs = [kwargs_spemd,kwargs_shear]
+		source_model_list = ['SERSIC']
+		kwargs_source = [{'amp':1.0, 'R_sersic':0.3, 'n_sersic':1.0,
+			'center_x':0.0, 'center_y':0.0}]
+		kwargs_numerics = {'supersampling_factor':1}
+		lens_model = LensModel(lens_model_list)
+		source_model = LightModel(source_model_list)
+		kwargs_psf = {'psf_type': 'GAUSSIAN', 'fwhm': 0.1}
+		psf_model = PSF(**kwargs_psf)
+		kwargs_detector = {'pixel_scale':0.08, 'ccd_gain':2.5, 'read_noise':0.0,
+			'magnitude_zero_point':25.9463, 'exposure_time':54000.0,
+			'sky_brightness':50, 'num_exposures':1, 'background_noise':None}
+		numpix = 64
+		data_api = DataAPI(numpix=numpix,**kwargs_detector)
+		image_model = ImageModel(data_api.data_class, psf_model, lens_model,
+			source_model, None, None, kwargs_numerics=kwargs_numerics)
+
+		image = image_model.image(lens_model_kwargs, kwargs_source, None,
+			None).astype(np.float32)
+		image = tf.convert_to_tensor(np.expand_dims(image,axis=-1))
+		parsed_dataset = {
+			'main_deflector_parameters_center_x':tf.convert_to_tensor(
+				kwargs_spemd['center_x']),
+			'main_deflector_parameters_center_y':tf.convert_to_tensor(
+				kwargs_spemd['center_y']),
+			'main_deflector_parameters_e1':tf.convert_to_tensor(
+				kwargs_spemd['e1']),
+			'main_deflector_parameters_e2':tf.convert_to_tensor(
+				kwargs_spemd['e2']),
+			'main_deflector_parameters_gamma1':tf.convert_to_tensor(
+				kwargs_shear['gamma1']),
+			'main_deflector_parameters_gamma2':tf.convert_to_tensor(
+				kwargs_shear['gamma2'])}
+
+		image = Analysis.dataset_generation.rotate_image(image,parsed_dataset)
+
+		# Now confirm that updating the parameters to these values returns what
+		# we want
+		kwargs_spemd['center_x'] = parsed_dataset[
+			'main_deflector_parameters_center_x'].numpy()
+		kwargs_spemd['center_y'] = parsed_dataset[
+			'main_deflector_parameters_center_y'].numpy()
+		kwargs_spemd['e1'] = parsed_dataset[
+			'main_deflector_parameters_e1'].numpy()
+		kwargs_spemd['e2'] = parsed_dataset[
+			'main_deflector_parameters_e2'].numpy()
+		kwargs_shear['gamma1'] = parsed_dataset[
+			'main_deflector_parameters_gamma1'].numpy()
+		kwargs_shear['gamma2'] = parsed_dataset[
+			'main_deflector_parameters_gamma2'].numpy()
+		image_new = image_model.image(lens_model_kwargs, kwargs_source, None,
+			None).astype(np.float32)
+
+		self.assertLess(np.max((image_new-image.numpy()[:,:,0])/(image_new+1e-2)),
+			0.05)
 
 	def test_generate_tf_dataset(self):
 		# Test that build_tf_dataset has the correct batching behaviour and
@@ -187,13 +247,17 @@ class DatasetGenerationTests(unittest.TestCase):
 		num_npy = len(glob.glob(self.fake_test_folder+'image_*.npy'))
 
 		learning_params = ['subhalo_parameters_sigma_sub',
-			'los_parameters_delta_los','main_deflector_parameters_theta_E']
+			'los_parameters_delta_los','main_deflector_parameters_theta_E',
+			'main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
 		metadata_path = self.fake_test_folder + 'metadata.csv'
 		tf_record_path = self.fake_test_folder + 'tf_record_test'
 		input_norm_path = self.fake_test_folder + 'norms.csv'
 		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
-			learning_params,metadata_path,tf_record_path,
-			input_norm_path=input_norm_path)
+			learning_params,metadata_path,tf_record_path)
+		metadata = pd.read_csv(metadata_path)
+		_ = Analysis.dataset_generation.normalize_inputs(metadata,
+			learning_params,input_norm_path)
 
 		# Try batch size 10
 		batch_size = 10
@@ -207,7 +271,7 @@ class DatasetGenerationTests(unittest.TestCase):
 			self.assertListEqual(batch[0].get_shape().as_list(),
 				[batch_size,64,64,1])
 			self.assertListEqual(batch[1].get_shape().as_list(),
-				[batch_size,3])
+				[batch_size,5])
 			npy_counts += batch_size
 		self.assertEqual(npy_counts,num_npy*n_epochs)
 
@@ -222,7 +286,7 @@ class DatasetGenerationTests(unittest.TestCase):
 			self.assertListEqual(batch[0].get_shape().as_list(),
 				[batch_size,64,64,1])
 			self.assertListEqual(batch[1].get_shape().as_list(),
-				[batch_size,3])
+				[batch_size,5])
 			npy_counts += batch_size
 		self.assertEqual(npy_counts,num_npy*n_epochs)
 
@@ -238,7 +302,7 @@ class DatasetGenerationTests(unittest.TestCase):
 			self.assertListEqual(batch[0].get_shape().as_list(),
 				[batch_size,64,64,1])
 			self.assertListEqual(batch[1].get_shape().as_list(),
-				[batch_size,3])
+				[batch_size,5])
 			for image in batch[0].numpy():
 				self.assertAlmostEqual(np.std(image),1,places=4)
 			npy_counts += batch_size
@@ -247,8 +311,8 @@ class DatasetGenerationTests(unittest.TestCase):
 		# Finally, just check that the noise statistics follow what we've
 		# specified in the baobab configuration file.
 		kwargs_detector = {'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
-			'magnitude_zero_point':25.9463,'exposure_time':5400.0,
-			'sky_brightness':22,'num_exposures':1, 'background_noise':None}
+			'magnitude_zero_point':25.9463,'exposure_time':540.0,
+			'sky_brightness':17,'num_exposures':1, 'background_noise':None}
 		dataset = Analysis.dataset_generation.generate_tf_dataset(
 			tf_record_path,learning_params,batch_size,n_epochs,
 			norm_images=norm_images,kwargs_detector=kwargs_detector)
@@ -256,10 +320,10 @@ class DatasetGenerationTests(unittest.TestCase):
 		for batch in dataset:
 			for image_i in range(len(batch[0].numpy())):
 				image = batch[0].numpy()[image_i]
-				self.assertGreater(np.std(image[:2,:,0]),5e-2)
-				self.assertGreater(np.std(image[-2:,:,0]),5e-2)
-				self.assertGreater(np.std(image[:,:2,0]),5e-2)
-				self.assertGreater(np.std(image[:,-2:,0]),5e-2)
+				self.assertGreater(np.std(image[:1,:,0]),5e-1)
+				self.assertGreater(np.std(image[-1:,:,0]),5e-1)
+				self.assertGreater(np.std(image[:,:1,0]),5e-1)
+				self.assertGreater(np.std(image[:,-1:,0]),5e-1)
 
 		# Test that passing in multiple tf_records works
 		second_tf_record = tf_record_path + '2'
@@ -267,15 +331,17 @@ class DatasetGenerationTests(unittest.TestCase):
 		batch_size = 10
 		n_epochs = 1
 		norm_images = False
+		random_rotation=True
 		dataset = Analysis.dataset_generation.generate_tf_dataset(
 			[tf_record_path,second_tf_record],learning_params,batch_size,
-			n_epochs,norm_images=norm_images,kwargs_detector=None)
+			n_epochs,norm_images=norm_images,kwargs_detector=None,
+			random_rotation=random_rotation)
 		npy_counts = 0
 		for batch in dataset:
 			self.assertListEqual(batch[0].get_shape().as_list(),
 				[batch_size,64,64,1])
 			self.assertListEqual(batch[1].get_shape().as_list(),
-				[batch_size,3])
+				[batch_size,5])
 			npy_counts += batch_size
 		self.assertEqual(npy_counts,num_npy*n_epochs*2)
 
