@@ -9,6 +9,7 @@ tensorflow.
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_addons as tfa
 import pandas as pd
 import glob, os
 from tqdm import tqdm
@@ -151,10 +152,10 @@ def rotate_image(image,parsed_dataset):
 	rot_angle = tf.random.uniform(())*2*np.pi
 
 	# Rotate the image
-	# image_numpy = image.numpy()
-	def tf_rotate(image,rot_angle):
-		return tf.convert_to_tensor(rotate(image.numpy(),
-			-rot_angle.numpy()*180/np.pi,reshape=False))
+	traansforms = tfa.image.angles_to_projective_transforms(-rot_angle,
+		tf.cast(parsed_dataset['height'],dtype=tf.float32),
+		tf.cast(parsed_dataset['width'],dtype=tf.float32))
+	image = tfa.image.transform(image, traansforms, interpolation='bilinear')
 
 	# Alter the parameters. Hardcoded for now.
 	def rotate_param(x,y,theta):
@@ -183,8 +184,7 @@ def rotate_image(image,parsed_dataset):
 		parsed_dataset['main_deflector_parameters_gamma1'] = x
 		parsed_dataset['main_deflector_parameters_gamma2'] = y
 
-	return tf.py_function(func=tf_rotate, inp=[image, rot_angle],
-		Tout=tf.float32)
+	return image
 
 
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
@@ -250,9 +250,6 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		# Rotate the image if requested
 		if random_rotation:
 			image = rotate_image(image,parsed_dataset)
-			# Need to reshape again so that shape is known by keras
-			image = tf.reshape(image,(parsed_dataset['height'],
-				parsed_dataset['width'],1))
 
 		# Add the noise using the baobab noise function (which is a tf graph)
 		if noise_function is not None:

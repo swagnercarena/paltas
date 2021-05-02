@@ -217,7 +217,9 @@ class DatasetGenerationTests(unittest.TestCase):
 			'main_deflector_parameters_gamma1':tf.convert_to_tensor(
 				kwargs_shear['gamma1']),
 			'main_deflector_parameters_gamma2':tf.convert_to_tensor(
-				kwargs_shear['gamma2'])}
+				kwargs_shear['gamma2']),
+			'height':tf.convert_to_tensor(numpix,dtype=tf.int64),
+			'width':tf.convert_to_tensor(numpix,dtype=tf.int64)}
 
 		image = Analysis.dataset_generation.rotate_image(image,parsed_dataset)
 
@@ -239,7 +241,7 @@ class DatasetGenerationTests(unittest.TestCase):
 			None).astype(np.float32)
 
 		self.assertLess(np.max((image_new-image.numpy()[:,:,0])/(image_new+1e-2)),
-			0.05)
+			0.1)
 
 	def test_generate_tf_dataset(self):
 		# Test that build_tf_dataset has the correct batching behaviour and
