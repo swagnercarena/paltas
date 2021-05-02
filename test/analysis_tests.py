@@ -204,43 +204,30 @@ class DatasetGenerationTests(unittest.TestCase):
 
 		image = image_model.image(lens_model_kwargs, kwargs_source, None,
 			None).astype(np.float32)
-		image = tf.convert_to_tensor(np.expand_dims(image,axis=-1))
-		parsed_dataset = {
-			'main_deflector_parameters_center_x':tf.convert_to_tensor(
-				kwargs_spemd['center_x']),
-			'main_deflector_parameters_center_y':tf.convert_to_tensor(
-				kwargs_spemd['center_y']),
-			'main_deflector_parameters_e1':tf.convert_to_tensor(
-				kwargs_spemd['e1']),
-			'main_deflector_parameters_e2':tf.convert_to_tensor(
-				kwargs_spemd['e2']),
-			'main_deflector_parameters_gamma1':tf.convert_to_tensor(
-				kwargs_shear['gamma1']),
-			'main_deflector_parameters_gamma2':tf.convert_to_tensor(
-				kwargs_shear['gamma2']),
-			'height':tf.convert_to_tensor(numpix,dtype=tf.int64),
-			'width':tf.convert_to_tensor(numpix,dtype=tf.int64)}
+		image = image.reshape((1,64,64,1))
+		learning_params = ['main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y','main_deflector_parameters_e1',
+			'main_deflector_parameters_e2','main_deflector_parameters_gamma1',
+			'main_deflector_parameters_gamma2']
+		output = np.array([kwargs_spemd['center_x'],
+			kwargs_spemd['center_y'],kwargs_spemd['e1'],kwargs_spemd['e2'],
+			kwargs_shear['gamma1'],kwargs_shear['gamma2']]).reshape((1,6))
 
-		image = Analysis.dataset_generation.rotate_image(image,parsed_dataset)
+		image = Analysis.dataset_generation.rotate_image_batch(image,
+			learning_params,output)
 
 		# Now confirm that updating the parameters to these values returns what
 		# we want
-		kwargs_spemd['center_x'] = parsed_dataset[
-			'main_deflector_parameters_center_x'].numpy()
-		kwargs_spemd['center_y'] = parsed_dataset[
-			'main_deflector_parameters_center_y'].numpy()
-		kwargs_spemd['e1'] = parsed_dataset[
-			'main_deflector_parameters_e1'].numpy()
-		kwargs_spemd['e2'] = parsed_dataset[
-			'main_deflector_parameters_e2'].numpy()
-		kwargs_shear['gamma1'] = parsed_dataset[
-			'main_deflector_parameters_gamma1'].numpy()
-		kwargs_shear['gamma2'] = parsed_dataset[
-			'main_deflector_parameters_gamma2'].numpy()
+		kwargs_spemd['center_x'] = output[0,0]
+		kwargs_spemd['center_y'] = output[0,1]
+		kwargs_spemd['e1'] = output[0,2]
+		kwargs_spemd['e2'] = output[0,3]
+		kwargs_shear['gamma1'] = output[0,4]
+		kwargs_shear['gamma2'] = output[0,5]
 		image_new = image_model.image(lens_model_kwargs, kwargs_source, None,
 			None).astype(np.float32)
 
-		self.assertLess(np.max((image_new-image.numpy()[:,:,0])/(image_new+1e-2)),
+		self.assertLess(np.max((image_new-image[0,:,:,0])/(image_new+1e-2)),
 			0.1)
 
 	def test_generate_tf_dataset(self):
@@ -333,11 +320,9 @@ class DatasetGenerationTests(unittest.TestCase):
 		batch_size = 10
 		n_epochs = 1
 		norm_images = False
-		random_rotation=True
 		dataset = Analysis.dataset_generation.generate_tf_dataset(
 			[tf_record_path,second_tf_record],learning_params,batch_size,
-			n_epochs,norm_images=norm_images,kwargs_detector=None,
-			random_rotation=random_rotation)
+			n_epochs,norm_images=norm_images,kwargs_detector=None)
 		npy_counts = 0
 		for batch in dataset:
 			self.assertListEqual(batch[0].get_shape().as_list(),

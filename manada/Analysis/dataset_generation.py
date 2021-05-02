@@ -9,7 +9,6 @@ tensorflow.
 
 import numpy as np
 import tensorflow as tf
-import tensorflow_addons as tfa
 import pandas as pd
 import glob, os
 from tqdm import tqdm
@@ -134,62 +133,8 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 			writer.write(example.SerializeToString())
 
 
-def rotate_image(image,parsed_dataset):
-	""" Rotate a strong lensing image and the corresponding lensing parameters
-
-	Args:
-		image (tf.Tensor): A tensorflow tensor containing the image
-		parsed_dataset (dict): A dict containing all the parsed values from
-			the dataset.
-
-	Returns:
-		(tf.Tensor): The tensorflow tensor after the rotation.
-
-	Notes:
-		parsed_dataset is changed in place.
-	"""
-	# Pick a rotation angle
-	rot_angle = tf.random.uniform(())*2*np.pi
-
-	# Rotate the image
-	traansforms = tfa.image.angles_to_projective_transforms(-rot_angle,
-		tf.cast(parsed_dataset['height'],dtype=tf.float32),
-		tf.cast(parsed_dataset['width'],dtype=tf.float32))
-	image = tfa.image.transform(image, traansforms, interpolation='bilinear')
-
-	# Alter the parameters. Hardcoded for now.
-	def rotate_param(x,y,theta):
-		return (x*tf.math.cos(theta)-y*tf.math.sin(theta),
-			x*tf.math.sin(theta)+y*tf.math.cos(theta))
-
-	if 'main_deflector_parameters_center_x' in parsed_dataset:
-		x,y = rotate_param(
-			parsed_dataset['main_deflector_parameters_center_x'],
-			parsed_dataset['main_deflector_parameters_center_y'],
-			rot_angle)
-		parsed_dataset['main_deflector_parameters_center_x'] = x
-		parsed_dataset['main_deflector_parameters_center_y'] = y
-	if 'main_deflector_parameters_e1' in parsed_dataset:
-		x,y = rotate_param(
-			parsed_dataset['main_deflector_parameters_e1'],
-			parsed_dataset['main_deflector_parameters_e2'],
-			2*rot_angle)
-		parsed_dataset['main_deflector_parameters_e1'] = x
-		parsed_dataset['main_deflector_parameters_e2'] = y
-	if 'main_deflector_parameters_gamma1' in parsed_dataset:
-		x,y = rotate_param(
-			parsed_dataset['main_deflector_parameters_gamma1'],
-			parsed_dataset['main_deflector_parameters_gamma2'],
-			2*rot_angle)
-		parsed_dataset['main_deflector_parameters_gamma1'] = x
-		parsed_dataset['main_deflector_parameters_gamma2'] = y
-
-	return image
-
-
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
-	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
-	random_rotation=False):
+	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None):
 	"""	Generate a TFDataset that a model can be trained with.
 
 	Args:
@@ -208,13 +153,10 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		kwargs_detector (dict): A dictionary containing the detector kwargs
 			used to generate the noise on the fly. If None no additional
 			noise will be added.
-		random_rotation (bool): If true, apply random rotations to the input
-			images and transform the relevant parameters.
 
 	Notes:
 		Do not use kwargs_detector if noise was already added during dataset
-		generation. The parameters for random_rotation are currently hard
-		coded.
+		generation.
 	"""
 	# Read the TFRecords
 	raw_dataset = tf.data.TFRecordDataset(tf_record_path)
@@ -247,10 +189,6 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		image = tf.reshape(image,(parsed_dataset['height'],
 			parsed_dataset['width'],1))
 
-		# Rotate the image if requested
-		if random_rotation:
-			image = rotate_image(image,parsed_dataset)
-
 		# Add the noise using the baobab noise function (which is a tf graph)
 		if noise_function is not None:
 			image += noise_function(image,kwargs_detector)
@@ -280,3 +218,57 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		n_epochs).shuffle(buffer_size=buffer_size).batch(batch_size).prefetch(
 		tf.data.experimental.AUTOTUNE)
 	return dataset
+
+
+def rotate_image_batch(image_batch,learning_params,output):
+	""" Rotate a batch of strong lensing images and the corresponding lensing
+	parameters
+
+	Args:
+		image_batch (np.array): A numpy image array of shape (batch_size,
+			height,width,n_channels) that will be rotated.
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn.
+		output (np.array): A numpy array of dimension (batch_size,n_outputs)
+			containing the true parameter values for each image in the batch.
+			Note that n_outputs should be the same as len(learning_params).
+
+	Returns:
+		(np.array): A numpy array containing the rotated images.
+
+	Notes:
+		output is changed in place.
+	"""
+	# Pick a rotation angle
+	rot_angle = np.random.uniform()*2*np.pi
+
+	# Rotate the image
+	print(image_batch.shape)
+	image_batch = rotate(image_batch,-rot_angle*180/np.pi,reshape=False,
+		axes=(2,1))
+
+	# Alter the parameters. Hardcoded for now.
+	def rotate_param(x,y,theta):
+		return (x*np.cos(theta)-y*np.sin(theta),
+			x*np.sin(theta)+y*np.cos(theta))
+
+	if 'main_deflector_parameters_center_x' in learning_params:
+		xi = learning_params.index('main_deflector_parameters_center_x')
+		yi = learning_params.index('main_deflector_parameters_center_y')
+		x,y = rotate_param(output[:,xi],output[:,yi],rot_angle)
+		output[:,xi] = x
+		output[:,yi] = y
+	if 'main_deflector_parameters_e1' in learning_params:
+		xi = learning_params.index('main_deflector_parameters_e1')
+		yi = learning_params.index('main_deflector_parameters_e2')
+		x,y = rotate_param(output[:,xi],output[:,yi],2*rot_angle)
+		output[:,xi] = x
+		output[:,yi] = y
+	if 'main_deflector_parameters_gamma1' in learning_params:
+		xi = learning_params.index('main_deflector_parameters_gamma1')
+		yi = learning_params.index('main_deflector_parameters_gamma2')
+		x,y = rotate_param(output[:,xi],output[:,yi],2*rot_angle)
+		output[:,xi] = x
+		output[:,yi] = y
+
+	return image_batch
