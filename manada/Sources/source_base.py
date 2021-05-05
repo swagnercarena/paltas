@@ -59,7 +59,7 @@ class SourceBase:
 		if cosmology_parameters is not None:
 			self.cosmo = get_cosmology(cosmology_parameters)
 
-	def draw_source(self, z_new=DEFAULT_Z_SOURCE):
+	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
 
 		Args:
