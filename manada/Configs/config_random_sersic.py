@@ -19,7 +19,7 @@ config_dict['source']['parameters'] = dict(
 	R_sersic=lambda : HUBBLE_ACS_PIXEL_WIDTH * stats.lognorm(s=0.554, scale=17.1).rvs(),
 	# NOT fitted to COSMOS.
 	# COSMOS has a big mass at the maximum n=6, probably indicating poor fits / very spread out galaxies?
-	n_sersic=1.,
+	n_sersic=stats.uniform(loc=1, scale=3).rvs,
 	# Fitted to COSMOS again, with phi replaced by uniform random angles
 	e1=stats.t(df=5.69, scale=0.171).rvs,
 	e2=stats.t(df=5.69, scale=0.171).rvs,
