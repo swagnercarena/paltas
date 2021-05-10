@@ -297,7 +297,7 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 	"""
 	# Create our base tf dataset without normalization
 	base_dataset = generate_tf_dataset(tf_record_path,learning_params,
-		batch_size,n_epochs,input_norm_path=input_norm_path,
+		batch_size,n_epochs,norm_images=norm_images,
 		kwargs_detector=kwargs_detector)
 
 	# If normalization file is provided use it
