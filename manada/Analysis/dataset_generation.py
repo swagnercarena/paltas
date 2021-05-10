@@ -316,8 +316,8 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 				lens_param_batch)
 			if norm_dict is not None:
 				for lpi, param in enumerate(learning_params):
-					lens_param_batch[lpi] -= norm_dict['mean'][param]
-					lens_param_batch[lpi] /= norm_dict['std'][param]
+					lens_param_batch[:,lpi] -= norm_dict['mean'][param]
+					lens_param_batch[:,lpi] /= norm_dict['std'][param]
 			# Yield the rotated image and parameters
 			yield image_batch, lens_param_batch
 
