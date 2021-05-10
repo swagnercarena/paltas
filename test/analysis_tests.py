@@ -177,7 +177,7 @@ class DatasetGenerationTests(unittest.TestCase):
 		# Clean up the file now that we're done
 		os.remove(tf_record_path)
 
-	def test_rotate_image(self):
+	def test_rotate_image_batch(self):
 		# Test that rotating an image and resimulating it with the new
 		# parameters both give good values
 		# Put together all the lenstronomy tools we'll need.
@@ -336,6 +336,73 @@ class DatasetGenerationTests(unittest.TestCase):
 		os.remove(input_norm_path)
 		os.remove(tf_record_path)
 		os.remove(second_tf_record)
+
+	def generate_rotations_dataset(self):
+		# Test that the rotations dataset works, and that it returns
+		# images that are rotated when compared to the raw dataset
+		num_npy = len(glob.glob(self.fake_test_folder+'image_*.npy'))
+		learning_params = ['subhalo_parameters_sigma_sub',
+			'los_parameters_delta_los','main_deflector_parameters_theta_E',
+			'main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
+		metadata_path = self.fake_test_folder + 'metadata.csv'
+		tf_record_path = self.fake_test_folder + 'tf_record_test'
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
+			learning_params,metadata_path,tf_record_path)
+		metadata = pd.read_csv(metadata_path)
+		_ = Analysis.dataset_generation.normalize_inputs(metadata,
+			learning_params,input_norm_path)
+		batch_size = 10
+		n_epochs = 1
+		norm_images = True
+
+		dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,learning_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=None)
+		rotated_dataset = (
+			Analysis.dataset_generation.generate_rotations_dataset(
+				tf_record_path,learning_params,batch_size,n_epochs,
+				norm_images=norm_images,kwargs_detector=None))
+		npy_counts = 0
+		for rotated_batch in rotated_dataset:
+			self.assertListEqual(list(rotated_batch[0].shape),
+				[batch_size,64,64,1])
+			self.assertListEqual(list(rotated_batch[1].shape),
+				[batch_size,5])
+			npy_counts += batch_size
+		self.assertEqual(npy_counts,num_npy*n_epochs)
+
+		rotated_dataset = (
+			Analysis.dataset_generation.generate_rotations_dataset(
+				tf_record_path,learning_params,batch_size,n_epochs,
+				norm_images=norm_images,kwargs_detector=None))
+		for batch in dataset:
+			rotated_batch = next(rotated_dataset)
+			rotated_images = rotated_batch[0]
+			rotated_outputs = rotated_batch[1]
+			images = batch[0].numpy()
+			outputs = batch[1].numpy()
+
+			# Sort both outputs to be able to compare them
+			rotated_images = rotated_images[np.argsort(
+				rotated_outputs[:,0])]
+			rotated_outputs = rotated_outputs[np.argsort(
+				rotated_outputs[:,0])]
+			images = images[np.argsort(outputs[:,0])]
+			outputs = outputs[np.argsort(outputs[:,0])]
+
+			# Assert parameters that should have changed haven't
+			np.testing.assert_almost_equal(outputs[:,0],
+				rotated_outputs[:,0])
+			np.testing.assert_almost_equal(outputs[:,3]**2+outputs[:,4]**2,
+				rotated_outputs[:,3]**2+rotated_outputs[:,4]**2)
+
+			# Assert that does that should have changed have
+			np.testing.assert_array_less(np.zeros(len(outputs)),
+				np.abs(outputs[:,3]-rotated_outputs[:,3]))
+			np.testing.assert_array_less(np.zeros(images.shape),
+				np.abs(images-rotated_images))
 
 
 class MSELossTests(unittest.TestCase):

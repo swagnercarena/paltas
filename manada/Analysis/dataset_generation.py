@@ -243,7 +243,6 @@ def rotate_image_batch(image_batch,learning_params,output):
 	rot_angle = np.random.uniform()*2*np.pi
 
 	# Rotate the image
-	print(image_batch.shape)
 	image_batch = rotate(image_batch,-rot_angle*180/np.pi,reshape=False,
 		axes=(2,1))
 
@@ -272,3 +271,55 @@ def rotate_image_batch(image_batch,learning_params,output):
 		output[:,yi] = y
 
 	return image_batch
+
+
+def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
+	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None):
+	"""	Returns a generator that builds off of a TFDataset by adding random
+	rotations to the images and parameters.
+
+	Args:
+		tf_record_paths (str, or [str,...]) A string specifying the paths to
+			the tf_records that will be used in the dataset. Can also be a list
+			of strings for specifying multiple tf_record_paths.
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn.
+		batch_size (int): The batch size that will be used for training
+		n_epochs (int): The number of training epochs. The dataset object will
+			deal with iterating over the data for repeated epochs.
+		norm_images (bool): If True, images will be normalized to have std 1.
+		input_norm_path (str): The path to a csv that contains the
+			normalization to be applied to the output parameters. If None
+			no normalization will be applied.
+		kwargs_detector (dict): A dictionary containing the detector kwargs
+			used to generate the noise on the fly. If None no additional
+			noise will be added.
+	"""
+	# Create our base tf dataset without normalization
+	base_dataset = generate_tf_dataset(tf_record_path,learning_params,
+		batch_size,n_epochs,input_norm_path=input_norm_path,
+		kwargs_detector=kwargs_detector)
+
+	# If normalization file is provided use it
+	if input_norm_path is not None:
+		norm_dict = pd.read_csv(input_norm_path,index_col='parameter')
+	else:
+		norm_dict = None
+
+	def rotation_generator(dataset):
+		# Iterate through the images and parameters in the dataset
+		for image_batch, lens_param_batch in dataset:
+			image_batch = image_batch.numpy()
+			lens_param_batch = lens_param_batch.numpy()
+			# Conduct the rotation
+			image_batch = rotate_image_batch(image_batch,learning_params,
+				lens_param_batch)
+			if norm_dict is not None:
+				for lpi, param in enumerate(learning_params):
+					lens_param_batch[lpi] -= norm_dict['mean'][param]
+					lens_param_batch[lpi] /= norm_dict['std'][param]
+			# Yield the rotated image and parameters
+			yield image_batch, lens_param_batch
+
+	# Return a rotation generator on our base dataset.
+	return rotation_generator(base_dataset)
