@@ -55,6 +55,60 @@ def normalize_inputs(metadata,learning_params,input_norm_path):
 	return norm_dict
 
 
+def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
+	cov_mat=None):
+	""" Given NN outputs, undo the normalization step and return the parameters
+	in the original space
+
+	Args:
+		input_norm_path (str): The path to a csv that contains the
+			normalization to be undone.
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn. Length n_params.
+		mean (np.array): A numpy array with dimensions (batch_size,n_params)
+			containing the mean estimate for each parameter
+		standard_dev (np.array): A numpy array with dimensions (batch_size,
+			n_params) containing the standard deviation estimate for each
+			parameter.
+		cov_mat (np.array): A numpy array with dimensions (batch_size,n_params,
+			n_params) containing the covariance matrix estiamtes for each
+			image.
+
+	Returns:
+		((np.array,...)): Return the unormaized mean outputs. If standard_dev
+			of cov_mat was passed in, will also return those values.
+	"""
+	# Read our normalization dictionary
+	norm_dict = pd.read_csv(input_norm_path,index_col='parameter')
+	# Iterate over our parameters
+	for lpi, param in enumerate(learning_params):
+		param_mean = norm_dict['mean'][param]
+		param_std = norm_dict['std'][param]
+
+		# We always want to correct the mean
+		mean[:,lpi] *= param_std
+		mean[:,lpi] += param_mean
+
+		# If provided we want to correct the standard deviation
+		if standard_dev is not None:
+			standard_dev[:,lpi] *= param_std
+
+		# If provided we want to correct the covariance matrix
+		if cov_mat is not None:
+			cov_mat[:,lpi,:] *= param_std
+			cov_mat[:,:,lpi] *= param_std
+
+	# Return what was passed in:
+	if cov_mat is None and standard_dev is None:
+		return mean
+	elif standard_dev is not None and cov_mat is None:
+		return mean, standard_dev
+	elif cov_mat is not None and standard_dev is None:
+		return mean, cov_mat
+	else:
+		return mean, standard_dev, cov_mat
+
+
 def kwargs_detector_to_tf_noise(image,kwargs_detector):
 	""" Add noise to the tf tensor provided in agreement with kwargs_detector
 
