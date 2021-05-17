@@ -176,7 +176,7 @@ def main():
 
 	# Use learning rate decay for optimal learning
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.96,
+		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.94,
 		staircase=True)
 	# We'll use Adam for graident descent
 	adam = Adam(learning_rate=lr_schedule,amsgrad=False)

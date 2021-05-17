@@ -1,6 +1,6 @@
 batch_size = 1024
 # The number of epochs to train for
-n_epochs = 60
+n_epochs = 100
 # The size of the images in the training set
 img_size = (64,64,1)
 # A random seed to us
@@ -49,6 +49,6 @@ model_type = 'resnet50'
 # Where to save the model weights
 model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_diag.h5'
 # The learning rate for the model
-learning_rate = 1e-3
+learning_rate = 5e-6
 # Whether or not to use random rotation of the input images
-random_rotation = False
+random_rotation = True
