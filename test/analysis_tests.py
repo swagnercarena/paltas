@@ -100,6 +100,40 @@ class DatasetGenerationTests(unittest.TestCase):
 		# Get rid of the file we made
 		os.remove(input_norm_path)
 
+	def test_unormalize_outputs(self):
+		# Test that unormalizing the inputs works correctly
+		# Create the normalization file
+		learning_params = ['subhalo_parameters_sigma_sub',
+			'los_parameters_delta_los']
+		metadata = pd.read_csv(self.fake_test_folder + 'metadata.csv')
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+			learning_params,input_norm_path)
+
+		mean = np.array([[1,2]]*2,dtype=np.float)
+		cov_mat = np.array([[[1,0.9],[0.9,1]]]*2)
+
+		Analysis.dataset_generation.unnormalize_outputs(input_norm_path,
+			learning_params,mean,cov_mat=cov_mat)
+
+		mean_corrected = np.array([[1*norm_dict['std'][learning_params[0]]+
+			norm_dict['mean'][learning_params[0]],
+			2*norm_dict['std'][learning_params[1]]+
+			norm_dict['mean'][learning_params[1]]]]*2)
+
+		cov_corrected = np.array([[[1*norm_dict['std'][learning_params[0]]**2,
+			0.9*norm_dict['std'][learning_params[0]]
+			*norm_dict['std'][learning_params[1]]],
+			[0.9*norm_dict['std'][learning_params[0]]
+			*norm_dict['std'][learning_params[1]],
+			1*norm_dict['std'][learning_params[1]]**2]]]*2)
+
+		np.testing.assert_almost_equal(mean,mean_corrected)
+		np.testing.assert_almost_equal(cov_mat,cov_corrected)
+
+		# Get rid of the file we made
+		os.remove(input_norm_path)
+
 	def test_kwargs_detector_to_tf(self):
 		# Test that pushing numpy images through lenstronomy returns the
 		# same results as the tensorflow version.
@@ -403,6 +437,10 @@ class DatasetGenerationTests(unittest.TestCase):
 				np.abs(outputs[:,3]-rotated_outputs[:,3]))
 			np.testing.assert_array_less(np.zeros(images.shape),
 				np.abs(images-rotated_images))
+
+		# Clean up the file now that we're done
+		os.remove(input_norm_path)
+		os.remove(tf_record_path)
 
 
 class MSELossTests(unittest.TestCase):

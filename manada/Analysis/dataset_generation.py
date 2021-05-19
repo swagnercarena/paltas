@@ -74,9 +74,8 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 			n_params) containing the covariance matrix estiamtes for each
 			image.
 
-	Returns:
-		((np.array,...)): Return the unormaized mean outputs. If standard_dev
-			of cov_mat was passed in, will also return those values.
+	Notes:
+		All values will be modified in place.
 	"""
 	# Read our normalization dictionary
 	norm_dict = pd.read_csv(input_norm_path,index_col='parameter')
@@ -97,16 +96,6 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 		if cov_mat is not None:
 			cov_mat[:,lpi,:] *= param_std
 			cov_mat[:,:,lpi] *= param_std
-
-	# Return what was passed in:
-	if cov_mat is None and standard_dev is None:
-		return mean
-	elif standard_dev is not None and cov_mat is None:
-		return mean, standard_dev
-	elif cov_mat is not None and standard_dev is None:
-		return mean, cov_mat
-	else:
-		return mean, standard_dev, cov_mat
 
 
 def kwargs_detector_to_tf_noise(image,kwargs_detector):
