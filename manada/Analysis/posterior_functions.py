@@ -107,7 +107,7 @@ def calc_p_dlt(predict_samps,y_test,weights=None):
 		return d_metric
 
 	# Use emperical covariance for distance metric
-	cov_emp = np.cov(y_test)
+	cov_emp = np.cov(y_test.T)
 	p_dlt = (d_m(predict_samps-y_mean,cov_emp)<
 		d_m(np.expand_dims(y_test-y_mean,axis=0),cov_emp))
 
