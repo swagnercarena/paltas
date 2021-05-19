@@ -713,3 +713,13 @@ class ConvModelsTest(unittest.TestCase):
 
 		# Check that the model compiles
 		model.compile(loss='mean_squared_error')
+
+
+class PosteriorFunctionsTest(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		tf.random.set_seed(2)
+
+
