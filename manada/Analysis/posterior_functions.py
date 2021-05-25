@@ -72,7 +72,7 @@ def plot_coverage(y_pred,y_test,std_pred,parameter_names,
 	plt.show(block=block)
 
 
-def calc_p_dlt(predict_samps,y_test,weights=None):
+def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):
 	"""	Calculate the percentage of draws whose radial distance
 	(weighted by the covariance) is larger than that of the truth.
 
@@ -84,6 +84,9 @@ def calc_p_dlt(predict_samps,y_test,weights=None):
 			true value of the parameter on the test set.
 		weights (np.array): An array with dimension (n_samples,
 			batch_size) that will be used to reweight the posterior.
+		cov_dist_mat (np.array): A (num_params,num_params) array representing
+			the covariance matrix to use for the distance calculation. If None
+			a covariance matrix will be estimated from the y_test data.
 
 	Returns:
 		(np.array): A array of length batch_size containing the percentage
@@ -104,8 +107,13 @@ def calc_p_dlt(predict_samps,y_test,weights=None):
 				d_metric[i,j] = np.dot(dif[i,j],np.dot(cov,dif[i,j]))
 		return d_metric
 
-	# Use emperical covariance for distance metric
-	cov_emp = np.cov(y_test.T)
+	# Use emperical covariance for distance metric unless matrix was passed
+	# in.
+	if cov_dist_mat is None:
+		cov_emp = np.cov(y_test.T)
+	else:
+		cov_emp = cov_dist_mat
+
 	p_dlt = (d_m(predict_samps-y_mean,cov_emp)<
 		d_m(np.expand_dims(y_test-y_mean,axis=0),cov_emp))
 

@@ -742,3 +742,26 @@ class PosteriorFunctionsTest(unittest.TestCase):
 		Analysis.posterior_functions.plot_coverage(y_pred,y_true,std_pred,
 			parameter_names,block=False,show_error_bars=False)
 		plt.close('all')
+
+	def test_calc_p_dlt(self):
+		# Test the the calc_p_dlt returns the right percentages
+		size = int(1e6)
+		predict_samps = np.random.normal(size=(size,10,2))
+		predict_samps[:,:,1] = 0
+		y_test = np.array([[1,2,3,4,5,6,7,8,9,10],[0,0,0,0,0,0,0,0,0,0]]).T
+
+		p_dlt = Analysis.posterior_functions.calc_p_dlt(predict_samps,y_test,
+			cov_dist_mat=np.diag(np.ones(2)))
+		t_p_dlt = np.array([0.682689,0.954499,0.997300,0.999936,0.999999]+
+			[1.0]*5)
+		np.testing.assert_almost_equal(p_dlt,t_p_dlt,decimal=3)
+
+	def test_plot_calibration(self):
+		# Test that the calibration plot is generated without any issue.
+		size = int(1e6)
+		predict_samps = np.random.normal(size=(size,10,2))
+		predict_samps[:,:,1] = 0
+		y_test = np.array([[1,2,3,4,5,6,7,8,9,10],[0,0,0,0,0,0,0,0,0,0]]).T
+		Analysis.posterior_functions.plot_calibration(predict_samps,y_test,
+			block=False)
+		plt.close('all')
