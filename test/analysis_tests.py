@@ -13,6 +13,7 @@ from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.Data.psf import PSF
 import os
 from shutil import copyfile
+from matplotlib import pyplot as plt
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -722,4 +723,22 @@ class PosteriorFunctionsTest(unittest.TestCase):
 		np.random.seed(2)
 		tf.random.set_seed(2)
 
+	def test_plot_coverage(self):
+		# Just make sure that the plot is generated without issue
+		batch_size = 1024
+		parameter_names = ['subhalo_parameters_sigma_sub',
+			'los_parameters_delta_los','main_deflector_parameters_theta_E',
+			'subhalo_parameters_conc_beta']
+		num_params = len(parameter_names)
 
+		y_pred = np.random.normal(size=(batch_size,num_params))
+		y_true = np.random.normal(size=(batch_size,num_params))
+		std_pred = np.random.normal(size=(batch_size,num_params))
+
+		Analysis.posterior_functions.plot_coverage(y_pred,y_true,std_pred,
+			parameter_names,block=False)
+		plt.close('all')
+
+		Analysis.posterior_functions.plot_coverage(y_pred,y_true,std_pred,
+			parameter_names,block=False,show_error_bars=False)
+		plt.close('all')

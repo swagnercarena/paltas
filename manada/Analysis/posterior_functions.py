@@ -12,7 +12,7 @@ from scipy.stats import linregress
 import numba
 
 
-def plot_coverage(y_pred,y_test,std_pred,parameter_names,num_lenses=None,
+def plot_coverage(y_pred,y_test,std_pred,parameter_names,
 	color_map=["#377eb8", "#4daf4a","#e41a1c","#984ea3"],block=True,
 	fontsize=20,show_error_bars=True,n_rows=4):
 	""" Generate plots for the 1D coverage of each parameter.
@@ -25,9 +25,7 @@ def plot_coverage(y_pred,y_test,std_pred,parameter_names,num_lenses=None,
 		std_pred (np.array): A (batch_size,num_params) array containing the
 			predicted standard deviation for each parameter.
 		parameter_names ([str,...]): A list of the parameter names to be
-			printed in the plots.
-		num_lenses (int): The number of lenses to include in the coverage
-			plots. If None all the lenses will be used.
+			printed in the plots.ed.
 		color_map ([str,...]): A list of at least 4 colors that will be used
 			for plotting the different coverage probabilities.
 		block (bool): If true, block excecution after plt.show() command.
@@ -71,7 +69,7 @@ def plot_coverage(y_pred,y_test,std_pred,parameter_names,num_lenses=None,
 		plt.ylabel('Prediction',fontsize=fontsize)
 		plt.xlabel('True Value',fontsize=fontsize)
 		plt.legend(**{'fontsize':fontsize},loc=2)
-	plt.show(block)
+	plt.show(block=block)
 
 
 def calc_p_dlt(predict_samps,y_test,weights=None):
