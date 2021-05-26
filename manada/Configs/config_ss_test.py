@@ -1,10 +1,8 @@
-from copy import deepcopy
-from manada.Sources.cosmos import COSMOSSersicCatalog
 from manada.Configs.config_d_los_sigma_sub import *
 from manada.Sources.cosmos import COSMOSCatalog
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
-from scipy.stats import uniform, norm, lognorm
+from scipy.stats import norm
 
 config_dict = {
 	'subhalo':{
