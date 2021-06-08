@@ -36,12 +36,11 @@ class SourceBase:
 				required parameters.
 		"""
 		if not all(elem in self.source_parameters.keys() for
-				   elem in required_params):
+			elem in required_params):
 			raise ValueError('Not all of the required parameters for the ' +
-							 'parameterization are present.')
+				'parameterization are present.')
 
-	def update_parameters(self, cosmology_parameters=None,
-						  source_parameters=None):
+	def update_parameters(self, cosmology_parameters=None,source_parameters=None):
 		"""Updated the class parameters
 
 		Args:
