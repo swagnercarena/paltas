@@ -6,13 +6,10 @@ This module contains the default class for transforming the objects of a
 source catalog into sources to be passed to lenstronomy.
 """
 import numpy as np
-from ..Utils.cosmology_utils import get_cosmology
-import copy
-
-DEFAULT_Z = 2.
+from .source_base import SourceBase, DEFAULT_Z_SOURCE
 
 
-class GalaxyCatalog:
+class GalaxyCatalog(SourceBase):
 	"""Base class for turning real galaxy images into Lenstronomy inputs.
 
 	Args:
@@ -21,51 +18,13 @@ class GalaxyCatalog:
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
+			source_parameters: A dictionary containing random_rotation
 	"""
 	required_parameters = ('random_rotation',)
-
-	def __init__(self, cosmology_parameters, source_parameters):
-		self.cosmo = get_cosmology(cosmology_parameters)
-		self.source_parameters = copy.deepcopy(source_parameters)
-
-		# Check that all the required parameters are present
-		self.check_parameterization(GalaxyCatalog.required_parameters)
 
 	def __len__(self):
 		"""Returns the length of the catalog"""
 		raise NotImplementedError
-
-	def check_parameterization(self,required_params):
-		""" Check that all the required parameters are present in the
-		source_parameters.
-
-		Args:
-			required_params ([str,...]): A list of strings containing the
-				required parameters.
-		"""
-		if not all(elem in self.source_parameters.keys() for
-			elem in required_params):
-			raise ValueError('Not all of the required parameters for the ' +
-				'parameterization are present.')
-
-	def update_parameters(self,cosmology_parameters=None,
-		source_parameters=None):
-		"""Updated the class parameters
-
-		Args:
-			cosmology_parameters (str,dict, or
-				colossus.cosmology.cosmology.Cosmology): Either a name
-				of colossus cosmology, a dict with 'cosmology name': name of
-				colossus cosmology, an instance of colussus cosmology, or a
-				dict with H0 and Om0 ( other parameters will be set to
-				defaults).
-			source_parameters (dict): A dictionary containing all the parameters
-				needed to draw sources.
-		"""
-		if source_parameters is not None:
-			self.source_parameters.update(source_parameters)
-		if cosmology_parameters is not None:
-			self.cosmo = get_cosmology(cosmology_parameters)
 
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy
@@ -80,7 +39,7 @@ class GalaxyCatalog:
 		"""
 		raise NotImplementedError
 
-	def iter_lightmodel_kwargs_samples(self,n_galaxies,z_new=DEFAULT_Z,
+	def iter_lightmodel_kwargs_samples(self,n_galaxies,z_new=DEFAULT_Z_SOURCE,
 		**selection_kwargs):
 		"""Yields dicts of lenstronomy LightModel kwargs for n_galaxies,
 		placed at redshift z_new
@@ -146,9 +105,8 @@ class GalaxyCatalog:
 				phi = 0
 		return catalog_i, phi
 
-	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z, phi=None):
-		"""Creates lenstronomy interpolation lightmodel kwargs from
-			a catalog image.
+	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z_SOURCE, phi=None):
+		"""Creates lenstronomy lightmodel kwargs from a catalog image.
 
 		Args:
 			catalog_i (int): Index of image in catalog
