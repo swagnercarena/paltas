@@ -1,6 +1,8 @@
 import numpy as np
 import unittest
 import os
+from manada.Sources.source_base import SourceBase
+from manada.Sources.sersic import SingleSersicSource
 from manada.Sources.galaxy_catalog import GalaxyCatalog
 from manada.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
 from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
@@ -15,7 +17,66 @@ import scipy
 import copy
 
 
-class GalaxyCatalogTests(unittest.TestCase):
+class SourceBaseTests(unittest.TestCase):
+
+	def setUp(self):
+		self.c = SourceBase(
+			cosmology_parameters='planck18',
+			source_parameters=dict())
+		self.cosmo = get_cosmology('planck18')
+
+	def test_update_parameters(self):
+		# Check that the update parameter call updates the cosmology
+		h = self.c.cosmo.h
+		self.c.update_parameters('WMAP9')
+		self.assertNotEqual(h,self.c.cosmo.h)
+
+	def test_draw_source(self):
+		# Just test that the not implemented error is raised.
+		with self.assertRaises(NotImplementedError):
+			self.c.draw_source()
+
+
+class SingleSersicSourceTests(SourceBaseTests):
+
+	def setUp(self):
+		self.c = SingleSersicSource(
+			cosmology_parameters='planck18',
+			source_parameters=dict(
+				amp=1.,
+				R_sersic=1.,
+				n_sersic=2.,
+				e1=0.,
+				e2=0.,
+				center_x=0.,
+				center_y=0.))
+		self.cosmo = get_cosmology('planck18')
+
+	def test_draw_source(self):
+		# Check that lenstronomy produces some non-zero image
+		light_models, light_kwargs_list = self.c.draw_source()
+
+		lens_model = LensModel(['SPEP'])
+		light_model = LightModel(light_models)
+
+		n_pixels = 200
+		pixel_width = 0.08
+		image_model = ImageModel(
+			data_class=ImageData(**data_configure_simple(numPix=n_pixels,
+				deltaPix=pixel_width)),
+			psf_class=PSF(psf_type='GAUSSIAN', fwhm=0.1 * pixel_width),
+			lens_model_class=lens_model,source_model_class=light_model)
+		# Create a lens that will do nothing
+		lens_kwargs = [{'theta_E': 0.0, 'e1': 0., 'e2': 0., 'gamma': 0.,
+			'center_x': 0, 'center_y': 0}]
+
+		image = image_model.image(kwargs_lens=lens_kwargs,
+			kwargs_source=light_kwargs_list)
+		assert isinstance(image, np.ndarray)
+		assert image.sum() > 0
+
+
+class GalaxyCatalogTests(SourceBaseTests):
 
 	def setUp(self):
 		self.c = GalaxyCatalog(cosmology_parameters='planck18',
@@ -26,12 +87,6 @@ class GalaxyCatalogTests(unittest.TestCase):
 		# Just test that the not implemented error is raised.
 		with self.assertRaises(NotImplementedError):
 			self.c.__len__()
-
-	def test_update_parameters(self):
-		# Check that the update parameter call updates the cosmology
-		h = self.c.cosmo.h
-		self.c.update_parameters('WMAP9')
-		self.assertNotEqual(h,self.c.cosmo.h)
 
 	def test_image_and_metadata(self):
 		# Just test that the not implemented error is raised.
@@ -85,7 +140,7 @@ class GalaxyCatalogTests(unittest.TestCase):
 			self.cosmo.angularDiameterDistance(z_new))
 
 
-class COSMOSCatalogTests(unittest.TestCase):
+class COSMOSCatalogTests(SourceBaseTests):
 
 	def setUp(self):
 		# Use a trimmed version of cosmo data for testing.
@@ -151,7 +206,7 @@ class COSMOSCatalogTests(unittest.TestCase):
 		self.assertEqual(len(self.c),10)
 
 	def test_update_parameters(self):
-		# Check that the update parameter call updates the cosmology
+		# Check that the update parameter call works
 		self.source_parameters['smoothing_sigma'] = 0.06
 		self.c.update_parameters(source_parameters=self.source_parameters)
 		self.assertEqual(self.c.source_parameters['smoothing_sigma'],0.06)

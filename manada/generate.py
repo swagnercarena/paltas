@@ -187,8 +187,7 @@ def main():
 			source_model_list, source_kwargs_list = source_class.draw_source(
 				catalog_i=catalog_i, phi=phi, z_new=z_source)
 		else:
-			source_model_list, source_kwargs_list = source_class.draw_source(
-				z_new=z_source)
+			source_model_list, source_kwargs_list = source_class.draw_source()
 		source_light_model = LightModel(source_model_list)
 
 		# Put it together into an image model
