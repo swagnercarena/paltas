@@ -71,16 +71,19 @@ class ProbabilityClass:
 
 	Args:
 		eval_func_xi_omega_i (function): A callable function with input
-			predict_samps that returns an array of shape (n_samps,batch_size)
+			predict_samps that returns an array of shape (n_samps,n_lenses)
 			containing the value of log p(xi|omega_interim) for each sample.
 			omega_int is the distribution of the training data.
 		eval_func_xi_omega (function): A callable function with inputs
 			(predict_samps,hyperparameters) that returns an array of shape
-			(n_samps,batch_size) containing the value of log p(xi|omega) for
+			(n_samps,n_lenses) containing the value of log p(xi|omega) for
 			each sample. omega is the proposed distribution of the test data.
 		eval_func_omega (function): A callable function with inputs
 			(hyperparameters) that returns an float equal to the value of
 			log p(omega)
+	Notes:
+		predict_samps has shape (n_params,n_samps,n_lenses) where n_samps is
+		the number of samples drawn from the
 	"""
 
 	def __init__(self,eval_func_xi_omega_i,eval_func_xi_omega,
@@ -92,7 +95,7 @@ class ProbabilityClass:
 
 		self.samples_init = False
 
-	def set_samples(self,predict_samps_input,hyperparameters_train):
+	def set_samples(self,predict_samps_input):
 		""" Set the global lens samples value. Using a global helps avoid data
 		being pickled.
 
