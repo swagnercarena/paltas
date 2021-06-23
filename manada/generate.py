@@ -259,8 +259,8 @@ def main():
 		learning_params = []
 		for component in sample:
 			for key in sample[component]:
-				if (type(sample[component][key]) == float or
-					type(sample[component][key]) == int):
+				if (isinstance(sample[component][key],float) or
+					isinstance(sample[component][key],int)):
 					learning_params.append(component+'_'+key)
 		# Generate the TFRecord
 		dataset_generation.generate_tf_record(args.save_folder,learning_params,
