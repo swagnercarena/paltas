@@ -17,7 +17,7 @@ min_values = np.zeros(2)
 tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 
 # Define the numerics kwargs
-kwargs_numerics = {'supersampling_factor':1}
+kwargs_numerics = {'supersampling_factor':2}
 numpix = 64
 seed = 10
 
@@ -33,7 +33,7 @@ config_dict = {
 	'subhalo':{
 		'class': SubhalosDG19,
 		'parameters':{
-			'sigma_sub':uniform(loc=0,scale=2e-1).rvs,
+			'sigma_sub':lognorm(scale=0.1,s=0.5).rvs,
 			'shmf_plaw_index':-1.83,
 			'm_pivot': 1e8,'m_min': 1e7,'m_max': 1e10,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
@@ -44,7 +44,7 @@ config_dict = {
 	'los':{
 		'class': LOSDG19,
 		'parameters':{
-			'delta_los':uniform(loc=0,scale=2).rvs,
+			'delta_los':lognorm(scale=1,s=0.7).rvs,
 			'm_min':1e7,'m_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
@@ -58,8 +58,8 @@ config_dict = {
 			'z_lens': 0.5,
 			'gamma': lognorm(scale=2.01,s=0.05).rvs,
 			'theta_E': lognorm(scale=1.1,s=0.1).rvs,
-			'e1': norm(loc=0.0,scale=0.05).rvs,
-			'e2': norm(loc=0.0,scale=0.05).rvs,
+			'e1': norm(loc=0.0,scale=0.1).rvs,
+			'e2': norm(loc=0.0,scale=0.1).rvs,
 			'center_x': norm(loc=0.0,scale=0.16).rvs,
 			'center_y': norm(loc=0.0,scale=0.16).rvs,
 			'gamma1': norm(loc=0.0,scale=0.05).rvs,
