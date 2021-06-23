@@ -51,9 +51,9 @@ def main():
 	img_size = config_module.img_size
 	# A random seed to us
 	random_seed = config_module.random_seed
-	# A list of the paths to the tf_records for the training images
+	# A list of the paths to the TFRecords for the training images
 	tfr_train_paths = config_module.tfr_train_paths
-	# The path to the tf_record for the validation images
+	# The path to the TFRecord for the validation images
 	tfr_val_path = config_module.tfr_val_path
 	# The list of learning parameters to use
 	learning_params = config_module.learning_params

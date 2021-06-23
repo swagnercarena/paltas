@@ -136,7 +136,7 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 			parameters that the network is expected to learn.
 		metadata_path (str):  The path to the csv file containing the
 			image metadata.
-		tf_record_path (str): The path to which the tf_record will be saved
+		tf_record_path (str): The path to which the TFRecord will be saved
 	"""
 	# Pull the list of numpy filepaths from the directory
 	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
@@ -182,7 +182,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 
 	Args:
 		tf_record_paths (str, or [str,...]) A string specifying the paths to
-			the tf_records that will be used in the dataset. Can also be a list
+			the TFRecords that will be used in the dataset. Can also be a list
 			of strings for specifying multiple tf_record_paths.
 		learning_params ([str,...]): A list of strings containing the
 			parameters that the network is expected to learn.
@@ -323,7 +323,7 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 
 	Args:
 		tf_record_paths (str, or [str,...]) A string specifying the paths to
-			the tf_records that will be used in the dataset. Can also be a list
+			the TFRecords that will be used in the dataset. Can also be a list
 			of strings for specifying multiple tf_record_paths.
 		learning_params ([str,...]): A list of strings containing the
 			parameters that the network is expected to learn.

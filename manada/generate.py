@@ -20,6 +20,7 @@ from importlib import import_module
 from manada.Sampling.sampler import Sampler
 from manada.Utils.cosmology_utils import get_cosmology
 from manada.Sources.galaxy_catalog import GalaxyCatalog
+from manada.Analysis import dataset_generation
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
@@ -49,6 +50,8 @@ def parse_args():
 		help='Size of dataset to generate (default 1)')
 	parser.add_argument('--save_png_too', action='store_true',
 		help='Also save a PNG for each image, for debugging')
+	parser.add_argument('--tf_record', action='store_true',
+		help='Generate the tf record for the training set.')
 	args = parser.parse_args()
 	return args
 
@@ -245,6 +248,23 @@ def main():
 	metadata.to_csv(metadata_path, index=None, mode='a',header=None)
 	pbar.close()
 	print('Dataset generation complete. Acceptance rate: %.3f'%(args.n/tries))
+
+	# Generate tf record if requested. Save all the parameters and use default
+	# filename ddata.tfrecord
+	if args.tf_record:
+		# The path to save the TFRecord to.
+		tf_record_path = args.save_folder + 'data.tfrecord'
+		# Generate the list of learning parameters. Only save learning
+		# parameters with associated float values.
+		learning_params = []
+		for component in sample:
+			for key in sample[component]:
+				if (type(sample[component][key]) == float or
+					type(sample[component][key]) == int):
+					learning_params.append(component+'_'+key)
+		# Generate the TFRecord
+		dataset_generation.generate_tf_record(args.save_folder,learning_params,
+			metadata_path,tf_record_path)
 
 
 if __name__ == '__main__':
