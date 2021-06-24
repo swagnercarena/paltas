@@ -70,6 +70,3 @@ config_dict = {
 		}
 	}
 }
-
-# Force no noise
-no_noise = False

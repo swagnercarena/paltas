@@ -12,22 +12,6 @@ from scipy.stats import linregress
 import numba
 
 
-def generate_mean_predictions(model_output,model_type):
-	"""
-
-	Args:
-		model_output (np.array): A (batch_size,output_len) array containing
-			the outputs of the model.
-		model_type (str): The model type.
-
-	"""
-	return
-
-
-def generate_posterior_samples():
-	return
-
-
 def plot_coverage(y_pred,y_test,std_pred,parameter_names,
 	color_map=["#377eb8", "#4daf4a","#e41a1c","#984ea3"],block=True,
 	fontsize=20,show_error_bars=True,n_rows=4):

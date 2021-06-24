@@ -596,7 +596,7 @@ class DiagonalCovarianceTests(unittest.TestCase):
 		self.assertGreater(np.sum(diag_loss.numpy()),12)
 
 
-class FullCovarianceLossTest(unittest.TestCase):
+class FullCovarianceLossTests(unittest.TestCase):
 
 	def setUp(self):
 		# Set up a random seed for consistency
@@ -762,7 +762,7 @@ class FullCovarianceLossTest(unittest.TestCase):
 		self.assertAlmostEqual(np.sum(loss.numpy()),scipy_nlp,places=4)
 
 
-class ConvModelsTest(unittest.TestCase):
+class ConvModelsTests(unittest.TestCase):
 
 	def setUp(self):
 		# Set up a random seed for consistency
@@ -785,7 +785,7 @@ class ConvModelsTest(unittest.TestCase):
 		model.compile(loss='mean_squared_error')
 
 
-class PosteriorFunctionsTest(unittest.TestCase):
+class PosteriorFunctionsTests(unittest.TestCase):
 
 	def setUp(self):
 		# Set up a random seed for consistency
@@ -834,3 +834,16 @@ class PosteriorFunctionsTest(unittest.TestCase):
 		Analysis.posterior_functions.plot_calibration(predict_samps,y_test,
 			block=False)
 		plt.close('all')
+
+
+class HierarchicalInferenceTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		tf.random.set_seed(2)
+
+	def test_log_p_xi_omega(test):
+		# Check that the calculation agrees with the evaluation function.
+		predict_samps = np.random.randn(1000,1024,10)
+		return

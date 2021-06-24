@@ -209,6 +209,7 @@ def main():
 			if mag < config_module.mag_cut:
 				continue
 
+		# If no noise is specified, don't add noise
 		if (not hasattr(config_module, 'no_noise')
 				or config_module.no_noise is False):
 			image += single_band.noise_for_model(image)

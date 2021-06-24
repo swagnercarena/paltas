@@ -133,12 +133,12 @@ def main():
 		tf_dataset_t = dataset_generation.generate_rotations_dataset(
 			tfr_train_paths,learning_params,batch_size,n_epochs,
 			norm_images=norm_images,input_norm_path=input_norm_path,
-			kwargs_detector=kwargs_detector)
+			kwargs_detector=None)
 	else:
 		# Turn our tf records into tf datasets for training and validation
 		tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
 			learning_params,batch_size,n_epochs,norm_images=norm_images,
-			input_norm_path=input_norm_path,kwargs_detector=kwargs_detector)
+			input_norm_path=input_norm_path,kwargs_detector=None)
 	# We shouldn't be adding random noise to validation images. They should
 	# be generated with noise
 	if kwargs_detector is not None:
