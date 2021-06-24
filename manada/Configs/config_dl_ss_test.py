@@ -1,4 +1,4 @@
-from .config_d_los_sigma_sub import *
+from manada.Configs.config_d_los_sigma_sub import *
 from scipy.stats import norm
 
 config_dict['subhalo']['parameters']['delta_los'] = norm(loc=1.3e-1,
