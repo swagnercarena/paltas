@@ -19,7 +19,6 @@ tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 # Define the numerics kwargs
 kwargs_numerics = {'supersampling_factor':2}
 numpix = 64
-seed = 10
 
 # Define some general image kwargs for the dataset
 mask_radius = 0.5

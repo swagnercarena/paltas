@@ -253,7 +253,7 @@ def main():
 	# filename ddata.tfrecord
 	if args.tf_record:
 		# The path to save the TFRecord to.
-		tf_record_path = args.save_folder + 'data.tfrecord'
+		tf_record_path = os.path.join(args.save_folder,'data.tfrecord')
 		# Generate the list of learning parameters. Only save learning
 		# parameters with associated float values.
 		learning_params = []
