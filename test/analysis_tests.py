@@ -450,6 +450,24 @@ class MSELossTests(unittest.TestCase):
 		# Set up a random seed for consistency.
 		np.random.seed(2)
 
+	def test_convert_output(self):
+		# Test that the output is converted correctly
+		num_params = 10
+		loss_class = Analysis.loss_functions.MSELoss(num_params,None)
+		output = tf.ones((1024,10))
+		y_pred = loss_class.convert_output(output)
+		np.testing.assert_array_equal(y_pred.numpy(),output.numpy())
+
+	def test_draw_samples(self):
+		# Test that the prediction is always the same
+		num_params = 10
+		loss_class = Analysis.loss_functions.MSELoss(num_params,None)
+		output = tf.ones((1024,10))*2
+		n_samps = 20
+		predict_samps = loss_class.draw_samples(output,n_samps)
+		for i in range(len(predict_samps)):
+			np.testing.assert_array_equal(predict_samps[i],output.numpy())
+
 	def test_mse_loss(self):
 		# Test that the loss treats flip pairs correctly.
 		flip_pairs = None
@@ -489,6 +507,29 @@ class DiagonalCovarianceTests(unittest.TestCase):
 	def setUp(self):
 		# Set up a random seed for consistency
 		np.random.seed(2)
+
+	def test_convert_output(self):
+		# Test that the output is converted correctly
+		num_params = 10
+		loss_class = Analysis.loss_functions.DiagonalCovarianceLoss(num_params,
+			None)
+		output = tf.random.normal((1024,20))
+		y_pred, std_pred = loss_class.convert_output(output)
+		np.testing.assert_array_equal(y_pred.numpy(),output.numpy()[:,:10])
+		np.testing.assert_array_equal(std_pred.numpy(),output.numpy()[:,10:])
+
+	def test_draw_samples(self):
+		# Test that the prediction is always the same
+		num_params = 10
+		loss_class = Analysis.loss_functions.DiagonalCovarianceLoss(num_params,
+			None)
+		output = tf.ones((1024,20))*2
+		n_samps = 10000
+		predict_samps = loss_class.draw_samples(output,n_samps)
+		np.testing.assert_almost_equal(np.mean(predict_samps,axis=0),
+			output.numpy()[:,:10],decimal=1)
+		np.testing.assert_almost_equal(np.std(predict_samps,axis=0),
+			output.numpy()[:,:10],decimal=1)
 
 	def test_log_gauss_diag(self):
 		# Will not be used for this test, but must be passed in.
@@ -560,6 +601,34 @@ class FullCovarianceLossTest(unittest.TestCase):
 	def setUp(self):
 		# Set up a random seed for consistency
 		np.random.seed(2)
+
+	def test_convert_output(self):
+		# Test that the output is converted correctly
+		num_params = 10
+		loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,None)
+		output = tf.ones((1024,65))
+		y_pred, prec_mat, L_diag = loss_class.convert_output(output)
+		np.testing.assert_array_equal(y_pred.numpy(),output.numpy()[:,:10])
+		# Just check the shape for the rest, the hard work here is done by
+		# test_construct_precision_matrix.
+		self.assertTupleEqual(prec_mat.numpy().shape,(1024,10,10))
+		self.assertTupleEqual(L_diag.numpy().shape,(1024,10))
+
+	def test_draw_samples(self):
+		# Test that the prediction is always the same
+		num_params = 10
+		loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,None)
+		output = tf.ones((1024,65))
+		y_pred, prec_mat, L_diag = loss_class.convert_output(output)
+		prec_mat = prec_mat.numpy()
+		cov_mat = np.linalg.inv(prec_mat)
+		n_samps = 10000
+		predict_samps = loss_class.draw_samples(output,n_samps)
+		np.testing.assert_almost_equal(np.mean(predict_samps,axis=0),
+			output.numpy()[:,:10],decimal=1)
+		for i in range(len(output)):
+			np.testing.assert_almost_equal(np.cov(predict_samps[:,i,:].T),
+				cov_mat[i],decimal=1)
 
 	def test_construct_precision_matrix(self):
 		# A couple of test cases to make sure that the generalized precision

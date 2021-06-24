@@ -11,8 +11,8 @@ import numpy as np
 import itertools
 
 
-class MSELoss():
-	""" MSE loss that includes parameter flipping
+class BaseLoss():
+	"""	A base class for the loss functions.
 
 	Args:
 		num_params (int): The number of parameters to predict.
@@ -37,13 +37,92 @@ class MSELoss():
 			dtype=tf.float32))]
 		if self.flip_pairs is not None:
 			# Create a flip matrix for every possible unique combination
-			for l in range(1,len(self.flip_pairs)+1):
-				for comb in itertools.combinations(self.flip_pairs,l):
+			for flip_i in range(1,len(self.flip_pairs)+1):
+				for comb in itertools.combinations(self.flip_pairs,flip_i):
 					flip_list = list(itertools.chain.from_iterable(comb))
 					const_initializer = np.ones(self.num_params)
 					const_initializer[flip_list] = -1
 					self.flip_mat_list.append(tf.linalg.diag(tf.constant(
 						const_initializer,dtype=tf.float32)))
+
+	def convert_output(self,output):
+		"""	Convert the model outputs into the different components of the
+		loss function
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+
+		Returns:
+			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
+				the components of the loss function.
+		"""
+
+		raise NotImplementedError('convert_output has not been defined.')
+
+	def draw_samples(self,output,n_samps):
+		"""	Draw samples from the predicted posterior defined by the networks
+		outputs.
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+			n_samps (int): The number of samples to draw from each posterior.
+
+		Returns:
+			(np.array): An array with shape (n_samps,batch_size,n_params)
+				containing draws from the posterior of each lens defined in
+				the output.
+		"""
+
+		raise NotImplementedError('convert_output has not been defined.')
+
+
+class MSELoss(BaseLoss):
+	""" MSE loss that includes parameter flipping
+
+	Args:
+		num_params (int): The number of parameters to predict.
+		flip_pairs ([[int,...],...]): A list of lists. Each list contains
+			the index of parameters that when flipped together return an
+			equivalent lens model.
+
+	Notes:
+		If multiple lists are provided, all possible combinations of
+		flips will be considered. For example, if flip_pairs is [[0,1],[2,3]]
+		then flipping 0,1,2,3 all at the same time will also be considered.
+	"""
+
+	def convert_output(self,output):
+		"""	Convert the model outputs into the different components of the
+		loss function
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+
+		Returns:
+			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
+				the components of the loss function.
+		"""
+		# Get the mle value from the output.
+		y_pred, _ = tf.split(output,num_or_size_splits=(self.num_params,-1),
+			axis=-1)
+		return y_pred
+
+	def draw_samples(self,output,n_samps):
+		"""	Draw samples from the predicted posterior defined by the networks
+		outputs.
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+			n_samps (int): The number of samples to draw from each posterior.
+
+		Returns:
+			(np.array): An array with shape (n_samps,batch_size,n_params)
+				containing draws from the posterior of each lens defined in
+				the output.
+		"""
+		# The posterior is just a delta function.
+		y_pred = self.convert_output(output).numpy()
+		return np.repeat(np.expand_dims(y_pred,axis=0),n_samps,axis=0)
 
 	def loss(self,y_true,output):
 		""" Returns the MSE loss of the predicted parameters.
@@ -60,8 +139,7 @@ class MSELoss():
 			likelihood estimate, so long as the first num_params values
 			outputted are the MLE.
 		"""
-		y_pred, _ = tf.split(output,num_or_size_splits=(self.num_params,-1),
-			axis=-1)
+		y_pred = self.convert_output(output)
 
 		# Build a loss list and take the minimum value according to the
 		# flip pairs.
@@ -73,7 +151,7 @@ class MSELoss():
 		return tf.reduce_min(loss_stack,axis=-1)
 
 
-class DiagonalCovarianceLoss(MSELoss):
+class DiagonalCovarianceLoss(BaseLoss):
 	""" Diagonal covariance loss that includes parameter flipping
 
 	Args:
@@ -86,8 +164,43 @@ class DiagonalCovarianceLoss(MSELoss):
 		flips will be considered. For example, if flip_pairs is [[0,1],[2,3]]
 		then flipping 0,1,2,3 all at the same time will also be considered.
 	"""
-	def __init__(self, num_params, flip_pairs=None):
-		super().__init__(num_params,flip_pairs=flip_pairs)
+
+	def convert_output(self,output):
+		"""	Convert the model outputs into the different components of the
+		loss function
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+
+		Returns:
+			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
+				the components of the loss function.
+		"""
+		# Get both the mle value and the standard deviation.
+		y_pred, std_pred = tf.split(output,num_or_size_splits=2,axis=-1)
+		return y_pred, std_pred
+
+	def draw_samples(self,output,n_samps):
+		"""	Draw samples from the predicted posterior defined by the networks
+		outputs.
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+			n_samps (int): The number of samples to draw from each posterior.
+
+		Returns:
+			(np.array): An array with shape (n_samps,batch_size,n_params)
+				containing draws from the posterior of each lens defined in
+				the output.
+		"""
+		# The posterior is the mean with random noise.
+		y_pred, std_pred = self.convert_output(output)
+		y_pred = y_pred.numpy()
+		std_pred = std_pred.numpy()
+
+		predict_samps = y_pred + np.random.randn(n_samps,y_pred.shape[0],
+			y_pred.shape[1])*std_pred
+		return predict_samps
 
 	@staticmethod
 	def log_gauss_diag(y_true,y_pred,std_pred):
@@ -124,7 +237,7 @@ class DiagonalCovarianceLoss(MSELoss):
 		Returns:
 			(tf.Tensor): The loss function as a tf.Tensor.
 		"""
-		y_pred, std_pred = tf.split(output,num_or_size_splits=2,axis=-1)
+		y_pred, std_pred = self.convert_output(output)
 
 		# Add each possible flip to the loss list. We will then take the
 		# minimum.
@@ -136,7 +249,7 @@ class DiagonalCovarianceLoss(MSELoss):
 		return tf.reduce_min(loss_stack,axis=-1)
 
 
-class FullCovarianceLoss(MSELoss):
+class FullCovarianceLoss(BaseLoss):
 	""" Full covariance loss that includes parameter flipping
 
 	Args:
@@ -156,6 +269,55 @@ class FullCovarianceLoss(MSELoss):
 		self.split_list = []
 		for i in range(1,num_params+1):
 			self.split_list += [i]
+
+	def convert_output(self,output):
+		"""	Convert the model outputs into the different components of the
+		loss function
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+
+		Returns:
+			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
+				the components of the loss function.
+		"""
+		# Start by dividing the output into the L_elements and the prediction
+		# values.
+		L_elements_len = int(self.num_params*(self.num_params+1)/2)
+		y_pred, L_mat_elements = tf.split(output,
+			num_or_size_splits=[self.num_params,L_elements_len],axis=-1)
+
+		# Build the precision matrix and extract the diagonal part
+		prec_mat, L_diag = self.construct_precision_matrix(L_mat_elements)
+
+		# Return the mle, the precision matrix, and the diagonal values.
+		return y_pred, prec_mat, L_diag
+
+	def draw_samples(self,output,n_samps):
+		"""	Draw samples from the predicted posterior defined by the networks
+		outputs.
+
+		Args:
+			output (tf.Tensor): The predicted values of the lensing parameters
+			n_samps (int): The number of samples to draw from each posterior.
+
+		Returns:
+			(np.array): An array with shape (n_samps,batch_size,n_params)
+				containing draws from the posterior of each lens defined in
+				the output.
+		"""
+		# The posterior is the mean with random noise.
+		y_pred, prec_mat, _ = self.convert_output(output)
+		y_pred = y_pred.numpy()
+		prec_mat = prec_mat.numpy()
+		cov_mat = np.linalg.inv(prec_mat)
+
+		predict_samps = np.zeros((n_samps,)+y_pred.shape)
+
+		for i in range(len(y_pred)):
+			predict_samps[:,i,:] = np.random.multivariate_normal(y_pred[i],
+				cov_mat[i],size=n_samps)
+		return predict_samps
 
 	def construct_precision_matrix(self,L_mat_elements):
 		""" Take the matrix elements for the log cholesky decomposition and
@@ -233,14 +395,8 @@ class FullCovarianceLoss(MSELoss):
 		Returns:
 			(tf.Tensor): The loss function as a tf.Tensor.
 		"""
-		# Start by dividing the output into the L_elements and the prediction
-		# values.
-		L_elements_len = int(self.num_params*(self.num_params+1)/2)
-		y_pred, L_mat_elements = tf.split(output,
-			num_or_size_splits=[self.num_params,L_elements_len],axis=-1)
-
-		# Build the precision matrix and extract the diagonal part
-		prec_mat, L_diag = self.construct_precision_matrix(L_mat_elements)
+		# Extract the outputs
+		y_pred, prec_mat, L_diag = self.convert_output(output)
 
 		# Add each possible flip to the loss list. We will then take the
 		# minimum.
