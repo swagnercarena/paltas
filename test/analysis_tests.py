@@ -14,6 +14,8 @@ from lenstronomy.Data.psf import PSF
 import os
 from shutil import copyfile
 from matplotlib import pyplot as plt
+import numba
+from scipy import special
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -843,7 +845,130 @@ class HierarchicalInferenceTests(unittest.TestCase):
 		np.random.seed(2)
 		tf.random.set_seed(2)
 
-	def test_log_p_xi_omega(test):
+	def test_log_p_xi_omega(self):
 		# Check that the calculation agrees with the evaluation function.
-		predict_samps = np.random.randn(1000,1024,10)
-		return
+		predict_samps_hier = np.random.randn(10,1000,1024)
+		hyperparameters = np.array([1,1])
+
+		# Make sure it works with numba
+		@numba.njit()
+		def eval_func_xi_omega(predict_samps_hier,hyperparameters):
+			logpdf = np.sum(predict_samps_hier,axis=0) + hyperparameters[0]
+			logpdf *= hyperparameters[1]
+			return logpdf
+
+		np.testing.assert_array_equal(
+			Analysis.hierarchical_inference.log_p_xi_omega(
+				predict_samps_hier,hyperparameters,eval_func_xi_omega),
+			np.sum(predict_samps_hier,axis=0)+1)
+
+		# Change the hyperparameters to make sure the calculation matches.
+		hyperparameters[1] = 20
+		np.testing.assert_array_equal(
+			Analysis.hierarchical_inference.log_p_xi_omega(
+				predict_samps_hier,hyperparameters,eval_func_xi_omega),
+			(np.sum(predict_samps_hier,axis=0)+1)*20)
+
+	def test_log_p_omega(self):
+		# Test that the evaluation funciton is used
+		hyperparameters = np.array([1,0.2])
+
+		# Test that it works with numba
+		@numba.njit()
+		def eval_func_omega(hyperparameters):
+			return hyperparameters[0]*hyperparameters[1]
+
+		self.assertEqual(Analysis.hierarchical_inference.log_p_omega(
+			hyperparameters,eval_func_omega),0.2)
+
+
+class ProbabilityClassTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		tf.random.set_seed(2)
+
+	def test_set_samples(self):
+		# Make sure that setting the samples with both input types works
+		predict_samps_input = np.random.randn(1000,1024,10)
+		predict_samps_hier_input = np.transpose(predict_samps_input,[2,0,1])
+
+		# Establish the eval_func_xi_omega_i that we actually call
+		eval_func_xi_omega = None
+		eval_func_omega = None
+
+		@numba.njit()
+		def eval_func_xi_omega_i(predict_samps_hier):
+			return np.sum(predict_samps_hier,axis=0)
+
+		# Establish our ProbabilityClass
+		prob_class = Analysis.hierarchical_inference.ProbabilityClass(
+			eval_func_xi_omega_i,eval_func_xi_omega,eval_func_omega)
+
+		# Try setting the samples with predict_samps_hier_input
+		prob_class.set_samples(predict_samps_hier_input=predict_samps_hier_input)
+		self.assertFalse(
+			Analysis.hierarchical_inference.predict_samps_hier is None)
+		np.testing.assert_almost_equal(prob_class.p_samps_omega_i,
+			np.sum(predict_samps_hier_input,axis=0))
+
+		# Try setting the samples with predict_samps_input
+		prob_class.set_samples(predict_samps_input=predict_samps_input)
+		self.assertFalse(
+			Analysis.hierarchical_inference.predict_samps_hier is None)
+		np.testing.assert_array_equal(
+			Analysis.hierarchical_inference.predict_samps_hier,
+			predict_samps_hier_input)
+		np.testing.assert_almost_equal(prob_class.p_samps_omega_i,
+			np.sum(predict_samps_hier_input,axis=0))
+
+	def test_log_post_omega(self):
+		# Make sure that the prediction class combines all of the evaluation
+		# functions.
+
+		predict_samps_hier_input = np.random.rand(10,1000,1024)
+
+		@numba.njit()
+		def eval_func_xi_omega(predict_samps_hier,hyperparameters):
+			logpdf = np.sum(predict_samps_hier,axis=0) + hyperparameters[0]
+			logpdf *= hyperparameters[1]
+			return logpdf
+
+		@numba.njit()
+		def eval_func_omega(hyperparameters):
+			if hyperparameters[0] < 0:
+				return -np.inf
+			return hyperparameters[0]*hyperparameters[1]
+
+		@numba.njit()
+		def eval_func_xi_omega_i(predict_samps_hier):
+			return np.sum(predict_samps_hier,axis=0)
+
+		# Establish the class at the predict samples
+		prob_class = Analysis.hierarchical_inference.ProbabilityClass(
+			eval_func_xi_omega_i,eval_func_xi_omega,eval_func_omega)
+		prob_class.set_samples(
+			predict_samps_hier_input=predict_samps_hier_input)
+
+		# Evaluate a few hyperparameter values to make sure it all adds up.
+		hyperparameters = np.array([1,1])
+
+		# Calculate things manually as a confirmation
+		def calculate_manual_log_post(hyperparameters):
+			lprior = eval_func_omega(hyperparameters)
+
+			omega_i_term = eval_func_xi_omega_i(predict_samps_hier_input)
+			omega_term = eval_func_xi_omega(predict_samps_hier_input,
+				hyperparameters)
+
+			like_ratio = special.logsumexp(omega_term - omega_i_term,axis=0)
+
+			return lprior + np.sum(like_ratio)
+
+		self.assertAlmostEqual(prob_class.log_post_omega(hyperparameters),
+			calculate_manual_log_post(hyperparameters))
+
+		hyperparameters = hyperparameters*0.02
+		self.assertAlmostEqual(prob_class.log_post_omega(hyperparameters),
+			calculate_manual_log_post(hyperparameters))

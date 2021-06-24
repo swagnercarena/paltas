@@ -162,12 +162,12 @@ class ProbabilityClass:
 			return lprior
 
 		# Calculate the probability of each datapoint given omega
-		p_samps_omega = log_p_xi_omega(predict_samps_hier,
-			self.eval_func_xi_omega,hyperparameters)
+		p_samps_omega = log_p_xi_omega(predict_samps_hier,hyperparameters,
+			self.eval_func_xi_omega)
 
 		# We can use our pre-calculated value of p_samps_omega_i.
 		like_ratio = p_samps_omega - self.p_samps_omega_i
-		like_ratio[np.isinf(self.pt_omega_i)] = -np.inf
+		like_ratio[np.isinf(self.p_samps_omega_i)] = -np.inf
 		like_ratio = special.logsumexp(like_ratio,axis=0)
 		like_ratio[np.isnan(like_ratio)] = -np.inf
 
