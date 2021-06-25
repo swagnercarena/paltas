@@ -503,6 +503,21 @@ class MSELossTests(unittest.TestCase):
 			tf.constant(y_pred,dtype=tf.float32))
 		self.assertEqual(np.sum(loss_tensor.numpy()),4)
 
+		# Check the weighting the loss works
+		weight_terms = [[0,10]]
+		flip_pairs = None
+		num_params = 10
+		loss_class = Analysis.loss_functions.MSELoss(num_params,None,
+			weight_terms)
+		y_true = np.random.rand(num_params).reshape((1,-1))
+		y_pred = np.random.rand(num_params).reshape((1,-1))
+		loss_tensor = loss_class.loss(tf.constant(y_true,dtype=tf.float32),
+			tf.constant(y_pred,dtype=tf.float32))
+		weights = np.ones(num_params)
+		weights[0] = 10
+		manual_loss = np.mean(np.square(y_true-y_pred)*weights)
+		self.assertAlmostEqual(loss_tensor.numpy()[0],manual_loss,places=5)
+
 
 class DiagonalCovarianceTests(unittest.TestCase):
 

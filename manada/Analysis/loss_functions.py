@@ -19,6 +19,9 @@ class BaseLoss():
 		flip_pairs ([[int,...],...]): A list of lists. Each list contains
 			the index of parameters that when flipped together return an
 			equivalent lens model.
+		weight_terms ([[int,...],...]): A list of lists. Each list contains
+			the index of a parameter and the value by which you would like
+			that parameters loss to be weighted.
 
 	Notes:
 		If multiple lists are provided, all possible combinations of
@@ -26,10 +29,18 @@ class BaseLoss():
 		then flipping 0,1,2,3 all at the same time will also be considered.
 	"""
 
-	def __init__(self, num_params, flip_pairs=None):
+	def __init__(self, num_params, flip_pairs=None, weight_terms=None):
 		# Save the flip pairs for later use
 		self.flip_pairs = flip_pairs
 		self.num_params = num_params
+		self.weight_terms = weight_terms
+
+		# Create a vector that will be used to rescale the loss
+		self.weight_vector = np.ones(num_params)
+		if weight_terms is not None:
+			for wt in self.weight_terms:
+				self.weight_vector[wt[0]] *= wt[1]
+		self.weight_vector = tf.constant(self.weight_vector,dtype=tf.float32)
 
 		# Now for each flip pair (including no flip) we will add a flip
 		# matrix to our list.
@@ -84,6 +95,9 @@ class MSELoss(BaseLoss):
 		flip_pairs ([[int,...],...]): A list of lists. Each list contains
 			the index of parameters that when flipped together return an
 			equivalent lens model.
+		weight_terms ([[int,...],...]): A list of lists. Each list contains
+			the index of a parameter and the value by which you would like
+			that parameters loss to be weighted.
 
 	Notes:
 		If multiple lists are provided, all possible combinations of
@@ -146,7 +160,7 @@ class MSELoss(BaseLoss):
 		loss_list = []
 		for flip_mat in self.flip_mat_list:
 			loss_list.append(tf.reduce_mean(tf.square(
-				tf.matmul(y_pred,flip_mat)-y_true),axis=-1))
+				tf.matmul(y_pred,flip_mat)-y_true)*self.weight_vector,axis=-1))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
 

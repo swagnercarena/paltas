@@ -59,7 +59,15 @@ def main():
 	learning_params = config_module.learning_params
 	num_params = len(learning_params)
 	# Which parameters to consider flipping
-	flip_pairs = config_module.flip_pairs
+	if hasattr(config_module,'flip_pairs'):
+		flip_pairs = config_module.flip_pairs
+	else:
+		flip_pairs = None
+	# Which parameters to weight
+	if hasattr(config_module,'weight_terms'):
+		weight_terms = config_module.weight_terms
+	else:
+		weight_terms = None
 	# A list to the paths of the fodlers containing the npy images
 	# for training
 	npy_folders_train = config_module.npy_folders_train
@@ -153,14 +161,15 @@ def main():
 	# Load the loss function
 	if loss_function == 'mse':
 		num_outputs = num_params
-		loss = loss_functions.MSELoss(num_params,flip_pairs).loss
+		loss = loss_functions.MSELoss(num_params,flip_pairs,weight_terms).loss
 	elif loss_function == 'diag':
 		num_outputs = num_params*2
 		loss = loss_functions.DiagonalCovarianceLoss(num_params,
-			flip_pairs).loss
+			flip_pairs,weight_terms).loss
 	elif loss_function == 'full':
 		num_outputs = num_params + int(num_params*(num_params+1)/2)
-		loss = loss_functions.FullCovarianceLoss(num_params,flip_pairs).loss
+		loss = loss_functions.FullCovarianceLoss(num_params,flip_pairs,
+			weight_terms).loss
 	else:
 		raise ValueError('%s loss not in the list of supported losses'%(
 			loss_function))
@@ -176,7 +185,7 @@ def main():
 
 	# Use learning rate decay for optimal learning
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.94,
+		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.985,
 		staircase=True)
 	# We'll use Adam for graident descent
 	adam = Adam(learning_rate=lr_schedule,amsgrad=False)

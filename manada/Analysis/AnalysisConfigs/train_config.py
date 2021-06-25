@@ -2,7 +2,7 @@ import os
 
 batch_size = 1024
 # The number of epochs to train for
-n_epochs = 100
+n_epochs = 200
 # The size of the images in the training set
 img_size = (64,64,1)
 # A random seed to us
@@ -18,6 +18,8 @@ learning_params = ['subhalo_parameters_sigma_sub',
 	'los_parameters_delta_los']
 # Which parameters to consider flipping
 flip_pairs = None
+# Which terms to reweight
+weight_terms = [[0,10]]
 # The path to the fodler containing the npy images
 # for training
 npy_folders_train = [
@@ -50,6 +52,6 @@ model_type = 'resnet50'
 # Where to save the model weights
 model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_full.h5'
 # The learning rate for the model
-learning_rate = 1e-4
+learning_rate = 1e-3
 # Whether or not to use random rotation of the input images
 random_rotation = True
