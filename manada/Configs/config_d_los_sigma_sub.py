@@ -4,11 +4,13 @@
 
 from manada.Sampling import distributions
 import numpy as np
-from scipy.stats import uniform, norm, lognorm
+from scipy.stats import norm, lognorm
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
-from manada.Sources.cosmos import COSMOSCatalog
+from manada.Sources.cosmos import COSMOSExcludeCatalog
+import pandas as pd
 import manada
+import os
 
 # Define a multivariate distribution we'll use
 mean = np.ones(2)
@@ -67,12 +69,14 @@ config_dict = {
 		}
 	},
 	'source':{
-		'class': COSMOSCatalog,
+		'class': COSMOSExcludeCatalog,
 		'parameters':{
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
 			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
 			'smoothing_sigma':0.08,'random_rotation':True,
-			'min_flux_radius':10.0}
+			'min_flux_radius':10.0,'source_exclusion_list':pd.read_csv(
+				os.path.join(root_path,'manada/Sources/bad_galaxies.csv'),
+				names=['catalog_i'])['catalog_i'].to_numpy()}
 	},
 	'cosmology':{
 		'parameters':{
