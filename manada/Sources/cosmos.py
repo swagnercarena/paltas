@@ -20,7 +20,7 @@ HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
 
 
 class COSMOSCatalog(GalaxyCatalog):
-	"""Interface to the COSMOS/GREAT3 23.5 magnitude catalog
+	"""	Interface to the COSMOS/GREAT3 23.5 magnitude catalog
 
 	This is the catalog used for real galaxies in galsim, see
 	https://github.com/GalSim-developers/GalSim/wiki/RealGalaxy%20Data.
@@ -95,18 +95,13 @@ class COSMOSCatalog(GalaxyCatalog):
 	def __len__(self):
 		return len(self.catalog)
 
-	def sample_indices(self,n_galaxies):
-		"""Return n_galaxies array of catalog indices to sample
-
-		Args:
-			n_galaxies (int): Number of indices to return
+	def _passes_cuts(self):
+		""" Return a boolean mask of the sources that pass the source
+		parameter cuts.
 
 		Returns:
-			(np.array): Array of ints of catalog indices to sample.
-
-		Notes:
-			The minimum apparent magnitude, minimum size in pixels, and
-			minimum redshift are all set by the source parameters dict.
+			(np.array): Array of bools of catalog indices to use for
+				sampling.
 		"""
 		is_ok = np.ones(len(self), dtype=np.bool_)
 		# Grab the parameter to cut on.
@@ -126,6 +121,23 @@ class COSMOSCatalog(GalaxyCatalog):
 			is_ok &= self.catalog['z'] < max_z
 		if min_flux_radius is not None:
 			is_ok &= self.catalog['flux_radius'] > min_flux_radius
+
+		return is_ok
+
+	def sample_indices(self,n_galaxies):
+		"""Return n_galaxies array of catalog indices to sample
+
+		Args:
+			n_galaxies (int): Number of indices to return
+
+		Returns:
+			(np.array): Array of ints of catalog indices to sample.
+
+		Notes:
+			The minimum apparent magnitude, minimum size in pixels, and
+			minimum redshift are all set by the source parameters dict.
+		"""
+		is_ok = self._passes_cuts()
 		return np.random.choice(np.where(is_ok)[0],size=n_galaxies,
 			replace=True)
 
@@ -190,6 +202,16 @@ class COSMOSCatalog(GalaxyCatalog):
 class COSMOSSersicCatalog(COSMOSCatalog):
 	"""As COSMOSCatalog, but produces the best-fit single elliptic Sersic
 	profiles instead of real galaxy images
+
+	Args:
+		folder (str): Path to the folder with the catalog files
+		cosmology_parameters (str,dict, or
+			colossus.cosmology.cosmology.Cosmology): Either a name
+			of colossus cosmology, a dict with 'cosmology name': name of
+			colossus cosmology, an instance of colussus cosmology, or a
+			dict with H0 and Om0 ( other parameters will be set to defaults).
+		source_parameters (dict): A dictionary containing all the parameters
+			needed to draw sources.
 	"""
 
 	def __init__(self, *args, **kwargs):
@@ -284,6 +306,48 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 			This will read the fits files.
 		"""
 		raise NotImplementedError
+
+
+class COSMOSExcludeCatalog(COSMOSCatalog):
+	"""	Identical to COSMOSCatalog, but allows for specific source indexes
+	to be excluded from the analysis.
+
+	Args:
+		folder (str): Path to the folder with the catalog files
+		cosmology_parameters (str,dict, or
+			colossus.cosmology.cosmology.Cosmology): Either a name
+			of colossus cosmology, a dict with 'cosmology name': name of
+			colossus cosmology, an instance of colussus cosmology, or a
+			dict with H0 and Om0 ( other parameters will be set to defaults).
+		source_parameters (dict): A dictionary containing all the parameters
+			needed to draw sources.
+	"""
+
+	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
+		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
+		'source_exclusion_list')
+
+	def __init__(self, cosmology_parameters, source_parameters):
+		super().__init__(cosmology_parameters,source_parameters)
+
+		# Check that all the required parameters are present
+		self.check_parameterization(COSMOSExcludeCatalog.required_parameters)
+
+	def _passes_cuts(self):
+		""" Return a boolean mask of the sources that pass the source
+		parameter cuts.
+
+		Returns:
+			(np.array): Array of bools of catalog indices to use for
+				sampling.
+		"""
+		is_ok = super()._passes_cuts()
+
+		# Drop any catalog indices that are in the exclusion list
+		is_ok &= np.invert(np.in1d(np.arange(len(self)),
+			self.source_parameters['source_exclusion_list']))
+
+		return is_ok
 
 
 def unfits(fn, pandas=False):

@@ -258,11 +258,10 @@ def main():
 		# Generate the list of learning parameters. Only save learning
 		# parameters with associated float values.
 		learning_params = []
-		for component in sample:
-			for key in sample[component]:
-				if (isinstance(sample[component][key],float) or
-					isinstance(sample[component][key],int)):
-					learning_params.append(component+'_'+key)
+		for key in meta_values:
+			if (isinstance(meta_values[key],float) or
+				isinstance(meta_values[key],int)):
+				learning_params.append(key)
 		# Generate the TFRecord
 		dataset_generation.generate_tf_record(args.save_folder,learning_params,
 			metadata_path,tf_record_path)
