@@ -22,7 +22,7 @@ weight_terms = None
 # for training
 npy_folders_train = [
 	'/scratch/users/swagnerc/manada/datasets/dl_ss_se/dl_ss_se_%d/'%(
-		i) for i in range(1,501)]
+		i) for i in range(1,1001)]
 # The path to the tf_record for the training images
 tfr_train_paths = [
 	os.path.join(path,'data.tfrecord') for path in npy_folders_train]
