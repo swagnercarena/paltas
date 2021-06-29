@@ -19,18 +19,19 @@ learning_params = ['subhalo_parameters_sigma_sub',
 # Which parameters to consider flipping
 flip_pairs = None
 # Which terms to reweight
-weight_terms = [[0,10]]
+weight_terms = None
 # The path to the fodler containing the npy images
 # for training
 npy_folders_train = [
-	'/scratch/users/swagnerc/manada/datasets/dl_ss/dl_ss_%d/'%(i) for i in range(
-		1,501)]
+	'/scratch/users/swagnerc/manada/datasets/dl_ss_se/dl_ss_se_%d/'%(
+		i) for i in range(1,501)]
 # The path to the tf_record for the training images
 tfr_train_paths = [
 	os.path.join(path,'data.tfrecord') for path in npy_folders_train]
 # The path to the fodler containing the npy images
 # for validation
-npy_folder_val = '/scratch/users/swagnerc/manada/datasets/dl_ss/dl_ss_val'
+npy_folder_val = ('/scratch/users/swagnerc/manada/datasets/dl_ss_se/' +
+	'dl_ss_se_val')
 # The path to the training metadata
 metadata_paths_train = [
 	os.path.join(path,'metadata.csv') for path in npy_folders_train]
@@ -46,11 +47,11 @@ kwargs_detector = {'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
 # Whether or not to normalize the images by the standard deviation
 norm_images = True
 # A string with which loss function to use.
-loss_function = 'full'
+loss_function = 'diag'
 # A string specifying which model to use
 model_type = 'resnet50'
 # Where to save the model weights
-model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_full.h5'
+model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_diag.h5'
 # The learning rate for the model
 learning_rate = 1e-3
 # Whether or not to use random rotation of the input images
