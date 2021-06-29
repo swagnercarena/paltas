@@ -7,8 +7,6 @@ n_epochs = 200
 img_size = (64,64,1)
 # A random seed to us
 random_seed = 2
-# The path to the tf_record for the validation images
-tfr_val_path = '/lscratch/swagnerc/tf_record_val'
 # The list of learning parameters to use
 learning_params = ['subhalo_parameters_sigma_sub',
 	'main_deflector_parameters_theta_E','main_deflector_parameters_gamma1',
@@ -32,6 +30,8 @@ tfr_train_paths = [
 # for validation
 npy_folder_val = ('/scratch/users/swagnerc/manada/datasets/dl_ss_se/' +
 	'dl_ss_se_val')
+# The path to the tf_record for the validation images
+tfr_val_path = os.path.join(npy_folder_val,'data.tfrecord')
 # The path to the training metadata
 metadata_paths_train = [
 	os.path.join(path,'metadata.csv') for path in npy_folders_train]
