@@ -123,7 +123,8 @@ class ProbabilityClass:
 		if predict_samps_hier_input is not None:
 			predict_samps_hier = predict_samps_hier_input
 		elif predict_samps_input is not None:
-			predict_samps_hier = np.transpose(predict_samps_input,[2,0,1])
+			predict_samps_hier = np.ascontiguousarray(np.transpose(
+				predict_samps_input,[2,0,1]))
 		else:
 			raise ValueError('Either predict_samps_input or ' +
 				'predict_samps_hier_input must be specified')

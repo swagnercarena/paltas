@@ -175,6 +175,8 @@ def main():
 			loss_function))
 
 	# Load the model
+	if model_type == 'xresnet34':
+		model = conv_models.build_xresnet34(img_size,num_outputs)
 	if model_type == 'resnet50':
 		model = conv_models.build_resnet_50(img_size,num_outputs)
 	elif model_type =='alexnet':

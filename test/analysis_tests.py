@@ -795,11 +795,38 @@ class ConvModelsTests(unittest.TestCase):
 
 		# Check shapes
 		self.assertTupleEqual((None,100,100,1),model.input_shape)
-		self.assertTupleEqual((None,100,100,1),model.input_shape)
+		self.assertTupleEqual((None,num_outputs),model.output_shape)
 		self.assertEqual(123,len(model.layers))
 
 		# Check that the model compiles
 		model.compile(loss='mean_squared_error')
+
+	def test_build_xresnet34(self):
+		# Testing every aspect of this will be tricky, so we'll just
+		# do a few sanity check
+		image_size = (64,64,1)
+		num_outputs = 8
+
+		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs)
+
+		# Check that the xresnet34 tricks have been applied
+		n_bn2 = 0
+		for weights in model.trainable_weights:
+			if 'stack' in weights.name and 'bn2/gamma' in weights.name:
+				n_bn2 += 1
+				wnp = weights.numpy()
+				np.testing.assert_array_equal(wnp,np.zeros(wnp.shape))
+		self.assertEqual(n_bn2,12)
+
+		# A few checks for the different layers
+		for layer in model.layers:
+			if 'conv' in layer.name:
+				self.assertTrue(layer.bias is None)
+			if 'dense' in layer.name:
+				self.assertFalse(layer.bias is None)
+			if 'stack4_block3_out' in layer.name:
+				self.assertListEqual(layer.output.shape.as_list(),
+					[None,2,2,512])
 
 
 class PosteriorFunctionsTests(unittest.TestCase):
