@@ -175,10 +175,10 @@ def main():
 			loss_function))
 
 	# Load the model
-	if model_type == 'xresnet34':
-		model = conv_models.build_xresnet34(img_size,num_outputs)
 	if model_type == 'resnet50':
 		model = conv_models.build_resnet_50(img_size,num_outputs)
+	elif model_type == 'xresnet34':
+		model = conv_models.build_xresnet34(img_size,num_outputs)
 	elif model_type =='alexnet':
 		model = conv_models.build_alexnet(img_size,num_outputs)
 	else:
@@ -189,7 +189,7 @@ def main():
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
 		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.985,
 		staircase=True)
-	# We'll use Adam for graident descent
+	# We'll use Adam for gradient descent
 	adam = Adam(learning_rate=lr_schedule,amsgrad=False)
 
 	# Compile our model
