@@ -61,7 +61,7 @@ def _xresnet_block(x,filters,kernel_size,strides,conv_shortcut,name):
 	return x
 
 
-def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name):
+def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name,blocks):
 	""" Build a stack of residual blocks for the xresnet model family
 
 	Args:
@@ -73,6 +73,7 @@ def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name):
 		conv_shortcut (bool): When true, will use a convolutional shortcut and
 			when false will use an identity shortcut.
 		name (str): The name for this stack
+		blocks (int): The number of blocks in this stack
 
 	Returns:
 		(KerasTensor): A Keras tensorflow tensor representing the input after
@@ -82,10 +83,9 @@ def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name):
 	# Apply each residual block
 	x = _xresnet_block(x,filters,kernel_size,strides,
 		conv_shortcut=conv_shortcut,name=name+'_block1')
-	x = _xresnet_block(x,filters,kernel_size,1,conv_shortcut=False,
-		name=name+'_block2')
-	x = _xresnet_block(x,filters,kernel_size,1,conv_shortcut=False,
-		name=name+'_block3')
+	for i in range(2,blocks+1):
+		x = _xresnet_block(x,filters,kernel_size,1,conv_shortcut=False,
+			name=name+'_block%d'%(i))
 
 	return x
 
@@ -138,13 +138,13 @@ def build_xresnet34(img_size,num_outputs):
 
 	# # Now we apply the residual stacks
 	x = _xresnet_stack(x,filters=64,kernel_size=3,strides=1,
-		conv_shortcut=False,name='stack1')
+		conv_shortcut=False,name='stack1',blocks=3)
 	x = _xresnet_stack(x,filters=128,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack2')
+		conv_shortcut=True,name='stack2',blocks=4)
 	x = _xresnet_stack(x,filters=256,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack3')
+		conv_shortcut=True,name='stack3',blocks=6)
 	x = _xresnet_stack(x,filters=512,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack4')
+		conv_shortcut=True,name='stack4',blocks=3)
 
 	# Conduct the pooling and a dense transform to the final prediction
 	x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
