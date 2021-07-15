@@ -49,9 +49,9 @@ norm_images = True
 # A string with which loss function to use.
 loss_function = 'diag'
 # A string specifying which model to use
-model_type = 'resnet50'
+model_type = 'xresnet34'
 # Where to save the model weights
-model_weights = '/scratch/users/swagnerc/manada/model_weights/resnet50_diag.h5'
+model_weights = '/scratch/users/swagnerc/manada/model_weights/xresnet34_diag.h5'
 # The learning rate for the model
 learning_rate = 1e-3
 # Whether or not to use random rotation of the input images
