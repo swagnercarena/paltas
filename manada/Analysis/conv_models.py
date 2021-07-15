@@ -29,7 +29,7 @@ def _xresnet_block(x,filters,kernel_size,strides,conv_shortcut,name):
 			the block has been applied
 	"""
 	# First axis is assumed to be the batch
-	bn_axis = 1
+	bn_axis = -1
 
 	# Use the ResnetD variant for the shortcut
 	shortcut = x
@@ -105,7 +105,7 @@ def build_xresnet34(img_size,num_outputs):
 	"""
 
 	# Assume the first dimension is the batch size
-	bn_axis = 1
+	bn_axis = -1
 
 	# Initialize the inputs
 	inputs = layers.Input(shape=img_size)
