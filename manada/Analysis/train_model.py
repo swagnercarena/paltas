@@ -8,7 +8,7 @@ from importlib import import_module
 import tensorflow as tf
 from manada.Analysis import dataset_generation, loss_functions, conv_models
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import optimizers
 import pandas as pd
 
 
@@ -96,6 +96,8 @@ def main():
 	loss_function = config_module.loss_function
 	# A string specifying which model to use
 	model_type = config_module.model_type
+	# A string specifying which optimizer to use
+	optimizer_string = config_module.optimizer
 	# Where to save the model weights
 	model_weights = config_module.model_weights
 	# The learning rate for the model
@@ -187,13 +189,14 @@ def main():
 
 	# Use learning rate decay for optimal learning
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.95,
+		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.97,
 		staircase=True)
-	# We'll use Adam for gradient descent
-	adam = Adam(learning_rate=lr_schedule,amsgrad=False)
+
+	# Use the desired optimizer
+	opt = getattr(optimizers,optimizer_string)(learning_rate=lr_schedule)
 
 	# Compile our model
-	model.compile(loss=loss,optimizer=adam,metrics=[loss])
+	model.compile(loss=loss,optimizer=opt,metrics=[loss])
 
 	print('Is model built: ' + str(model.built))
 
