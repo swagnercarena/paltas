@@ -51,9 +51,10 @@ loss_function = 'diag'
 # A string specifying which model to use
 model_type = 'xresnet34'
 # A string specifying which optimizer to use
-optimizer = 'Nadam'
+optimizer = 'Adam'
 # Where to save the model weights
-model_weights = '/scratch/users/swagnerc/manada/model_weights/xresnet34_diag.h5'
+model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
+	'xresnet34_diag.h5')
 # The learning rate for the model
 learning_rate = 1e-3
 # Whether or not to use random rotation of the input images
