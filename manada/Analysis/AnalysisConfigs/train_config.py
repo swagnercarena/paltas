@@ -54,8 +54,8 @@ model_type = 'xresnet34'
 optimizer = 'Adam'
 # Where to save the model weights
 model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
-	'xresnet34_diag.h5')
+	'xresnet34_diag_lrh.h5')
 # The learning rate for the model
-learning_rate = 1e-3
+learning_rate = 5e-3
 # Whether or not to use random rotation of the input images
 random_rotation = True
