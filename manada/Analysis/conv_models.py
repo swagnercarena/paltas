@@ -90,7 +90,7 @@ def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name,blocks):
 	return x
 
 
-def build_xresnet34(img_size,num_outputs):
+def build_xresnet34(img_size,num_outputs,custom_head=False):
 	""" Build the xresnet34 model described in
 	https://arxiv.org/pdf/1812.01187.pdf
 
@@ -98,6 +98,8 @@ def build_xresnet34(img_size,num_outputs):
 		img_size ((int,int,int)): A tuple with shape (pix,pix,freq) that
 			describes the size of the input images.
 		num_outputs (int): The number of outputs to predict
+		custom_head (bool): If true, then add a custom head at the end of
+			xresnet34 in line with what' used in the fastai code.
 
 	Returns:
 		(keras.Model): An instance of the xresnet34 model implemented in
@@ -148,7 +150,18 @@ def build_xresnet34(img_size,num_outputs):
 
 	# Conduct the pooling and a dense transform to the final prediction
 	x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
-	outputs = layers.Dense(num_outputs,name='output_dense')(x)
+	if custom_head:
+		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+			name='head_bn1')(x)
+		x = layers.Dense(512,use_bias=False,name='head_dense1')(x)
+		x = layers.Activation('relu',name='head_relu1')(x)
+		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+			name='head_bn2')(x)
+		x = layers.Dense(num_outputs,use_bias=False,name='head_dense2')(x)
+		outputs = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,
+			momentum=0.1,name='head_bn3')(x)
+	else:
+		outputs = layers.Dense(num_outputs,name='output_dense')(x)
 
 	model = Model(inputs=inputs,outputs=outputs)
 

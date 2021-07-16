@@ -816,7 +816,7 @@ class ConvModelsTests(unittest.TestCase):
 				n_bn2 += 1
 				wnp = weights.numpy()
 				np.testing.assert_array_equal(wnp,np.zeros(wnp.shape))
-		self.assertEqual(n_bn2,12)
+		self.assertEqual(n_bn2,16)
 
 		# A few checks for the different layers
 		for layer in model.layers:
@@ -827,6 +827,21 @@ class ConvModelsTests(unittest.TestCase):
 			if 'stack4_block3_out' in layer.name:
 				self.assertListEqual(layer.output.shape.as_list(),
 					[None,2,2,512])
+		self.assertTupleEqual((None,num_outputs),model.output_shape)
+
+		# Check that adding the custom head used in fastai doesn't cause
+		# any major issues.
+		model_fa = Analysis.conv_models.build_xresnet34(image_size,num_outputs,
+			custom_head=True)
+
+		# Check some of the individual layers again.
+		for layer in model_fa.layers:
+			if 'conv' in layer.name:
+				self.assertTrue(layer.bias is None)
+			if 'dense' in layer.name:
+				self.assertTrue(layer.bias is None)
+		self.assertEqual(len(model_fa.layers)-len(model.layers),5)
+		self.assertTupleEqual((None,num_outputs),model_fa.output_shape)
 
 
 class PosteriorFunctionsTests(unittest.TestCase):
