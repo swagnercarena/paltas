@@ -131,8 +131,8 @@ def main():
 	if input_norm_path is not None:
 		print('Checking for normalization csv')
 		metadata = pd.read_csv(metadata_paths_train[0])
-		dataset_generation.normalize_inputs(metadata,learning_params,
-			input_norm_path)
+		dataset_generation.normalize_outputs(metadata,learning_params,
+			input_norm_path,)
 
 	# If no random rotations are required, the best tool is a tf dataset.
 	# Otherwise, it's better to take the output of the tf dataset and then

@@ -17,7 +17,8 @@ import warnings
 from scipy.ndimage import rotate
 
 
-def normalize_inputs(metadata,learning_params,input_norm_path):
+def normalize_outputs(metadata,learning_params,input_norm_path,
+	log_learning_params=None):
 	""" Normalize the inputs to the metadata
 
 	Args:
@@ -28,6 +29,9 @@ def normalize_inputs(metadata,learning_params,input_norm_path):
 			normalization to be applied to the output parameters. If the
 			file already exists it will be read, if no file exists it will
 			be written.
+		log_learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn the log of. Can
+			be None.
 
 	Returns:
 		(pd.DataFrame): A pandas dataframe with the the mean and standard
@@ -40,14 +44,30 @@ def normalize_inputs(metadata,learning_params,input_norm_path):
 		if not all(elem in norm_dict.index for elem in learning_params):
 			raise ValueError('Not all of the learning parameters are ' +
 				'present in the input normalization dictionary.')
+		if log_learning_params is not None:
+			if not all(elem in norm_dict.index for elem in log_learning_params):
+				raise ValueError('Not all of the log learning parameters are ' +
+					'present in the input normalization dictionary.')
 	else:
 		print('Writing input normalization to %s'%(input_norm_path))
 		norm_dict = pd.DataFrame(columns=['parameter','mean','std'])
 		norm_dict['parameter'] = learning_params
+
 		# Calculate the normalization for each parameter
 		data = metadata[learning_params].to_numpy()
 		norm_dict['mean'] = np.mean(data,axis=0)
 		norm_dict['std'] = np.std(data,axis=0)
+
+		# Append a dictionary of the log parameters if provided.
+		if log_learning_params is not None:
+			log_norm_dict = pd.DataFrame(columns=['parameter','mean','std'])
+			log_norm_dict['parameter'] = log_learning_params
+			# Calculate the normalization for each parameter
+			log_data = metadata[log_learning_params].to_numpy()
+			log_norm_dict['mean'] = np.mean(np.log(log_data),axis=0)
+			log_norm_dict['std'] = np.std(np.log(log_data),axis=0)
+			norm_dict = norm_dict.append(log_norm_dict)
+
 		# Set parameter to the index
 		norm_dict = norm_dict.set_index('parameter')
 		norm_dict.to_csv(input_norm_path)
@@ -177,7 +197,8 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 
 
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
-	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None):
+	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
+	log_learning_params=None):
 	"""	Generate a TFDataset that a model can be trained with.
 
 	Args:
@@ -196,6 +217,9 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		kwargs_detector (dict): A dictionary containing the detector kwargs
 			used to generate the noise on the fly. If None no additional
 			noise will be added.
+		log_learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn the log of. Can
+			be None.
 
 	Notes:
 		Do not use kwargs_detector if noise was already added during dataset
@@ -225,7 +249,13 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 			'width': tf.io.FixedLenFeature([],tf.int64),
 			'index': tf.io.FixedLenFeature([],tf.int64),
 		}
-		for param in learning_params:
+		# Set the log learning params to an empy list if no value is provided.
+		if log_learning_params is None:
+			log_learning_params_list = []
+		else:
+			log_learning_params_list = log_learning_params
+
+		for param in learning_params+log_learning_params_list:
 			data_features[param] = tf.io.FixedLenFeature([],tf.float32)
 		parsed_dataset = tf.io.parse_single_example(example,data_features)
 		image = tf.io.decode_raw(parsed_dataset['image'],out_type=float)
@@ -240,14 +270,18 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		if norm_images:
 			image = image / tf.math.reduce_std(image)
 
+		# Log the parameter if needed
+		for param in log_learning_params_list:
+			parsed_dataset[param] = tf.math.log(parsed_dataset[param])
+
 		# Normalize if requested
 		if norm_dict is not None:
-			for param in learning_params:
+			for param in learning_params+log_learning_params_list:
 				parsed_dataset[param] -= norm_dict['mean'][param]
 				parsed_dataset[param] /= norm_dict['std'][param]
 
 		lens_param_values = tf.stack([parsed_dataset[param] for param in
-			learning_params])
+			learning_params+log_learning_params_list])
 		return image,lens_param_values
 
 	# Select the buffer size to be slightly larger than the batch
@@ -317,7 +351,8 @@ def rotate_image_batch(image_batch,learning_params,output):
 
 
 def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
-	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None):
+	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
+	log_learning_params=None):
 	"""	Returns a generator that builds off of a TFDataset by adding random
 	rotations to the images and parameters.
 
@@ -337,17 +372,24 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 		kwargs_detector (dict): A dictionary containing the detector kwargs
 			used to generate the noise on the fly. If None no additional
 			noise will be added.
+		log_learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn the log of. Can
+			be None.
 	"""
 	# Create our base tf dataset without normalization
 	base_dataset = generate_tf_dataset(tf_record_path,learning_params,
 		batch_size,n_epochs,norm_images=norm_images,
-		kwargs_detector=kwargs_detector)
+		kwargs_detector=kwargs_detector,log_learning_params=log_learning_params)
 
 	# If normalization file is provided use it
 	if input_norm_path is not None:
 		norm_dict = pd.read_csv(input_norm_path,index_col='parameter')
 	else:
 		norm_dict = None
+
+	# If there are no log_learning_params, set it to an empty list
+	if log_learning_params is None:
+		log_learning_params = []
 
 	def rotation_generator(dataset):
 		# Iterate through the images and parameters in the dataset
@@ -358,7 +400,7 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 			image_batch = rotate_image_batch(image_batch,learning_params,
 				lens_param_batch)
 			if norm_dict is not None:
-				for lpi, param in enumerate(learning_params):
+				for lpi, param in enumerate(learning_params+log_learning_params):
 					lens_param_batch[:,lpi] -= norm_dict['mean'][param]
 					lens_param_batch[:,lpi] /= norm_dict['std'][param]
 			# Yield the rotated image and parameters
