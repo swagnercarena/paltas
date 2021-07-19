@@ -64,7 +64,7 @@ class DatasetGenerationTests(unittest.TestCase):
 		# Ensure the total number of files is correct
 		self.assertEqual(npy_counts,num_npy)
 
-	def test_normalize_inputs(self):
+	def test_normalize_outputs(self):
 		# Test that normalizing inputs works as expected. First normalize
 		# the metadata and make sure it agrees with hand computed values.
 		metadata = pd.read_csv(self.fake_test_folder + 'metadata.csv')
@@ -72,7 +72,7 @@ class DatasetGenerationTests(unittest.TestCase):
 			'los_parameters_delta_los','main_deflector_parameters_theta_E',
 			'subhalo_parameters_conc_beta']
 		input_norm_path = self.fake_test_folder + 'norms.csv'
-		norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+		norm_dict = Analysis.dataset_generation.normalize_outputs(metadata,
 			learning_params,input_norm_path)
 
 		# Check that the norms agree with what we would expect
@@ -82,7 +82,7 @@ class DatasetGenerationTests(unittest.TestCase):
 
 		# Change the metadata, but make sure the previous value is returned
 		metadata['subhalo_parameters_conc_beta'] *= 2
-		norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+		norm_dict = Analysis.dataset_generation.normalize_outputs(metadata,
 			learning_params,input_norm_path)
 		for lp in ['subhalo_parameters_sigma_sub','los_parameters_delta_los',
 			'main_deflector_parameters_theta_E']:
@@ -97,8 +97,28 @@ class DatasetGenerationTests(unittest.TestCase):
 			learning_params = ['subhalo_parameters_sigma_sub',
 			'los_parameters_delta_los','main_deflector_parameters_theta_E',
 			'subhalo_parameters_conc_beta','not_there']
-			norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+			norm_dict = Analysis.dataset_generation.normalize_outputs(metadata,
 				learning_params,input_norm_path)
+
+		# Check that setting some parameters to the log works as well
+		os.remove(input_norm_path)
+		learning_params = ['los_parameters_delta_los',
+			'main_deflector_parameters_theta_E','subhalo_parameters_conc_beta']
+		log_learning_params = ['subhalo_parameters_sigma_sub']
+		norm_dict = Analysis.dataset_generation.normalize_outputs(metadata,
+				learning_params,input_norm_path,
+				log_learning_params=log_learning_params)
+		# Check that the norms agree with what we would expect
+		for lp in learning_params:
+			self.assertAlmostEqual(np.mean(metadata[lp]),norm_dict['mean'][lp])
+			self.assertAlmostEqual(np.std(metadata[lp]),norm_dict['std'][lp])
+		# Check that the log norms agree with what we would expect
+		for lp in log_learning_params:
+			print(lp)
+			self.assertAlmostEqual(np.mean(np.log(metadata[lp])),
+				norm_dict['mean'][lp])
+			self.assertAlmostEqual(np.std(np.log(metadata[lp])),
+				norm_dict['std'][lp])
 
 		# Get rid of the file we made
 		os.remove(input_norm_path)
@@ -110,7 +130,7 @@ class DatasetGenerationTests(unittest.TestCase):
 			'los_parameters_delta_los']
 		metadata = pd.read_csv(self.fake_test_folder + 'metadata.csv')
 		input_norm_path = self.fake_test_folder + 'norms.csv'
-		norm_dict = Analysis.dataset_generation.normalize_inputs(metadata,
+		norm_dict = Analysis.dataset_generation.normalize_outputs(metadata,
 			learning_params,input_norm_path)
 
 		mean = np.array([[1,2]]*2,dtype=np.float)
@@ -282,7 +302,7 @@ class DatasetGenerationTests(unittest.TestCase):
 		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
 			learning_params,metadata_path,tf_record_path)
 		metadata = pd.read_csv(metadata_path)
-		_ = Analysis.dataset_generation.normalize_inputs(metadata,
+		_ = Analysis.dataset_generation.normalize_outputs(metadata,
 			learning_params,input_norm_path)
 
 		# Try batch size 10
@@ -374,7 +394,49 @@ class DatasetGenerationTests(unittest.TestCase):
 		os.remove(tf_record_path)
 		os.remove(second_tf_record)
 
-	def generate_rotations_dataset(self):
+	def test_generate_tf_dataset_log(self):
+		# Test that build_tf_dataset has the correct batching behaviour and
+		# returns the same data contained in the npy files and csv.
+		num_npy = len(glob.glob(self.fake_test_folder+'image_*.npy'))
+
+		learning_params = ['los_parameters_delta_los',
+			'main_deflector_parameters_theta_E',
+			'main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
+		log_learning_params = ['subhalo_parameters_sigma_sub']
+		metadata_path = self.fake_test_folder + 'metadata.csv'
+		tf_record_path = self.fake_test_folder + 'tf_record_test'
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
+			learning_params+log_learning_params,metadata_path,tf_record_path)
+		metadata = pd.read_csv(metadata_path)
+		_ = Analysis.dataset_generation.normalize_outputs(metadata,
+			learning_params,input_norm_path,
+			log_learning_params=log_learning_params)
+
+		# Try batch size 10
+		batch_size = 10
+		n_epochs = 1
+		norm_images = True
+		dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,learning_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=None,
+			log_learning_params=log_learning_params)
+		npy_counts = 0
+		for batch in dataset:
+			self.assertListEqual(batch[0].get_shape().as_list(),
+				[batch_size,64,64,1])
+			self.assertListEqual(batch[1].get_shape().as_list(),
+				[batch_size,5])
+			self.assertEqual(np.sum(batch[1].numpy()[:,-1]<0),10)
+			npy_counts += batch_size
+		self.assertEqual(npy_counts,num_npy*n_epochs)
+
+		# Clean up the file now that we're done
+		os.remove(input_norm_path)
+		os.remove(tf_record_path)
+
+	def test_generate_rotations_dataset(self):
 		# Test that the rotations dataset works, and that it returns
 		# images that are rotated when compared to the raw dataset
 		num_npy = len(glob.glob(self.fake_test_folder+'image_*.npy'))
@@ -388,7 +450,7 @@ class DatasetGenerationTests(unittest.TestCase):
 		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
 			learning_params,metadata_path,tf_record_path)
 		metadata = pd.read_csv(metadata_path)
-		_ = Analysis.dataset_generation.normalize_inputs(metadata,
+		_ = Analysis.dataset_generation.normalize_outputs(metadata,
 			learning_params,input_norm_path)
 		batch_size = 10
 		n_epochs = 1
@@ -435,11 +497,44 @@ class DatasetGenerationTests(unittest.TestCase):
 			np.testing.assert_almost_equal(outputs[:,3]**2+outputs[:,4]**2,
 				rotated_outputs[:,3]**2+rotated_outputs[:,4]**2)
 
-			# Assert that does that should have changed have
+			# Assert that those that should have changed have
 			np.testing.assert_array_less(np.zeros(len(outputs)),
 				np.abs(outputs[:,3]-rotated_outputs[:,3]))
 			np.testing.assert_array_less(np.zeros(images.shape),
 				np.abs(images-rotated_images))
+
+		# Just make sure that when we pass the log of the parameters in
+		# things behave as expected
+		learning_params = ['los_parameters_delta_los',
+			'main_deflector_parameters_theta_E',
+			'main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
+		log_learning_params = ['subhalo_parameters_sigma_sub']
+		log_dataset = (
+			Analysis.dataset_generation.generate_rotations_dataset(
+				tf_record_path,learning_params,batch_size,n_epochs,
+				norm_images=norm_images,kwargs_detector=None,
+				log_learning_params=log_learning_params))
+		for batch in dataset:
+			log_batch = next(log_dataset)
+			log_images = log_batch[0]
+			log_outputs = log_batch[1]
+			images = batch[0].numpy()
+			outputs = batch[1].numpy()
+
+			# Sort both outputs to be able to compare them
+			log_images = log_images[np.argsort(
+				log_outputs[:,-1])]
+			log_outputs = log_outputs[np.argsort(
+				log_outputs[:,-1])]
+			images = images[np.argsort(outputs[:,0])]
+			outputs = outputs[np.argsort(outputs[:,0])]
+
+			# Assert parameters that should have changed haven't
+			np.testing.assert_almost_equal(np.log(outputs[:,0]),
+				log_outputs[:,-1])
+			np.testing.assert_almost_equal(outputs[:,3]**2+outputs[:,4]**2,
+				log_outputs[:,2]**2+log_outputs[:,3]**2)
 
 		# Clean up the file now that we're done
 		os.remove(input_norm_path)
