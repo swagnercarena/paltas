@@ -48,14 +48,14 @@ kwargs_detector = {'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
 # Whether or not to normalize the images by the standard deviation
 norm_images = True
 # A string with which loss function to use.
-loss_function = 'diag'
+loss_function = 'full'
 # A string specifying which model to use
 model_type = 'xresnet34'
 # A string specifying which optimizer to use
 optimizer = 'Adam'
 # Where to save the model weights
 model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
-	'xresnet34_diag_fix_lrvh.h5')
+	'xresnet34_full_log.h5')
 # The learning rate for the model
 learning_rate = 5e-3
 # Whether or not to use random rotation of the input images
