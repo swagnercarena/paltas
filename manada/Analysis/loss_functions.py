@@ -276,8 +276,9 @@ class FullCovarianceLoss(BaseLoss):
 		flips will be considered. For example, if flip_pairs is [[0,1],[2,3]]
 		then flipping 0,1,2,3 all at the same time will also be considered.
 	"""
-	def __init__(self, num_params, flip_pairs=None):
-		super().__init__(num_params,flip_pairs=flip_pairs)
+	def __init__(self, num_params, flip_pairs=None, weight_terms=None):
+		super().__init__(num_params,flip_pairs=flip_pairs,
+			weight_terms=weight_terms)
 
 		# Calculate the split list for lower traingular matrix
 		self.split_list = []
