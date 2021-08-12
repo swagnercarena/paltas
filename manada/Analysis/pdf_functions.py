@@ -70,7 +70,7 @@ def eval_lognormal_logpdf_approx(eval_at, mu, sigma, lower=0, upper=np.inf):
     eval_shape = eval_at.shape
     eval_at = eval_at.reshape(-1)
     eval_normed_logpdf=eval_normed_logpdf.reshape(-1)
-    if lower > -np.inf and upper < np.inf:
+    if lower > 0 and upper < np.inf:
         for e_i in range(len(eval_at)):
             if eval_at[e_i] < lower:
                 eval_normed_logpdf[e_i] -= 1000
