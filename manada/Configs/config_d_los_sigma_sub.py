@@ -74,9 +74,13 @@ config_dict = {
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
 			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
 			'smoothing_sigma':0.08,'random_rotation':True,
-			'min_flux_radius':10.0,'source_exclusion_list':pd.read_csv(
-				os.path.join(root_path,'manada/Sources/bad_galaxies.csv'),
-				names=['catalog_i'])['catalog_i'].to_numpy()}
+			'min_flux_radius':10.0,'source_exclusion_list':np.append(
+				pd.read_csv(
+					os.path.join(root_path,'manada/Sources/bad_galaxies.csv'),
+					names=['catalog_i'])['catalog_i'].to_numpy(),
+				pd.read_csv(
+					os.path.join(root_path,'manada/Sources/val_galaxies.csv'),
+					names=['catalog_i'])['catalog_i'].to_numpy())}
 	},
 	'cosmology':{
 		'parameters':{
