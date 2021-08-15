@@ -42,9 +42,6 @@ class COSMOSCatalog(GalaxyCatalog):
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
 
-		# Check that all the required parameters are present
-		self.check_parameterization(COSMOSCatalog.required_parameters)
-
 		# Store the path as a Path object.
 		self.folder = Path(source_parameters['cosmos_folder'])
 
@@ -330,9 +327,6 @@ class COSMOSExcludeCatalog(COSMOSCatalog):
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
 
-		# Check that all the required parameters are present
-		self.check_parameterization(COSMOSExcludeCatalog.required_parameters)
-
 	def _passes_cuts(self):
 		""" Return a boolean mask of the sources that pass the source
 		parameter cuts.
@@ -346,6 +340,45 @@ class COSMOSExcludeCatalog(COSMOSCatalog):
 		# Drop any catalog indices that are in the exclusion list
 		is_ok &= np.invert(np.in1d(np.arange(len(self)),
 			self.source_parameters['source_exclusion_list']))
+
+		return is_ok
+
+
+class COSMOSIncludeCatalog(COSMOSCatalog):
+	"""	Identical to COSMOSExcludeCatalog, but only allows for specific source
+	indexes to be included for the analysis.
+
+	Args:
+		folder (str): Path to the folder with the catalog files
+		cosmology_parameters (str,dict, or
+			colossus.cosmology.cosmology.Cosmology): Either a name
+			of colossus cosmology, a dict with 'cosmology name': name of
+			colossus cosmology, an instance of colussus cosmology, or a
+			dict with H0 and Om0 ( other parameters will be set to defaults).
+		source_parameters (dict): A dictionary containing all the parameters
+			needed to draw sources.
+	"""
+
+	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
+		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
+		'source_inclusion_list')
+
+	def __init__(self, cosmology_parameters, source_parameters):
+		super().__init__(cosmology_parameters,source_parameters)
+
+	def _passes_cuts(self):
+		""" Return a boolean mask of the sources that pass the source
+		parameter cuts.
+
+		Returns:
+			(np.array): Array of bools of catalog indices to use for
+				sampling.
+		"""
+		is_ok = super()._passes_cuts()
+
+		# Drop any catalog indices that are in the exclusion list
+		is_ok &= np.in1d(np.arange(len(self)),
+			self.source_parameters['source_inclusion_list'])
 
 		return is_ok
 

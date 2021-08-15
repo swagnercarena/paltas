@@ -5,7 +5,7 @@ from manada.Sources.source_base import SourceBase
 from manada.Sources.sersic import SingleSersicSource
 from manada.Sources.galaxy_catalog import GalaxyCatalog
 from manada.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
-from manada.Sources.cosmos import COSMOSExcludeCatalog
+from manada.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
 from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
 from manada.Utils.cosmology_utils import get_cosmology
 from lenstronomy.LensModel.lens_model import LensModel
@@ -299,7 +299,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 		results = np.array([
 			self.c.fill_catalog_i_phi_defaults()
 			for _ in range(100)])
-		print('unique',np.unique(results[:, 0]))
+
 		self.assertGreater(
 			len(np.unique(results[:, 0])),
 			# Catalog may be << 100 items (indeed, just 10 for this test)
@@ -492,6 +492,51 @@ class COSMOSExcludeCatalogTests(COSMOSCatalogTests):
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		np.testing.assert_equal(np.unique(samples),[0,7])
+
+		# Test the minimum flux radius
+		new_sp['min_flux_radius'] = 20
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
+		np.testing.assert_equal(np.unique(samples),[0])
+
+
+class COSMOSIncludeCatalogTests(COSMOSCatalogTests):
+
+	def setUp(self):
+		super().setUp()
+		self.source_parameters['source_inclusion_list'] = [9,0,1,2,3,4]
+		self.c = COSMOSIncludeCatalog(cosmology_parameters='planck18',
+			source_parameters=self.source_parameters)
+
+	def test_sample_indices(self):
+		# Test the sampled indices respect the restriction we pass.
+		# Sample alot to make sure we get the full range.
+		n_galaxies = int(1e4)
+		samples = self.c.sample_indices(n_galaxies)
+		self.assertEqual(np.min(samples),0)
+		self.assertEqual(np.max(samples),9)
+
+		# Repeat the test with some cuts on apparent magnitude.
+		# Only the first two entries meet this requirement
+		new_sp = copy.deepcopy(self.source_parameters)
+		new_sp['min_apparent_mag'] = 22
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
+		self.assertEqual(np.min(samples),0)
+		self.assertEqual(np.max(samples),1)
+
+		# Now do the same but with a size cut
+		new_sp['min_apparent_mag'] = 22.5
+		new_sp['minimum_size_in_pixels'] = 90
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
+		np.testing.assert_equal(np.unique(samples),[0,1,3])
+
+		# Test the redshift
+		new_sp['max_z'] = 0.5
+		self.c.update_parameters(source_parameters=new_sp)
+		samples = self.c.sample_indices(n_galaxies)
+		np.testing.assert_equal(np.unique(samples),[0])
 
 		# Test the minimum flux radius
 		new_sp['min_flux_radius'] = 20
