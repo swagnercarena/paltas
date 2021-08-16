@@ -22,15 +22,15 @@ weight_terms = None
 # The path to the fodler containing the npy images
 # for training
 npy_folders_train = [
-	'/scratch/users/swagnerc/manada/datasets/amp_slope/amp_slope_%d/'%(
+	'/scratch/users/swagnerc/manada/datasets/as_pm/as_pm_%d/'%(
 		i) for i in range(1,1001)]
 # The path to the tf_record for the training images
 tfr_train_paths = [
 	os.path.join(path,'data.tfrecord') for path in npy_folders_train]
 # The path to the fodler containing the npy images
 # for validation
-npy_folder_val = ('/scratch/users/swagnerc/manada/datasets/amp_slope/' +
-	'amp_slope_val')
+npy_folder_val = ('/scratch/users/swagnerc/manada/datasets/as_pm/' +
+	'as_pm_val')
 # The path to the tf_record for the validation images
 tfr_val_path = os.path.join(npy_folder_val,'data.tfrecord')
 # The path to the training metadata
@@ -55,7 +55,7 @@ model_type = 'xresnet34'
 optimizer = 'Adam'
 # Where to save the model weights
 model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
-	'xresnet34_full_as.h5')
+	'xresnet34_full_as_pm.h5')
 # The learning rate for the model
 learning_rate = 5e-3
 # Whether or not to use random rotation of the input images
