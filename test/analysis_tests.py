@@ -270,8 +270,9 @@ class DatasetGenerationTests(unittest.TestCase):
 			kwargs_spemd['center_y'],kwargs_spemd['e1'],kwargs_spemd['e2'],
 			kwargs_shear['gamma1'],kwargs_shear['gamma2']]).reshape((1,6))
 
+		rot_angle = np.random.uniform()*2*np.pi
 		image = Analysis.dataset_generation.rotate_image_batch(image,
-			learning_params,output)
+			learning_params,output,rot_angle)
 
 		# Now confirm that updating the parameters to these values returns what
 		# we want

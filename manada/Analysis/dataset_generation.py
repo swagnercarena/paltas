@@ -221,6 +221,10 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 			parameters that the network is expected to learn the log of. Can
 			be None.
 
+	Returns:
+		(tf.Dataset): A tf.Dataset object that returns the input image and the
+			output labels.
+
 	Notes:
 		Do not use kwargs_detector if noise was already added during dataset
 		generation.
@@ -297,31 +301,21 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	return dataset
 
 
-def rotate_image_batch(image_batch,learning_params,output):
-	""" Rotate a batch of strong lensing images and the corresponding lensing
-	parameters
+def rotate_params_batch(learning_params,output,rot_angle):
+	""" Rotate a batch of lensing parameters according to a specified rotation
+		angle.
 
 	Args:
-		image_batch (np.array): A numpy image array of shape (batch_size,
-			height,width,n_channels) that will be rotated.
 		learning_params ([str,...]): A list of strings containing the
 			parameters that the network is expected to learn.
 		output (np.array): A numpy array of dimension (batch_size,n_outputs)
 			containing the true parameter values for each image in the batch.
 			Note that n_outputs should be the same as len(learning_params).
-
-	Returns:
-		(np.array): A numpy array containing the rotated images.
+		rot_angle (float): The angle to rotate the image by.
 
 	Notes:
-		output is changed in place.
+		output is modified in place.
 	"""
-	# Pick a rotation angle
-	rot_angle = np.random.uniform()*2*np.pi
-
-	# Rotate the image
-	image_batch = rotate(image_batch,-rot_angle*180/np.pi,reshape=False,
-		axes=(2,1))
 
 	# Alter the parameters. Hardcoded for now.
 	def rotate_param(x,y,theta):
@@ -346,6 +340,34 @@ def rotate_image_batch(image_batch,learning_params,output):
 		x,y = rotate_param(output[:,xi],output[:,yi],2*rot_angle)
 		output[:,xi] = x
 		output[:,yi] = y
+
+
+def rotate_image_batch(image_batch,learning_params,output,rot_angle):
+	""" Rotate a batch of strong lensing images and the corresponding lensing
+	parameters
+
+	Args:
+		image_batch (np.array): A numpy image array of shape (batch_size,
+			height,width,n_channels) that will be rotated.
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn.
+		output (np.array): A numpy array of dimension (batch_size,n_outputs)
+			containing the true parameter values for each image in the batch.
+			Note that n_outputs should be the same as len(learning_params).
+		rot_angle (float): The angle to rotate the image by.
+
+	Returns:
+		(np.array): A numpy array containing the rotated images.
+
+	Notes:
+		output is changed in place.
+	"""
+
+	# Rotate the image
+	image_batch = rotate(image_batch,-rot_angle*180/np.pi,reshape=False,
+		axes=(2,1))
+
+	rotate_params_batch(learning_params,output,rot_angle)
 
 	return image_batch
 
@@ -375,6 +397,10 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 		log_learning_params ([str,...]): A list of strings containing the
 			parameters that the network is expected to learn the log of. Can
 			be None.
+
+	Returns:
+		(generator): A generator that returns a tuple with the rotated image
+			and the parameter values.
 	"""
 	# Create our base tf dataset without normalization
 	base_dataset = generate_tf_dataset(tf_record_path,learning_params,
@@ -396,9 +422,11 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 		for image_batch, lens_param_batch in dataset:
 			image_batch = image_batch.numpy()
 			lens_param_batch = lens_param_batch.numpy()
+			# Pick a rotation angle
+			rot_angle = np.random.uniform()*2*np.pi
 			# Conduct the rotation
-			image_batch = rotate_image_batch(image_batch,learning_params,
-				lens_param_batch)
+			image_batch = rotate_image_batch(image_batch,
+				learning_params+log_learning_params,lens_param_batch,rot_angle)
 			if norm_dict is not None:
 				for lpi, param in enumerate(learning_params+log_learning_params):
 					lens_param_batch[:,lpi] -= norm_dict['mean'][param]
