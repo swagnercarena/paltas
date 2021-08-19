@@ -34,7 +34,7 @@ config_dict = {
 	'subhalo':{
 		'class': SubhalosDG19,
 		'parameters':{
-			'sigma_sub':lognorm(scale=2e-3,s=1.0).rvs,
+			'sigma_sub':lognorm(scale=2e-3,s=0.5).rvs,
 			'shmf_plaw_index':-1.83,
 			'm_pivot': 1e10,'m_min': 1e7,'m_max': 1e10,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
