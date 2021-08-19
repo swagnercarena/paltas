@@ -311,7 +311,7 @@ def rotate_params_batch(learning_params,output,rot_angle):
 		output (np.array): A numpy array of dimension (batch_size,n_outputs)
 			containing the true parameter values for each image in the batch.
 			Note that n_outputs should be the same as len(learning_params).
-		rot_angle (float): The angle to rotate the image by.
+		rot_angle (float): The angle to rotate the image by in radians.
 
 	Notes:
 		output is modified in place.
@@ -354,7 +354,7 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 		output (np.array): A numpy array of dimension (batch_size,n_outputs)
 			containing the true parameter values for each image in the batch.
 			Note that n_outputs should be the same as len(learning_params).
-		rot_angle (float): The angle to rotate the image by.
+		rot_angle (float): The angle to rotate the image by in radians.
 
 	Returns:
 		(np.array): A numpy array containing the rotated images.
