@@ -1,5 +1,6 @@
 from manada.Configs.config_d_los_sigma_sub import *
-from scipy.stats import norm
+from scipy.stats import truncnorm
+import numpy as np
 
-config_dict['subhalo']['parameters']['shmf_plaw_index'] = norm(loc=-1.5,
-	scale=0.5).rvs
+config_dict['subhalo']['parameters']['shmf_plaw_index'] = truncnorm(-2.5,
+	np.inf,loc=-1.7,scale=0.4).rvs
