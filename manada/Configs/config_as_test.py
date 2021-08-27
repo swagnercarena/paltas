@@ -1,4 +1,4 @@
-from manada.Configs.config_d_los_sigma_sub import *
+from manada.Configs.config_as_val import *
 from scipy.stats import norm, lognorm
 
 config_dict['subhalo']['parameters']['shmf_plaw_index'] = norm(loc=-1.9,
