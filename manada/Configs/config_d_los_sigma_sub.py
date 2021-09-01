@@ -20,7 +20,8 @@ tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 
 # Define the numerics kwargs
 kwargs_numerics = {'supersampling_factor':2}
-numpix = 64
+numpix = 128
+seed = 10
 
 # Define some general image kwargs for the dataset
 mask_radius = 0.5
@@ -95,9 +96,9 @@ config_dict = {
 	},
 	'detector':{
 		'parameters':{
-			'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
-			'magnitude_zero_point':25.9463,
-			'exposure_time':5400.0,'sky_brightness':22,
+			'pixel_scale':0.040,'ccd_gain':1.58,'read_noise':3.0,
+			'magnitude_zero_point':25.127,
+			'exposure_time':5400.0,'sky_brightness':21.83,
 			'num_exposures':1, 'background_noise':None
 		}
 	}

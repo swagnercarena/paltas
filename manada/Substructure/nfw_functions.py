@@ -27,6 +27,11 @@ def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
 
 	Returns:
 		(np.array): The value of the integral for each r_upper given.
+
+	Notes:
+		The cored NFW profile here assume uniform distribution within the
+		tidal radius and then an NFW radial distribution outside the
+		tidal radius.
 	"""
 	# Convert to natural units for NFW
 	x_tidal = r_tidal / r_scale
@@ -68,10 +73,77 @@ def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 
 	Returns:
 		(np.array): A n_subs array giving sampled radii in units of kpc.
+
+	Notes:
+		The cored NFW profile here assume uniform distribution within the
+		tidal radius and then an NFW radial distribution outside the
+		tidal radius.
 	"""
 	# First we have to numerically calculate the inverse cdf
 	r_values = np.linspace(0,r_max,n_cdf_samps)
 	cdf_values = cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_values)
+	# Normalize
+	cdf_values /= np.max(cdf_values)
+	# Use scipy to create our inverse cdf
+	inverse_cdf = interp1d(cdf_values,r_values)
+
+	# Now draw from the inverse cdf
+	cdf_draws = np.random.rand(n_subs)
+	r_draws = inverse_cdf(cdf_draws)
+
+	return r_draws
+
+
+@numba.njit()
+def r_c_nfw_integral(r_c,rho_nfw,r_scale,r_upper):
+	"""Integrates the Burkert cored nfw profile from 0 to r_upper defined by
+	rho*r_scale^3/((r+r_c)*(r_scale+r)^2).
+
+	Args:
+		r_c (float): The core radius in units of kpc
+		rho_nfw (float): The amplitude of the nfw density outside the
+			cored radius. Units of M_sun/kpc^3
+		r_scale (float): The scale radius of the nfw in units of kpc
+		r_upper (np.array): An array containing the upper bounds
+			to be evaluated in units of kpc.
+
+	Returns:
+		(np.array): The value of the integral for each r_upper given.
+	"""
+	# Convert to natural units for NFW
+	x_c = r_c / r_scale
+	x_upper = r_upper / r_scale
+
+	# Array of integrated values
+	integral_values = x_upper*(x_c-1)/(1+x_upper)
+	integral_values += -np.log(x_c*(1+x_upper))
+	integral_values += np.log(x_upper+x_c)
+	integral_values /= (x_c-1)**2
+
+	return integral_values*rho_nfw*r_scale
+
+
+def r_c_nfw_draws(r_c,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
+	"""Returns radial samples from the Burkert cored nfw profile defined
+	by rho*r_scale^3/((r+r_c)*(r_scale+r)^2).
+
+
+	Args:
+		r_c (float): The core radius in units of kpc
+		rho_nfw (float): The amplitude of the nfw density outside the
+			cored radius in units of M_sun / kpc^3.
+		r_scale (float): The scale radius of the nfw in units of kpc.
+		r_max (float): The maximum value of r to sample i nunits of kpc.
+		n_subs (int): The number of subhalo positions to sample
+		n_cdf_samps (int): The number of samples to use to numerically
+			invert the cdf for sampling.
+
+	Returns:
+		(np.array): A n_subs array giving sampled radii in units of kpc.
+	"""
+	# First we have to numerically calculate the inverse cdf
+	r_values = np.linspace(0,r_max,n_cdf_samps)
+	cdf_values = r_c_nfw_integral(r_c,rho_nfw,r_scale,r_values)
 	# Normalize
 	cdf_values /= np.max(cdf_values)
 	# Use scipy to create our inverse cdf
