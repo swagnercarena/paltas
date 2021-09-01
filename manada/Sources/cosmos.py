@@ -13,7 +13,7 @@ from lenstronomy.Util.param_util import phi_q2_ellipticity
 import numpy as np
 import numpy.lib.recfunctions
 from tqdm import tqdm
-from .galaxy_catalog import GalaxyCatalog, DEFAULT_Z
+from .galaxy_catalog import GalaxyCatalog, DEFAULT_Z_SOURCE
 import scipy
 
 HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
@@ -203,7 +203,7 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 		# Convert half-light radius from pixels to arcseconds
 		self.sercic_info['r_half'] *= HUBBLE_ACS_PIXEL_WIDTH
 
-	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z, phi=None):
+	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z_SOURCE, phi=None):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 

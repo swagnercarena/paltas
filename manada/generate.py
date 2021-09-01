@@ -187,8 +187,7 @@ def main():
 			source_model_list, source_kwargs_list = source_class.draw_source(
 				catalog_i=catalog_i, phi=phi, z_new=z_source)
 		else:
-			source_model_list, source_kwargs_list = source_class.draw_source(
-				z_new=z_source)
+			source_model_list, source_kwargs_list = source_class.draw_source()
 		source_light_model = LightModel(source_model_list)
 
 		# Put it together into an image model
@@ -207,8 +206,8 @@ def main():
 			if mag < config_module.mag_cut:
 				continue
 
-		if (not hasattr(config_module, 'magically_no_noise')
-				or not config_module.magically_no_noise):
+		if (not hasattr(config_module, 'no_noise')
+				or config_module.no_noise is False):
 			image += single_band.noise_for_model(image)
 
 		# Mask out an interior region of the image if requested
