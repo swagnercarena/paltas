@@ -114,11 +114,15 @@ def r_c_nfw_integral(r_c,rho_nfw,r_scale,r_upper):
 	x_c = r_c / r_scale
 	x_upper = r_upper / r_scale
 
-	# Array of integrated values
-	integral_values = x_upper*(x_c-1)/(1+x_upper)
-	integral_values += -np.log(x_c*(1+x_upper))
-	integral_values += np.log(x_upper+x_c)
-	integral_values /= (x_c-1)**2
+	# If r_c = r_scale then the general equation gives you 0/0 and you must
+	# employ L'Hospital's rule
+	if x_c == 1:
+		integral_values = x_upper/2*(x_upper+2)/(x_upper+1)**2
+	else:
+		integral_values = x_upper*(x_c-1)/(1+x_upper)
+		integral_values += -np.log(x_c*(1+x_upper))
+		integral_values += np.log(x_upper+x_c)
+		integral_values /= (x_c-1)**2
 
 	return integral_values*rho_nfw*r_scale
 
