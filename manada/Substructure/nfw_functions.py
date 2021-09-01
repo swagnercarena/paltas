@@ -14,7 +14,7 @@ import lenstronomy.Util.constants as const
 
 @numba.njit()
 def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
-	"""Integrates the cored nfw profile from 0 to r_upper
+	"""Integrates the cored nfw mass profile from 0 to r_upper
 
 	Args:
 		r_tidal (float): The tidal radius within which the NFW profile
@@ -38,8 +38,8 @@ def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
 	x_upper = r_upper / r_scale
 
 	# Get the value of the NFW in the core region such that at x_tidal we
-	# match the nfw profile
-	linear_scaling = rho_nfw/(x_tidal*(1+x_tidal)**2)/r_tidal**2
+	# match the nfw profile.
+	linear_scaling = rho_nfw/(x_tidal*(1+x_tidal)**2)
 
 	# Array to save the integral outputs to
 	integral_values = np.zeros(r_upper.shape)
@@ -48,17 +48,20 @@ def cored_nfw_integral(r_tidal,rho_nfw,r_scale,r_upper):
 	integral_values += 1.0/3.0*linear_scaling * np.minimum(r_tidal,r_upper)**3
 
 	# Add the nfw component where x_upper > x_tidal
-	lower_bound = 1/(x_tidal+1) + np.log(x_tidal) - np.log(x_tidal+1)
-	upper_bound = 1/(x_upper+1) + np.log(x_upper) - np.log(x_upper+1)
+	lower_bound = 1/(x_tidal+1) + np.log(x_tidal+1)
+	upper_bound = 1/(x_upper+1) + np.log(x_upper+1)
 	nfw_integral = upper_bound - lower_bound
 	add_nfw = r_upper > r_tidal
-	integral_values[add_nfw] += nfw_integral[add_nfw]*rho_nfw*r_scale
+	integral_values[add_nfw] += nfw_integral[add_nfw]*rho_nfw*r_scale**3
+
+	# 4 pi factor from volume integral.
+	integral_values *= 4 * np.pi
 
 	return integral_values
 
 
 def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
-	"""Returns radial samples from a cored nfw profile
+	"""Returns radial samples from a cored nfw mass profile
 
 	Args:
 		r_tidal (float): The tidal radius within which the NFW profile
@@ -95,12 +98,10 @@ def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 
 
 @numba.njit()
-def r_c_nfw_integral(r_c,rho_nfw,r_scale,r_upper):
-	"""Integrates the Burkert cored nfw profile from 0 to r_upper defined by
-	rho*r_scale^3/((r+r_c)*(r_scale+r)^2).
+def nfw_integral(rho_nfw,r_scale,r_upper):
+	"""Integrates the nfw mass profile from 0 to r_upper.
 
 	Args:
-		r_c (float): The core radius in units of kpc
 		rho_nfw (float): The amplitude of the nfw density outside the
 			cored radius. Units of M_sun/kpc^3
 		r_scale (float): The scale radius of the nfw in units of kpc
@@ -111,29 +112,21 @@ def r_c_nfw_integral(r_c,rho_nfw,r_scale,r_upper):
 		(np.array): The value of the integral for each r_upper given.
 	"""
 	# Convert to natural units for NFW
-	x_c = r_c / r_scale
 	x_upper = r_upper / r_scale
 
-	# If r_c = r_scale then the general equation gives you 0/0 and you must
-	# employ L'Hospital's rule
-	if x_c == 1:
-		integral_values = x_upper/2*(x_upper+2)/(x_upper+1)**2
-	else:
-		integral_values = x_upper*(x_c-1)/(1+x_upper)
-		integral_values += -np.log(x_c*(1+x_upper))
-		integral_values += np.log(x_upper+x_c)
-		integral_values /= (x_c-1)**2
+	# Calculate the nfw integral
+	integral_values=1/(x_upper+1) + np.log(x_upper+1)-1
 
-	return integral_values*rho_nfw*r_scale
+	# Deal with the change of units to x in the integral and 4 pi from the
+	# volume element.
+	return integral_values*rho_nfw*r_scale**3*4*np.pi
 
 
-def r_c_nfw_draws(r_c,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
-	"""Returns radial samples from the Burkert cored nfw profile defined
-	by rho*r_scale^3/((r+r_c)*(r_scale+r)^2).
+def nfw_draws(rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
+	"""Returns radial samples from the nfw mass profile.
 
 
 	Args:
-		r_c (float): The core radius in units of kpc
 		rho_nfw (float): The amplitude of the nfw density outside the
 			cored radius in units of M_sun / kpc^3.
 		r_scale (float): The scale radius of the nfw in units of kpc.
@@ -147,7 +140,7 @@ def r_c_nfw_draws(r_c,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 	"""
 	# First we have to numerically calculate the inverse cdf
 	r_values = np.linspace(0,r_max,n_cdf_samps)
-	cdf_values = r_c_nfw_integral(r_c,rho_nfw,r_scale,r_values)
+	cdf_values = nfw_integral(rho_nfw,r_scale,r_values)
 	# Normalize
 	cdf_values /= np.max(cdf_values)
 	# Use scipy to create our inverse cdf
