@@ -29,7 +29,7 @@ class NFWFunctionsTests(unittest.TestCase):
 		# numerical integral.
 		r_tidal = 0.5
 		r_scale = 2
-		rho_nfw = 2
+		rho_nfw = .5
 		r_upper = np.linspace(0,4,100)
 		analytic_values = nfw_functions.cored_nfw_integral(r_tidal,rho_nfw,
 			r_scale,r_upper)
@@ -37,14 +37,15 @@ class NFWFunctionsTests(unittest.TestCase):
 		def cored_nfw_func(r,r_tidal,rho_nfw,r_scale):
 			if r<r_tidal:
 				x_tidal = r_tidal/r_scale
-				return rho_nfw/(x_tidal*(1+x_tidal)**2)*r**2/r_tidal**2
+				return 4*np.pi*rho_nfw/(x_tidal*(1+x_tidal)**2)*r**2
 			else:
 				x = r/r_scale
-				return rho_nfw/(x*(1+x)**2)
+				return 4*np.pi*r**2*rho_nfw/(x*(1+x)**2)
 
 		for i in range(len(r_upper)):
 			self.assertAlmostEqual(analytic_values[i],quad(cored_nfw_func,0,
-				r_upper[i],args=(r_tidal,rho_nfw,r_scale))[0])
+				r_upper[i],args=(r_tidal,rho_nfw,r_scale),epsabs=1.49e-11,
+				epsrel=1.49e-11)[0])
 
 	def test_cored_nfw_draws(self):
 		# Test that the draws follow the desired distribution
@@ -83,44 +84,34 @@ class NFWFunctionsTests(unittest.TestCase):
 			self.assertAlmostEqual(2*np.mean(cart_pos[:,i]<-d_max/4),
 				np.mean(cart_pos[:,i]>0),places=1)
 
-	def test_r_c_nfw_integral(self):
+	def test_nfw_integral(self):
 		# Test that the Burkert cored nfw profile analytic integration
 		# agrees with the numerical values.
-		r_c = 0.1
 		r_scale = 2
 		rho_nfw = 2
 		r_upper = np.linspace(0,4,100)
-		analytic_values = nfw_functions.r_c_nfw_integral(r_c,rho_nfw,
-			r_scale,r_upper)
+		analytic_values = nfw_functions.nfw_integral(rho_nfw,r_scale,r_upper)
 
-		def r_c_nfw_func(r,r_c,rho_nfw,r_scale):
-			return rho_nfw*r_scale**3/((r+r_c)*(r_scale+r)**2)
+		def nfw_func(r,rho_nfw,r_scale):
+			x = r/r_scale
+			return 4*np.pi*r**2*rho_nfw/(x*(1+x)**2)
 
 		for i in range(len(r_upper)):
-			self.assertAlmostEqual(analytic_values[i],quad(r_c_nfw_func,0,
-				r_upper[i],args=(r_c,rho_nfw,r_scale))[0])
+			self.assertAlmostEqual(analytic_values[i],quad(nfw_func,1e-20,
+				r_upper[i],args=(rho_nfw,r_scale))[0])
 
-		# Check the r_c = r_scale case
-		r_c = 2
-		analytic_values = nfw_functions.r_c_nfw_integral(r_c,rho_nfw,
-			r_scale,r_upper)
-		for i in range(len(r_upper)):
-			self.assertAlmostEqual(analytic_values[i],quad(r_c_nfw_func,0,
-				r_upper[i],args=(r_c,rho_nfw,r_scale))[0])
-
-	def test_r_c_nfw_draws(self):
+	def test_nfw_draws(self):
 		# Test that the draws follow the desired distribution
-		r_c = 0.1
 		r_scale = 2
 		rho_nfw = 2
 		r_max = 4
 		n_subs = int(2e5)
-		r_draws = nfw_functions.r_c_nfw_draws(r_c,rho_nfw,r_scale,
+		r_draws = nfw_functions.nfw_draws(rho_nfw,r_scale,
 			r_max,n_subs)
 
 		n_test_points = 100
 		r_test = np.linspace(0,r_max,n_test_points)
-		analytic_integral = nfw_functions.r_c_nfw_integral(r_c,rho_nfw,
+		analytic_integral = nfw_functions.nfw_integral(rho_nfw,
 			r_scale,r_test)
 
 		for i in range(n_test_points):
