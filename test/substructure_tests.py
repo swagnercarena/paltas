@@ -100,6 +100,14 @@ class NFWFunctionsTests(unittest.TestCase):
 			self.assertAlmostEqual(analytic_values[i],quad(r_c_nfw_func,0,
 				r_upper[i],args=(r_c,rho_nfw,r_scale))[0])
 
+		# Check the r_c = r_scale case
+		r_c = 2
+		analytic_values = nfw_functions.r_c_nfw_integral(r_c,rho_nfw,
+			r_scale,r_upper)
+		for i in range(len(r_upper)):
+			self.assertAlmostEqual(analytic_values[i],quad(r_c_nfw_func,0,
+				r_upper[i],args=(r_c,rho_nfw,r_scale))[0])
+
 	def test_r_c_nfw_draws(self):
 		# Test that the draws follow the desired distribution
 		r_c = 0.1
