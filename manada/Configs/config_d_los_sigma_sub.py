@@ -8,6 +8,7 @@ from scipy.stats import norm, lognorm
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
 from manada.Sources.cosmos import COSMOSExcludeCatalog
+from astropy.io import fits
 import pandas as pd
 import manada
 import os
@@ -18,8 +19,12 @@ cov = np.array([[1.0,0.7],[0.7,1.0]])
 min_values = np.zeros(2)
 tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 
-# Define the numerics kwargs
-kwargs_numerics = {'supersampling_factor':2}
+# Define the numerics kwargs.
+kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':True}
+# We do not use point_source_supersampling_factor but it must be passed in to
+# surpress a warning.
+kwargs_numerics['point_source_supersampling_factor'] = (
+	kwargs_numerics['supersampling_factor'])
 numpix = 128
 seed = 10
 
@@ -90,8 +95,10 @@ config_dict = {
 	},
 	'psf':{
 		'parameters':{
-			'psf_type':'GAUSSIAN',
-			'fwhm': 0.1
+			'psf_type':'PIXEL',
+			'kernel_point_source': fits.open(os.path.join(root_path,
+				'datasets/tinytim/wfc3_uvis_f814w_flat_sub5.fits'))[0].data,
+			'point_source_supersampling_factor':2
 		}
 	},
 	'detector':{
