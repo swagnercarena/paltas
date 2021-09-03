@@ -118,6 +118,44 @@ class NFWFunctionsTests(unittest.TestCase):
 			self.assertAlmostEqual(np.mean(r_draws<r_test[i]),
 				analytic_integral[i]/np.max(analytic_integral),places=2)
 
+	def test_tnfw_integral(self):
+		# Test that the Burkert cored nfw profile analytic integration
+		# agrees with the numerical values.
+		r_scale = 2.54523
+		rho_nfw = 2.4319
+		r_trunc = 10.54254
+		r_upper = np.linspace(0,4,100)
+		analytic_values = nfw_functions.tnfw_integral(rho_nfw,r_scale,r_trunc,
+			r_upper)
+
+		def tnfw_func(r,rho_nfw,r_scale,r_trunc):
+			x = r/r_scale
+			return 4*np.pi*r**2*rho_nfw/(x*(1+x)**2)*r_trunc**2/(r_trunc**2+
+				r**2)
+
+		for i in range(len(r_upper)):
+			self.assertAlmostEqual(analytic_values[i],quad(tnfw_func,1e-20,
+				r_upper[i],args=(rho_nfw,r_scale,r_trunc))[0])
+
+	def test_tnfw_draws(self):
+		# Test that the draws follow the desired distribution
+		r_scale = 2.54523
+		rho_nfw = 2.4319
+		r_trunc = 10.54254
+		r_max = 50
+		n_subs = int(2e5)
+		r_draws = nfw_functions.tnfw_draws(rho_nfw,r_scale,
+			r_trunc,r_max,n_subs)
+
+		n_test_points = 1000
+		r_test = np.linspace(0,r_max,n_test_points)
+		analytic_integral = nfw_functions.tnfw_integral(rho_nfw,
+			r_scale,r_trunc,r_test)
+
+		for i in range(n_test_points):
+			self.assertAlmostEqual(np.mean(r_draws<r_test[i]),
+				analytic_integral[i]/np.max(analytic_integral),places=2)
+
 	def test_r_200_from_m(self):
 		# Compare the calculation from our function to the colossus output
 		cosmo = cosmology.setCosmology('planck18')

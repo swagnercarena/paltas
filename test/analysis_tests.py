@@ -356,10 +356,10 @@ class DatasetGenerationTests(unittest.TestCase):
 		self.assertEqual(npy_counts,num_npy*n_epochs)
 
 		# Finally, just check that the noise statistics follow what we've
-		# specified in the baobab configuration file.
+		# specified in the kwargs.
 		kwargs_detector = {'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
 			'magnitude_zero_point':25.9463,'exposure_time':540.0,
-			'sky_brightness':17,'num_exposures':1, 'background_noise':None}
+			'sky_brightness':14,'num_exposures':1, 'background_noise':None}
 		dataset = Analysis.dataset_generation.generate_tf_dataset(
 			tf_record_path,learning_params,batch_size,n_epochs,
 			norm_images=norm_images,kwargs_detector=kwargs_detector)

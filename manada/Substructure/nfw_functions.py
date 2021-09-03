@@ -69,7 +69,7 @@ def cored_nfw_draws(r_tidal,rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 		rho_nfw (float): The amplitude of the nfw density outside the
 			cored radius in units of M_sun / kpc^3.
 		r_scale (float): The scale radius of the nfw in units of kpc.
-		r_max (float): The maximum value of r to sample i nunits of kpc.
+		r_max (float): The maximum value of r to sample in units of kpc.
 		n_subs (int): The number of subhalo positions to sample
 		n_cdf_samps (int): The number of samples to use to numerically
 			invert the cdf for sampling.
@@ -130,7 +130,7 @@ def nfw_draws(rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 		rho_nfw (float): The amplitude of the nfw density outside the
 			cored radius in units of M_sun / kpc^3.
 		r_scale (float): The scale radius of the nfw in units of kpc.
-		r_max (float): The maximum value of r to sample i nunits of kpc.
+		r_max (float): The maximum value of r to sample in units of kpc.
 		n_subs (int): The number of subhalo positions to sample
 		n_cdf_samps (int): The number of samples to use to numerically
 			invert the cdf for sampling.
@@ -141,6 +141,76 @@ def nfw_draws(rho_nfw,r_scale,r_max,n_subs,n_cdf_samps=1000):
 	# First we have to numerically calculate the inverse cdf
 	r_values = np.linspace(0,r_max,n_cdf_samps)
 	cdf_values = nfw_integral(rho_nfw,r_scale,r_values)
+	# Normalize
+	cdf_values /= np.max(cdf_values)
+	# Use scipy to create our inverse cdf
+	inverse_cdf = interp1d(cdf_values,r_values)
+
+	# Now draw from the inverse cdf
+	cdf_draws = np.random.rand(n_subs)
+	r_draws = inverse_cdf(cdf_draws)
+
+	return r_draws
+
+
+@numba.njit()
+def tnfw_integral(rho_nfw,r_scale,r_trunc,r_upper):
+	"""Integrates the truncated nfw mass profile from 0 to r_upper. This is
+	the same as the nfw profile but scaled by a factor of
+	r_trunc^2/(r_trunc^2+r^2)
+
+	Args:
+		rho_nfw (float): The amplitude of the nfw density outside the
+			cored radius. Units of M_sun/kpc^3
+		r_scale (float): The scale radius of the nfw in units of kpc
+		r_trunc (float): The truncation radius for the profile.
+		r_upper (np.array): An array containing the upper bounds
+			to be evaluated in units of kpc.
+
+	Returns:
+		(np.array): The value of the integral for each r_upper given.
+	"""
+	# Do the integral calculation in pieces
+	integral_values = 1/(2*(r_upper+r_scale)*(r_scale**2+r_trunc**2)**2)
+	integral_values *= r_scale**3 * r_trunc**2
+
+	integral_values *= (-2*r_upper*(r_scale**2+r_trunc**2)+
+		(r_upper+r_scale)*(4*r_scale*r_trunc*np.arctan(r_upper/r_trunc)+
+			(r_scale-r_trunc)*(r_scale+r_trunc)*(
+				2*np.log(r_scale)-2*(
+					np.log(r_upper+r_scale)+np.log(r_trunc))+np.log(
+					r_upper**2+r_trunc**2))))
+
+	return integral_values*4*np.pi*rho_nfw
+
+
+def tnfw_draws(rho_nfw,r_scale,r_trunc,r_max,n_subs,n_cdf_samps=1000):
+	"""Returns radial samples from truncated nfw mass profile This is
+	the same as the nfw profile but scaled by a factor of
+	r_trunc^2/(r_trunc^2+r^2)
+
+
+	Args:
+		rho_nfw (float): The amplitude of the nfw density outside the
+			cored radius in units of M_sun / kpc^3.
+		r_scale (float): The scale radius of the nfw in units of kpc.
+		r_trunc (float): The truncation radius for the profile.
+		r_max (float): The maximum value of r to sample in units of kpc.
+		n_subs (int): The number of subhalo positions to sample
+		n_cdf_samps (int): The number of samples to use to numerically
+			invert the cdf for sampling.
+
+	Returns:
+		(np.array): A n_subs array giving sampled radii in units of kpc.
+
+	Notes:
+		Set r_max to a value larger than r_trunc but not so large
+		that you're wasting a lot of interpolation points for the inverse
+		cdf.
+	"""
+	# First we have to numerically calculate the inverse cdf
+	r_values = np.linspace(0,r_max,n_cdf_samps)
+	cdf_values = tnfw_integral(rho_nfw,r_scale,r_trunc,r_values)
 	# Normalize
 	cdf_values /= np.max(cdf_values)
 	# Use scipy to create our inverse cdf
