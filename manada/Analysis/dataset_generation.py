@@ -238,7 +238,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	else:
 		norm_dict = None
 
-	# Load a noise model from baobab using the baobab config file.
+	# Load a noise model if requested.
 	if kwargs_detector is not None:
 		noise_function = kwargs_detector_to_tf_noise
 	else:

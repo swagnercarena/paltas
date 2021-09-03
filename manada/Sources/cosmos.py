@@ -27,7 +27,6 @@ class COSMOSCatalog(GalaxyCatalog):
 	The catalog must be downloaded and unzipped.
 
 	Args:
-		folder (str): Path to the folder with the catalog files
 		cosmology_parameters (str,dict, or
 			colossus.cosmology.cosmology.Cosmology): Either a name
 			of colossus cosmology, a dict with 'cosmology name': name of
@@ -37,7 +36,10 @@ class COSMOSCatalog(GalaxyCatalog):
 			needed to draw sources.
 	"""
 	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius')
+		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
+		'output_ab_zeropoint')
+	# Average AB magnitude zeropoint for the COSMOS run.
+	ab_zeropoint = 25.95
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
@@ -201,7 +203,6 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 	profiles instead of real galaxy images
 
 	Args:
-		folder (str): Path to the folder with the catalog files
 		cosmology_parameters (str,dict, or
 			colossus.cosmology.cosmology.Cosmology): Either a name
 			of colossus cosmology, a dict with 'cosmology name': name of
@@ -310,7 +311,6 @@ class COSMOSExcludeCatalog(COSMOSCatalog):
 	to be excluded from the analysis.
 
 	Args:
-		folder (str): Path to the folder with the catalog files
 		cosmology_parameters (str,dict, or
 			colossus.cosmology.cosmology.Cosmology): Either a name
 			of colossus cosmology, a dict with 'cosmology name': name of
@@ -322,7 +322,7 @@ class COSMOSExcludeCatalog(COSMOSCatalog):
 
 	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
 		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'source_exclusion_list')
+		'source_exclusion_list','output_ab_zeropoint')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
@@ -349,7 +349,6 @@ class COSMOSIncludeCatalog(COSMOSCatalog):
 	indexes to be included for the analysis.
 
 	Args:
-		folder (str): Path to the folder with the catalog files
 		cosmology_parameters (str,dict, or
 			colossus.cosmology.cosmology.Cosmology): Either a name
 			of colossus cosmology, a dict with 'cosmology name': name of
@@ -361,7 +360,7 @@ class COSMOSIncludeCatalog(COSMOSCatalog):
 
 	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
 		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'source_inclusion_list')
+		'source_inclusion_list','output_ab_zeropoint')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)

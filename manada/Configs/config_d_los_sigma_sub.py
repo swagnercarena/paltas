@@ -32,6 +32,9 @@ seed = 10
 mask_radius = 0.5
 mag_cut = 2.0
 
+# Define arguments that will be used multiple times
+output_ab_zeropoint = 25.127
+
 # Define the cosmos path
 root_path = manada.__path__[0][:-7]
 cosmos_folder = root_path + r'/datasets/cosmos/COSMOS_23.5_training_sample/'
@@ -80,6 +83,7 @@ config_dict = {
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
 			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
 			'smoothing_sigma':0.08,'random_rotation':True,
+			'output_ab_zeropoint':output_ab_zeropoint,
 			'min_flux_radius':10.0,'source_exclusion_list':np.append(
 				pd.read_csv(
 					os.path.join(root_path,'manada/Sources/bad_galaxies.csv'),
@@ -104,7 +108,7 @@ config_dict = {
 	'detector':{
 		'parameters':{
 			'pixel_scale':0.040,'ccd_gain':1.58,'read_noise':3.0,
-			'magnitude_zero_point':25.127,
+			'magnitude_zero_point':output_ab_zeropoint,
 			'exposure_time':5400.0,'sky_brightness':21.83,
 			'num_exposures':1, 'background_noise':None
 		}

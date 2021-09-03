@@ -81,7 +81,8 @@ class GalaxyCatalogTests(SourceBaseTests):
 
 	def setUp(self):
 		self.c = GalaxyCatalog(cosmology_parameters='planck18',
-			source_parameters={'random_rotation':False})
+			source_parameters={'random_rotation':False,
+				'output_ab_zeropoint':None})
 		self.cosmo = get_cosmology('planck18')
 
 	def test__len__(self):
@@ -120,6 +121,27 @@ class GalaxyCatalogTests(SourceBaseTests):
 		with self.assertRaises(NotImplementedError):
 			self.c.draw_source(catalog_i)
 
+		# Now implement a fake draw_source function
+		def fake_image_and_metadata(catalog_i):
+			image = np.ones((64,64))
+			metadata = {'pixel_width':1.0,'z':2.0}
+			return image,metadata
+		self.c.image_and_metadata=fake_image_and_metadata
+
+		# Nothing changes if the two zeropoints are the same
+		self.c.__class__.ab_zeropoint = 25.0
+		self.c.source_parameters['output_ab_zeropoint'] = 25.0
+		lens_model,lens_kwargs = self.c.draw_source(1)
+		np.testing.assert_almost_equal(np.ones((64,64)),
+			lens_kwargs[0]['image'])
+
+		# The image gets brighter if the output telescope has a larger
+		# zeropoint.
+		self.c.source_parameters['output_ab_zeropoint'] = 26.0
+		lens_model,lens_kwargs = self.c.draw_source(1)
+		np.testing.assert_almost_equal(np.ones((64,64))*10**(1/2.5),
+			lens_kwargs[0]['image'])
+
 	def test_draw_phi(self):
 		# Test that draw_phi returns a uniform distribution
 		phis = []
@@ -150,7 +172,8 @@ class COSMOSCatalogTests(SourceBaseTests):
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
 			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
-			'random_rotation':False, 'min_flux_radius':None
+			'random_rotation':False, 'min_flux_radius':None,
+			'output_ab_zeropoint':25.95
 		}
 		self.c = COSMOSCatalog(cosmology_parameters='planck18',
 			source_parameters=self.source_parameters)

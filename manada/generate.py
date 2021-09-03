@@ -163,8 +163,7 @@ def main():
 			# Get the parameters we need to pull from the main deflector list
 			# from lenstronomy
 			for model in main_model_list:
-				p_names = ProfileListBase._import_class(model,None,
-					None).param_names
+				p_names = ProfileListBase._import_class(model,None).param_names
 				model_kwargs = {}
 				for param in p_names:
 					model_kwargs[param] = (
