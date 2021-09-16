@@ -1,6 +1,4 @@
-from copy import copy
-
-from .source_base import SourceBase, DEFAULT_Z_SOURCE
+from .source_base import SourceBase
 
 
 class SingleSersicSource(SourceBase):

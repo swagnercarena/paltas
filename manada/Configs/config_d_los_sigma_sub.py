@@ -109,8 +109,13 @@ config_dict = {
 		'parameters':{
 			'pixel_scale':0.040,'ccd_gain':1.58,'read_noise':3.0,
 			'magnitude_zero_point':output_ab_zeropoint,
-			'exposure_time':5400.0,'sky_brightness':21.83,
-			'num_exposures':1, 'background_noise':None
+			'exposure_time':TODO,'sky_brightness':21.83,
+			'num_exposures':1,'background_noise':None
+		}
+	},
+	'drizzle':{
+		'parameters':{
+			'supersample_pixel_scale':0.020,'output_pixel_scale':0.030
 		}
 	}
 }

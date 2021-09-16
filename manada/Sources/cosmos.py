@@ -163,7 +163,7 @@ class COSMOSCatalog(GalaxyCatalog):
 			This will read the fits files.
 		"""
 		catalog_i = 0
-		_pattern = f'real_galaxy_images_23.5_n*.fits'  # noqa: F999
+		_pattern = f'real_galaxy_images_23.5_n*.fits'  # noqa: F541, F999
 		files = list(sorted(self.folder.glob(_pattern),
 			key=self._file_number))
 

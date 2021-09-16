@@ -56,6 +56,141 @@ def parse_args():
 	return args
 
 
+def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
+	numpix,multi_plane,kwargs_numerics,mag_cut,add_noise):
+	""" Takes a sample from Sampler.sample toghether with the lenstronomy
+	models and draws an image of the strong lensing system
+
+	Args:
+		sample (dict): A dictionary containing the parameter values that will
+			be sampled.
+		los_class (manada.Substructure.LOSBase): An instance of the los class.
+			If None no los will be added.
+		subhalo_class (manada.Substructure.SubhalosBase): An instance of the
+			subhalo class. If None no subhalos will be added.
+		main_model_list (list): A list of the main deflector models to
+			be added. If None no main deflector will be added.
+		source_class (manada.Sources.SourceBase): An instance of the
+			SourceBase class that will be used to draw the source
+			image.
+		numpix (int): The number of pixels in the generated image
+		multi_plane (bool): If true the multiplane approximation will
+			be used. Must be true for los.
+		kwargs_numerics (dict): A dict containing the numerics kwargs to
+			pass to lenstronomy
+		mag_cut (float): A magnification cut to enforce on the images. If
+			None no magnitude cut will be enforced.
+		add_noise (bool): If true noise will be added to the image. If False
+			noise must be added after the fact.
+
+	Returns
+		(np.array,dict): A numpy array containing the generated image
+			and a metavalue dictionary with the corresponding sampled
+			values.
+
+	"""
+	# Save the parameter values
+	meta_values = {}
+
+	# Pull our sampled parameters
+	z_lens = sample['main_deflector_parameters']['z_lens']
+	z_source = sample['source_parameters']['z_source']
+	cosmo = get_cosmology(sample['cosmology_parameters'])
+
+	# Populate the list of models and kwargs we need
+	complete_lens_model_list = []
+	complete_lens_model_kwargs = []
+	complete_z_list = []
+
+	# Get the remaining observation kwargs from the sampler and
+	# initialize our observational objects.
+	kwargs_psf = sample['psf_parameters']
+	kwargs_detector = sample['detector_parameters']
+	psf_model = PSF(**kwargs_psf)
+	data_api = DataAPI(numpix=numpix,**kwargs_detector)
+	single_band = SingleBand(**kwargs_detector)
+
+	# For each lensing object that's present, add them to the model and
+	# kwargs list
+	if los_class is not None:
+		los_class.update_parameters(
+			sample['los_parameters'],sample['main_deflector_parameters'],
+			sample['source_parameters'],sample['cosmology_parameters'])
+		los_model_list, los_kwargs_list, los_z_list = los_class.draw_los()
+		interp_model_list, interp_kwargs_list, interp_z_list = (
+			los_class.calculate_average_alpha(numpix*2))
+		complete_lens_model_list += los_model_list + interp_model_list
+		complete_lens_model_kwargs += los_kwargs_list + interp_kwargs_list
+		complete_z_list += los_z_list + interp_z_list
+	if subhalo_class is not None:
+		subhalo_class.update_parameters(
+			sample['subhalo_parameters'],
+			sample['main_deflector_parameters'],
+			sample['source_parameters'],sample['cosmology_parameters'])
+		sub_model_list, sub_kwargs_list, sub_z_list = (
+			subhalo_class.draw_subhalos())
+		complete_lens_model_list += sub_model_list
+		complete_lens_model_kwargs += sub_kwargs_list
+		complete_z_list += sub_z_list
+	if main_model_list is not None:
+		complete_lens_model_list += main_model_list
+		# Get the parameters we need to pull from the main deflector list
+		# from lenstronomy
+		for model in main_model_list:
+			p_names = ProfileListBase._import_class(model,None,
+				None).param_names
+			model_kwargs = {}
+			for param in p_names:
+				model_kwargs[param] = (
+					sample['main_deflector_parameters'][param])
+			complete_lens_model_kwargs += [model_kwargs]
+		# All of the main deflector components are at z_lens
+		complete_z_list += [z_lens]*len(main_model_list)
+
+	complete_lens_model = LensModel(complete_lens_model_list, z_lens,
+		z_source,complete_z_list, cosmo=cosmo.toAstropy(),
+		multi_plane=multi_plane)
+
+	# Now get the model and kwargs from the source class and turn it
+	# into a source model
+	source_class.update_parameters(
+		cosmology_parameters=sample['cosmology_parameters'],
+		source_parameters=sample['source_parameters'])
+	# For catalog objects we also want to save the catalog index
+	# and the (possibly randomized) additional rotation angle
+	if isinstance(source_class,GalaxyCatalog):
+		catalog_i, phi = source_class.fill_catalog_i_phi_defaults()
+		meta_values['source_parameters_catalog_i'] = catalog_i
+		meta_values['source_parameters_phi'] = phi
+		source_model_list, source_kwargs_list = source_class.draw_source(
+			catalog_i=catalog_i, phi=phi, z_new=z_source)
+	else:
+		source_model_list, source_kwargs_list = source_class.draw_source()
+	source_light_model = LightModel(source_model_list)
+
+	# Put it together into an image model
+	complete_image_model = ImageModel(data_api.data_class, psf_model,
+		complete_lens_model, source_light_model, None, None,
+		kwargs_numerics=kwargs_numerics)
+
+	# Generate our image with noise
+	image = complete_image_model.image(complete_lens_model_kwargs,
+		source_kwargs_list, None, None)
+
+	# Check for magnification cut and apply
+	if mag_cut is not None:
+		mag = np.sum(image)/source_light_model.total_flux(
+			source_kwargs_list)
+		if mag < mag_cut:
+			return None,None
+
+	# If no noise is specified, don't add noise
+	if add_noise:
+		image += single_band.noise_for_model(image)
+
+	return image,meta_values
+
+
 def main():
 	"""Generates the strong lensing images by drawing parameters values from
 	the provided configuration dictionary.
@@ -89,6 +224,9 @@ def main():
 
 	# Set up the manada objects we'll use
 	multi_plane = False
+	los_class = None
+	subhalo_class = None
+	main_model_list = None
 	if 'los' in config_dict:
 		los_class = config_dict['los']['class'](sample['los_parameters'],
 			sample['main_deflector_parameters'],sample['source_parameters'],
@@ -108,6 +246,18 @@ def main():
 	metadata = pd.DataFrame()
 	metadata_path = os.path.join(args.save_folder,'metadata.csv')
 
+	# See if a magnitude cut was specified
+	if hasattr(config_module, 'mag_cut'):
+		mag_cut = config_module.mag_cut
+	else:
+		mag_cut = None
+
+	# See if ignoring noise was specified
+	if hasattr(config_module,'no_noise'):
+		add_noise = not config_module.no_noise
+	else:
+		add_noise = True
+
 	# Generate our images
 	pbar = tqdm(total=args.n)
 	nt = 0
@@ -115,104 +265,20 @@ def main():
 	while nt < args.n:
 		# We always try
 		tries += 1
-		# Save the parameter values
-		meta_values = {}
-		# Draw our parameters
+
+		# TODO things should not be passed as config module. Also it
+		# makes more sense to draw the sample and then pass it into this
+		# class.
+		# Draw a sample and generate the image.
 		sample = sampler.sample()
-		z_lens = sample['main_deflector_parameters']['z_lens']
-		z_source = sample['source_parameters']['z_source']
-		cosmo = get_cosmology(sample['cosmology_parameters'])
-
-		# Populate the list of models and kwargs we need
-		complete_lens_model_list = []
-		complete_lens_model_kwargs = []
-		complete_z_list = []
-
-		# Get the remaining observation kwargs from the sampler and
-		# initialize our observational objects.
-		kwargs_psf = sample['psf_parameters']
 		kwargs_detector = sample['detector_parameters']
-		psf_model = PSF(**kwargs_psf)
-		data_api = DataAPI(numpix=numpix,**kwargs_detector)
-		single_band = SingleBand(**kwargs_detector)
+		image,meta_values = draw_image(sample,los_class,subhalo_class,
+			main_model_list,source_class,numpix,multi_plane,kwargs_numerics,
+			mag_cut,add_noise)
 
-		# For each lensing object that's present, add them to the model and
-		# kwargs list
-		if 'los' in config_dict:
-			los_class.update_parameters(
-				sample['los_parameters'],sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-			los_model_list, los_kwargs_list, los_z_list = los_class.draw_los()
-			interp_model_list, interp_kwargs_list, interp_z_list = (
-				los_class.calculate_average_alpha(numpix*2))
-			complete_lens_model_list += los_model_list + interp_model_list
-			complete_lens_model_kwargs += los_kwargs_list + interp_kwargs_list
-			complete_z_list += los_z_list + interp_z_list
-		if 'subhalo' in config_dict:
-			subhalo_class.update_parameters(
-				sample['subhalo_parameters'],
-				sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-			sub_model_list, sub_kwargs_list, sub_z_list = (
-				subhalo_class.draw_subhalos())
-			complete_lens_model_list += sub_model_list
-			complete_lens_model_kwargs += sub_kwargs_list
-			complete_z_list += sub_z_list
-		if 'main_deflector' in config_dict:
-			complete_lens_model_list += main_model_list
-			# Get the parameters we need to pull from the main deflector list
-			# from lenstronomy
-			for model in main_model_list:
-				p_names = ProfileListBase._import_class(model,None).param_names
-				model_kwargs = {}
-				for param in p_names:
-					model_kwargs[param] = (
-						sample['main_deflector_parameters'][param])
-				complete_lens_model_kwargs += [model_kwargs]
-			# All of the main deflector components are at z_lens
-			complete_z_list += [z_lens]*len(main_model_list)
-
-		complete_lens_model = LensModel(complete_lens_model_list, z_lens,
-			z_source,complete_z_list, cosmo=cosmo.toAstropy(),
-			multi_plane=multi_plane)
-
-		# Now get the model and kwargs from the source class and turn it
-		# into a source model
-		source_class.update_parameters(
-			cosmology_parameters=sample['cosmology_parameters'],
-			source_parameters=sample['source_parameters'])
-		# For catalog objects we also want to save the catalog index
-		# and the (possibly randomized) additional rotation angle
-		if isinstance(source_class,GalaxyCatalog):
-			catalog_i, phi = source_class.fill_catalog_i_phi_defaults()
-			meta_values['source_parameters_catalog_i'] = catalog_i
-			meta_values['source_parameters_phi'] = phi
-			source_model_list, source_kwargs_list = source_class.draw_source(
-				catalog_i=catalog_i, phi=phi, z_new=z_source)
-		else:
-			source_model_list, source_kwargs_list = source_class.draw_source()
-		source_light_model = LightModel(source_model_list)
-
-		# Put it together into an image model
-		complete_image_model = ImageModel(data_api.data_class, psf_model,
-			complete_lens_model, source_light_model, None, None,
-			kwargs_numerics=kwargs_numerics)
-
-		# Generate our image with noise
-		image = complete_image_model.image(complete_lens_model_kwargs,
-			source_kwargs_list, None, None)
-
-		# Check for magnification cut and apply
-		if hasattr(config_module, 'mag_cut'):
-			mag = np.sum(image)/source_light_model.total_flux(
-				source_kwargs_list)
-			if mag < config_module.mag_cut:
-				continue
-
-		# If no noise is specified, don't add noise
-		if (not hasattr(config_module, 'no_noise')
-				or config_module.no_noise is False):
-			image += single_band.noise_for_model(image)
+		# Failed attempt if there is no image output
+		if image is None:
+			continue
 
 		# Mask out an interior region of the image if requested
 		if hasattr(config_module,'mask_radius'):
