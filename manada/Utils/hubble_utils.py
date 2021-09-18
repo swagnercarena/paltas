@@ -1,44 +1,52 @@
-from copy import deepcopy
-import os
-import tempfile
-from astropy.coordinates.attributes import Attribute
-
+# -*- coding: utf-8 -*-
+"""
+Utility functions for producing Hubble drizzled images.
+"""
+import copy
 import numpy as np
-
 from astropy.io import fits
 from astropy.wcs import wcs
-
 from drizzle.drizzle import Drizzle
-
 from scipy.interpolate import RectBivariateSpline
 
-WFC3_PIXEL_WIDTH = 0.04
 
-
-def image_grid(
-		shape, pixel_width=WFC3_PIXEL_WIDTH,
-		x0=0, y0=0, edges=True):
+def image_grid(shape, pixel_width,x0=0, y0=0):
 	"""Return x, y edges of image coordinates
+
 	Args:
-		- pixel_width: pixel width (in whatever units you want, e.g. arcsec)
-		- x0, y0: center of grid
-		- edges: If True (default), returns pixel edges.
-			If False, returns pixel centers
+		shape (tuple): The shape of the image
+		pixel_scale (float): pixel width in units of arcseconds
+		x0 (float): The center x coordinate of the grid
+		y0 (float): The center y coordiante of the grid
+		edges (bool)
 	"""
 	nx, ny = shape
 	dx = nx * pixel_width
 	dy = nx * pixel_width
-	extra = 1 if edges else 0
-	x = np.linspace(-dx / 2, dx / 2, nx + extra) + x0
-	y = np.linspace(-dy / 2, dy / 2, ny + extra) + y0
+	x = np.linspace(-dx / 2, dx / 2, nx) + x0
+	y = np.linspace(-dy / 2, dy / 2, ny) + y0
 	return x, y
 
 
-def distort_image(
-		sky_image: np.ndarray,
-		w: wcs.WCS,
-		pixel_width_sky=WFC3_PIXEL_WIDTH / 2,
-		pixel_offset=(0,0)):
+def offset_wcs(w,pixel_offset):
+	"""Return wcs w shifted by pixel_offset pixels.
+
+	Args:
+		w (astropy.wcs.wcs.WCS): An istance of the WCS class that will
+			be copied and offset.
+		pixel_offset (tuple): The x,y offset to apply in pixel units.
+
+	Returns:
+		(astropy.wcs.wcs.WCS): The offset WCS object.
+	"""
+	# Copy the object and add the pixel offset to the reference pixel
+	# position.
+	w_out = copy.deepcopy(w)
+	w_out.wcs.crpix += np.array(pixel_offset)
+	return w_out
+
+
+def distort_image(img_high_res,w_high_res,w_dither,offset_pattern):
 	"""Create distorted Hubble image in _flt frame
 
 	Args:
@@ -86,114 +94,131 @@ def distort_image(
 	return img_out
 
 
-def offset_wcs(w: wcs.WCS, pixel_offset=(0,0)):
-	"""Return wcs w shifted by pixel_offset pixels
-		in some possibly consistent direction
+def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
+		low_res_pixel_scale,wcs_distortion):
+	"""Generate a wcs mapping onto the specified lower resolution. If
+	specified, geometric distortions will be included in the wcs object.
+
+	Args:
+		high_res_shape (tuple): The shape of the high resolution image
+		high_res_pixel_scale (float): The pixel width of the high
+			resolution image in units of arcseconds.
+		low_res_pixel_scale (float): The pixel width of the lower
+			resolution target image in units of arcseconds.
+		wcs_distortion (astropy.wcs.wcs.WCS): An instance of the
+			WCS class that includes the desired gemoetric distortions as
+			SIP coefficients. Note that the parameters relating to
+			pixel scale, size of the image, and reference pixels will be
+			overwritten. If None no gemoetric distortions will be applied.
+
+	Returns:
+		astropy.wcs.wcs.WCS: The wcs object corresponding to the
+			downsampled image.
 	"""
-	if pixel_offset == (0,0):
-		w_out = w
+	# If wcs distortion was specified, use it to seed the fits file we
+	# will later use to create the wcs object. This is a little
+	# circular, but it's difficult to modify a wcs once it's been
+	# created.
+	if wcs_distortion is not None:
+		hdul = wcs_distortion.to_fits()
 	else:
-		w_out = deepcopy(w)
-		w_out.wcs.crpix += np.array(pixel_offset)
-	return w_out
+		hdul = fits.HDUList([fits.PrimaryHDU()])
+
+	# Get the shape of the expected data
+	scaling = high_res_pixel_scale/low_res_pixel_scale
+	low_res_shape = copy.copy(high_res_shape)
+	low_res_shape[0] = low_res_shape[0]//scaling
+	low_res_shape[1] = low_res_shape[1]//scaling
+
+	# Modify the fits header to match our desired low resolution
+	# configuration.
+	hdul[0].header['WCSAXES'] = 2
+	hdul[0].header['CRPIX1'] = (low_res_shape[0]/2,
+		'Pixel coordinate of reference point')
+	hdul[0].header['CRPIX2'] = (low_res_shape[1]/2,
+		'Pixel coordinate of reference point')
+	hdul[0].header['CDELT1'] = (low_res_pixel_scale/3600,
+		'[deg] Coordinate increment at reference point')
+	hdul[0].header['CDELT2'] = (low_res_pixel_scale/3600,
+		'[deg] Coordinate increment at reference point')
+	hdul[0].header['CUNIT1'] = ('deg',
+		'Units of coordinate increment and value ')
+	hdul[0].header['CUNIT2'] = ('deg',
+		'Units of coordinate increment and value ')
+	if wcs_distortion:
+		hdul[0].header['CTYPE1'] = 'RA-SIP'
+		hdul[0].header['CTYPE2'] = 'DEC-SIP'
+	else:
+		hdul[0].header['CTYPE1'] = 'RA'
+		hdul[0].header['CTYPE2'] = 'DEC'
+	hdul[0].header['CRVAL1'] = (20,
+		'[deg] Coordinate value at reference point')
+	hdul[0].header['CRVAL2'] = (-70,
+		'[deg] Coordinate value at reference point')
+
+	# Use the first object to generate our WCS object
+	return wcs.WCS(fobj=hdul,header=hdul[0].header)
 
 
-def sky_bg(img,
-		   pixel_width=WFC3_PIXEL_WIDTH / 2,
-		   exposure_sec=500,
-		   bg_per_as2_sec=20.778):
-	"""Return sky background in electrons/pixel given an image img
-	"""
-	return np.random.poisson(
-		bg_per_as2_sec * pixel_width**2 * exposure_sec,
-		size=img.shape)
-
-
-def simple_wcs(
-		pixel_width=WFC3_PIXEL_WIDTH,
-		npix=64,
-		center=(337.5202808, -20.83333306),
-		offset=(0,0)):
-	"""Return basic RA-DEC WCS
-
-	Args:
-	 - pixel_width: width of pixel in arcseconds
-	 - npix: length (and width) of image in pixels
-	 - center: center in RA-DEC coordinates
-	 - offset: offset to center pixel in pixels
-	"""
-	arcsec_to_deg = 1/3600
-	wcs_input_dict = {
-		'CTYPE1': 'RA-TAN',
-		'CTYPE2': 'DEC-TAN',
-
-		'CUNIT1': 'deg',
-		'CUNIT2': 'deg',
-
-		'CDELT1': -pixel_width * arcsec_to_deg,
-		'CDELT2': pixel_width * arcsec_to_deg,
-
-		'CRPIX1': 1 + offset[0],
-		'CRPIX2': 1 + offset[1],
-
-		# Just some standard reference location
-		'CRVAL1': center[0],
-		'CRVAL2': center[1],
-
-		'NAXIS1': npix,
-		'NAXIS2': npix
-	}
-	return wcs.WCS(wcs_input_dict)
-
-
-def hubblify(
-		img_sky,
-		w_flt=None,
-		w_drz=None,
-		pixel_width_sky=WFC3_PIXEL_WIDTH / 2,
-		exposure_sec=500):
-	"""Return WFC3 UVIS Hubble image given an undistorted sky image;
-		applying distortions, an empirical PSF, and drizzling for
-		a four-point dither observation pattern.
+def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
+	drizzle_pixel_scale,noise_model,psf_model,offset_pattern,
+	wcs_distortion=None):
+	"""Generates a simulated drizzled HST image, accounting for
+	gemoetric distortions, the dithering pattern, and correlated
+	read noise from drizzling.
 
 	Args:
-	 - sky_image: ndarray, undistorted, noise-free high-res image
-		 of the sky in electrons/s
-	 - w_flt: astropy.wcs.WCS of single exposure in _flt/_flc frame
-	 - w_drz: astropy.wcs.WCS of final, drizzled image
-	 - pixel_width_sky: Width in arcsec of a pixel in sky_image
-	 - exposure_sec: Exposure. Total exposure is four times this
-		 due to the four-point dither/drizzle pattern.
+		img_high_res (np.array): A high resolution image that will be
+			downsampled to produce each of the dithered images.
+		high_res_pixel_scale (float): The pixel width of the
+			high resolution image in units of arcseconds.
+		detector_pixel_scale (float): The pixel width of the detector
+			in units of arcseconds.
+		drizzle_pixel_scale (float): The pixel width of the final
+			drizzled product in units of arcseconds.
+		noise_model (function): A function that maps from an input
+			numpy array of the image to a realization of the noise. This
+			should operate on the degraded images.
+		psf_model (function): A function that maps from an input image
+			to an output psf-convovled image. This should operate on the
+			degraded images.
+		offset_pattern ([tuple,...]): A list of x,y coordinate pairs
+			specifying the offset of each dithered image from the coordinate
+			frame used to generate the high resolution image. Specifying shifts
+			that place the degraded image outside of the high resolution image
+			will cause interpolation errors.
+		wcs_distortion (astropy.wcs.wcs.WCS): An instance of the
+			WCS class that includes the desired gemoetric distortions.
+			Note that the parameters relating to pixel scale, size of
+			the image, and reference pixels will be overwritten. If None
+			no gemoetric distortions will be applied.
 	"""
-	if w_flt is None:
-		w_flt = simple_wcs(WFC3_PIXEL_WIDTH / 2, npix=128)
-	if w_drz is None:
-		w_drz = simple_wcs(WFC3_PIXEL_WIDTH, npix=64)
+	# Create our three base WCS systems, one for the input high res, one for the
+	# input highres, one for the drizzled image, and one for the final dithered
+	# image.
+	w_high_res = generate_downsampled_wcs(img_high_res.shape,
+		high_res_pixel_scale,high_res_pixel_scale,None)
+	w_driz = generate_downsampled_wcs(img_high_res.shape,high_res_pixel_scale,
+		drizzle_pixel_scale,None)
+	w_dither = generate_downsampled_wcs(img_high_res.shape,
+		high_res_pixel_scale,detector_pixel_scale,wcs_distortion)
 
-	driz = Drizzle(outwcs=w_drz)
-	for offset in [(0,0), (0, .5), (.5, 0), (.5, .5)]:
-		img_sky_with_noise = (
-			img_sky * exposure_sec   # Convert from e/s to e
-			+ sky_bg(img_sky, pixel_width_sky, exposure_sec))
+	# Initialize our drizzle class with the target output wcs.
+	driz = Drizzle(outwcs=w_driz)
 
-		# Construct image in _flt / _flc frame via interpolation
-		# This should produce an image with WFC3's pixel size.
-		img_in_flt = distort_image(img_sky_with_noise, w_flt, pixel_width_sky)
+	# Get the distorted sub images to which we will add noise and then add
+	# them to our drizzle.
+	img_dither_array = distort_image(img_high_res,w_high_res,w_dither,
+		offset_pattern)
 
-		# TODO: Convolve with empirical PSF
+	for d_i,image_dither in enumerate(img_dither_array):
 
-		# TODO: Apply readout noise
+		# Add the psf and the noise to each dithered image.
+		image_dither = psf_model(image_dither)
+		image_dither += noise_model(image_dither)
 
 		# Feed to drizzle, note WCS translation
-		driz.add_image(
-			img_in_flt,
-			offset_wcs(w_flt, offset))
+		driz.add_image(image_dither,offset_wcs(w_dither, d_i))
 
 	# Get final image from drizzle
-	try:
-		_, tmp_fn = tempfile.mkstemp()
-		driz.write(tmp_fn)
-		with fits.open(tmp_fn) as hdul:
-			return hdul[1].data
-	finally:
-		os.remove(tmp_fn)
+	return driz.outsci
