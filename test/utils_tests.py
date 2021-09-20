@@ -1,9 +1,10 @@
 import unittest
-from manada.Utils import power_law, cosmology_utils
+from manada.Utils import power_law, cosmology_utils, hubble_utils
 from scipy.integrate import quad
 import numpy as np
 from colossus.cosmology import cosmology
 from astropy import units as u
+from astropy.wcs import wcs
 
 
 class PowerLawTests(unittest.TestCase):
@@ -130,3 +131,118 @@ class CosmologyTests(unittest.TestCase):
 		dd *= 1/h * u.Mpc.to(u.kpc)/u.radian.to(u.arcsecond)
 		np.testing.assert_almost_equal(cosmology_utils.kpc_per_arcsecond(
 			z_test,cosmo),dd,decimal=4)
+
+
+class HubbleUtilsTests(unittest.TestCase):
+
+	def test_offset_wcs(self):
+		# Check that providing a valid WCS and offset returns the expected
+		# positions from all_pix2world.
+		npix = 128
+		pixel_width = 0.04/3600
+		wcs_input_dict = {
+			'CTYPE1': 'RA-TAN',
+			'CTYPE2': 'DEC-TAN',
+
+			'CUNIT1': 'deg',
+			'CUNIT2': 'deg',
+
+			'CDELT1': pixel_width,
+			'CDELT2': pixel_width,
+
+			'CRPIX1': npix/2,
+			'CRPIX2': npix/2,
+
+			# Just some standard reference location
+			'CRVAL1': 337.5202808,
+			'CRVAL2': -20.833333059999998,
+
+			'NAXIS1': npix,
+			'NAXIS2': npix
+		}
+		w = wcs.WCS(wcs_input_dict)
+
+		# First start with no offset
+		w_off = hubble_utils.offset_wcs(w,(0,0))
+		x,y = np.meshgrid(np.arange(npix),np.arange(npix))
+		np.testing.assert_almost_equal(w.all_pix2world(x,y,0),
+			w_off.all_pix2world(x,y,0))
+
+		# Now add an offset
+		w_off = hubble_utils.offset_wcs(w,(0.5,0))
+		x,y = np.meshgrid(np.arange(npix),np.arange(npix))
+		np.testing.assert_almost_equal(w.all_pix2world(x-0.5,y,0),
+			w_off.all_pix2world(x,y,0))
+
+		# Now add another offset
+		w_off = hubble_utils.offset_wcs(w,(0.5,0.7))
+		x,y = np.meshgrid(np.arange(npix),np.arange(npix))
+		np.testing.assert_almost_equal(w.all_pix2world(x-0.5,y-0.7,0),
+			w_off.all_pix2world(x,y,0))
+
+	def test_distort_image(self):
+		# Check that the offset images returned match our expectations
+		img_high_res = np.zeros((256,256))
+		for i in range(len(img_high_res)):
+			img_high_res[i] += i
+		for j in range(img_high_res.shape[1]):
+			img_high_res[:,j] += j
+		pixel_width = 0.01
+		npix = 256
+		wcs_hr_dict = {
+			'CTYPE1': 'RA-TAN',
+			'CTYPE2': 'DEC-TAN',
+			'CUNIT1': 'deg',
+			'CUNIT2': 'deg',
+			'CDELT1': pixel_width/2,
+			'CDELT2': pixel_width/2,
+			'CRPIX1': npix/2,
+			'CRPIX2': npix/2,
+			'CRVAL1': 90,
+			'CRVAL2': -20,
+			'NAXIS1': npix,
+			'NAXIS2': npix
+		}
+		w_hr = wcs.WCS(wcs_hr_dict)
+
+		pixel_width = 0.01
+		npix = 128
+		wcs_lr_dict = {
+			'CTYPE1': 'RA-TAN',
+			'CTYPE2': 'DEC-TAN',
+			'CUNIT1': 'deg',
+			'CUNIT2': 'deg',
+			'CDELT1': pixel_width,
+			'CDELT2': pixel_width,
+			'CRPIX1': npix/2,
+			'CRPIX2': npix/2,
+			'CRVAL1': 90,
+			'CRVAL2': -20,
+			'NAXIS1': npix,
+			'NAXIS2': npix
+		}
+		w_lr = wcs.WCS(wcs_lr_dict)
+
+		offset_pattern = [(0,0),(-0.5,0.0),(0,-0.5)]
+		img_dither_array = hubble_utils.distort_image(img_high_res,w_hr,w_lr,
+			offset_pattern)
+
+		# Test the no offset image.
+		test_image = np.zeros((npix,npix))
+		for i in range(len(test_image)):
+			for j in range(test_image.shape[1]):
+				test_image[i,j] = np.sum(img_high_res[2*i:2*i+2,2*j:2*j+2])
+		np.testing.assert_almost_equal(test_image,img_dither_array[0])
+
+		# Test the two images with offsets
+		test_image = np.zeros((npix,npix))
+		for i in range(len(test_image)):
+			for j in range(test_image.shape[1]):
+				test_image[i,j] = np.sum(img_high_res[2*i+1:2*i+3,2*j:2*j+2])
+		np.testing.assert_almost_equal(test_image,img_dither_array[1])
+
+		test_image = np.zeros((npix,npix))
+		for i in range(len(test_image)):
+			for j in range(test_image.shape[1]):
+				test_image[i,j] = np.sum(img_high_res[2*i:2*i+2,2*j+1:2*j+3])
+		np.testing.assert_almost_equal(test_image,img_dither_array[2])

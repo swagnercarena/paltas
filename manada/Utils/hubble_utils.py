@@ -9,23 +9,7 @@ from astropy.wcs import wcs
 from drizzle.drizzle import Drizzle
 from scipy.interpolate import RectBivariateSpline
 
-
-def image_grid(shape, pixel_width,x0=0, y0=0):
-	"""Return x, y edges of image coordinates
-
-	Args:
-		shape (tuple): The shape of the image
-		pixel_scale (float): pixel width in units of arcseconds
-		x0 (float): The center x coordinate of the grid
-		y0 (float): The center y coordiante of the grid
-		edges (bool)
-	"""
-	nx, ny = shape
-	dx = nx * pixel_width
-	dy = nx * pixel_width
-	x = np.linspace(-dx / 2, dx / 2, nx) + x0
-	y = np.linspace(-dy / 2, dy / 2, ny) + y0
-	return x, y
+WCS_ORIGIN = 1
 
 
 def offset_wcs(w,pixel_offset):
@@ -50,48 +34,56 @@ def distort_image(img_high_res,w_high_res,w_dither,offset_pattern):
 	"""Create distorted Hubble image in _flt frame
 
 	Args:
-	 - sky_image: ndarray, undistorted, noise-free high-res image
-		 of the sky in electrons/s
-	 - w: WCS of *output* image (including any
-		 distortions you'd like to apply)
-	 - pixel_width_sky: Width in arcsec of a pixel in sky_image
-	 - pixel_offset: Position  of the center of the image
-		 in pixels, relative to the center (crval/crpix) of the wcs
-		 the crval of distorted_wcs
+		img_high_res (np.array): A high resolution image that will be
+			downsampled to produce each of the dithered images.
+		w_high_res (astropy.wcs.wcs.WCS): The WCS class for the high resolution
+			image. This should not include any distortion effects.
+		w_dither (astropy.wcs.wcs.WCS): The WCS class for the dithered image.
+			This should have the same pixel scale as the camera and should
+			be centered at the same point as w_high_res. The offsets will be
+			accounted for in the function call.
+		offset_pattern ([tuple,...]): A list of tuples, each containing an x,y
+			pair of offsets in pixel coordinates.
+
+	Returns:
+		(np.array): A len(offset_pattern) x dither_image.shape sized numpy
+			array for each of the dithered images.
 	"""
-	try:
-		out_shape = (w.naxis2, w.naxis1)
-	except AttributeError:
-		out_shape = tuple(w._naxis)
+	# First create the interpolator for our image in the sky. Values are assumed
+	# to be measured at the center of pixels.
+	x_interp = np.arange(img_high_res.shape[0])+0.5
+	y_interp = np.arange(img_high_res.shape[1])+0.5
+	# Interpolation will be linear.
+	img_itp = RectBivariateSpline(x_interp, y_interp, img_high_res,
+		kx=1,ky=1)
 
-	# Coordinate grid of the sky image
-	x_sky, y_sky = image_grid(
-		sky_image.shape,
-		# Convert from arcseconds to degrees
-		pixel_width=pixel_width_sky / 3600,
-		edges=False)
-	center_sky = w.wcs.crval
-	x_sky += center_sky[0]
-	y_sky += center_sky[1]
+	# Create the coordinates we want to plot the dithered image on.
+	dith_shape = w_dither._naxis
+	x_dith,y_dith = np.meshgrid(np.arange(dith_shape[0])+0.5,
+		np.arange(dith_shape[1])+0.5,indexing='ij')
 
-	# Interpolator mapping sky position to image value
-	img_sky_itp = RectBivariateSpline(x_sky, y_sky, sky_image)
+	# Array in which we'll store the images
+	img_dither_array = np.zeros((len(offset_pattern),)+tuple(dith_shape))
 
-	# Coordinate grid of the _flt pixel image
-	# (the one we are generating)
-	out_img_shape = out_shape
-	center_pixel = w.wcs.crpix
-	x_pixel = np.arange(out_img_shape[0])
-	y_pixel = np.arange(out_img_shape[1])
-	x_pixel += int(center_pixel[0]) - len(x_pixel)//2 - pixel_offset[0]
-	y_pixel += int(center_pixel[1]) - len(y_pixel)//2 - pixel_offset[1]
+	# Now for each offset requested, generate the dithered image.
+	for oi,offset in enumerate(offset_pattern):
+		# Calculate the offset WCS
+		w_offset = offset_wcs(w_dither,offset)
 
-	# Compute image in distorted frame
-	xx, yy = np.meshgrid(x_pixel, y_pixel, indexing='ij')
-	pixel_on_sky = w.all_pix2world(np.stack([xx.ravel(), yy.ravel()]).T, 1).T
-	img_out = img_sky_itp(*pixel_on_sky, grid=False).reshape(out_img_shape)
+		# Use that to calculate the ra and dec of each pixel and map
+		# that to the image values from the interpolation
+		ra_off,dec_off = w_offset.all_pix2world(x_dith,y_dith,
+			WCS_ORIGIN)
+		x_dith_int,y_dith_int = w_high_res.all_world2pix(ra_off,dec_off,
+			WCS_ORIGIN)
 
-	return img_out
+		img_dither_array[oi] += img_itp(x_dith_int,y_dith_int,grid=False)
+
+	# Multiply by scaling since we want sum not mean.
+	img_dither_array *= w_dither.wcs.cdelt[0]/w_high_res.wcs.cdelt[0]
+	img_dither_array *= w_dither.wcs.cdelt[1]/w_high_res.wcs.cdelt[1]
+
+	return img_dither_array
 
 
 def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
@@ -133,6 +125,8 @@ def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
 	# Modify the fits header to match our desired low resolution
 	# configuration.
 	hdul[0].header['WCSAXES'] = 2
+	hdul[0].header['NAXIS1'] = low_res_shape[0]
+	hdul[0].header['NAXIS2'] = low_res_shape[1]
 	hdul[0].header['CRPIX1'] = (low_res_shape[0]/2,
 		'Pixel coordinate of reference point')
 	hdul[0].header['CRPIX2'] = (low_res_shape[1]/2,
@@ -146,8 +140,8 @@ def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
 	hdul[0].header['CUNIT2'] = ('deg',
 		'Units of coordinate increment and value ')
 	if wcs_distortion:
-		hdul[0].header['CTYPE1'] = 'RA-SIP'
-		hdul[0].header['CTYPE2'] = 'DEC-SIP'
+		hdul[0].header['CTYPE1'] = 'RA-TAN-SIP'
+		hdul[0].header['CTYPE2'] = 'DEC-TAN-SIP'
 	else:
 		hdul[0].header['CTYPE1'] = 'RA'
 		hdul[0].header['CTYPE2'] = 'DEC'
@@ -192,6 +186,12 @@ def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 			Note that the parameters relating to pixel scale, size of
 			the image, and reference pixels will be overwritten. If None
 			no gemoetric distortions will be applied.
+
+	Returns:
+		(np.array): The drizzled image produced from len(offset_pattern)
+			number of dithered exposures of img_high_res. Note that this
+			means that the drizzled image will have the noise statistics and
+			flux of len(offset_pattern) combined exposures.
 	"""
 	# Create our three base WCS systems, one for the input high res, one for the
 	# input highres, one for the drizzled image, and one for the final dithered
@@ -218,7 +218,7 @@ def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 		image_dither += noise_model(image_dither)
 
 		# Feed to drizzle, note WCS translation
-		driz.add_image(image_dither,offset_wcs(w_dither, d_i))
+		driz.add_image(image_dither,offset_wcs(w_dither, offset_pattern[d_i]))
 
 	# Get final image from drizzle
 	return driz.outsci
