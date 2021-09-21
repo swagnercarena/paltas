@@ -13,7 +13,7 @@ import warnings
 WCS_ORIGIN = 1
 
 
-def offset_wcs(w,pixel_offset):
+def offset_wcs(w,pixel_offset,reverse=False):
 	"""Return wcs w shifted by pixel_offset pixels.
 
 	Args:
@@ -27,7 +27,11 @@ def offset_wcs(w,pixel_offset):
 	# Copy the object and add the pixel offset to the reference pixel
 	# position.
 	w_out = copy.deepcopy(w)
-	w_out.wcs.crpix += np.array(pixel_offset)
+	if reverse:
+		w_out.wcs.crpix[0] += pixel_offset[1]
+		w_out.wcs.crpix[1] += pixel_offset[0]
+	else:
+		w_out.wcs.crpix += np.array(pixel_offset)
 	return w_out
 
 
@@ -59,7 +63,7 @@ def distort_image(img_high_res,w_high_res,w_dither,offset_pattern):
 		kx=1,ky=1)
 
 	# Create the coordinates we want to plot the dithered image on.
-	dith_shape = w_dither._naxis
+	dith_shape = w_dither.pixel_shape
 	x_dith,y_dith = np.meshgrid(np.arange(dith_shape[0])+0.5,
 		np.arange(dith_shape[1])+0.5,indexing='ij')
 
@@ -128,8 +132,8 @@ def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
 	# Modify the fits header to match our desired low resolution
 	# configuration.
 	hdul[0].header['WCSAXES'] = 2
-	hdul[0].header['NAXIS1'] = low_res_shape[0]
-	hdul[0].header['NAXIS2'] = low_res_shape[1]
+	hdul[0].header['NAXIS1'] = int(low_res_shape[0])
+	hdul[0].header['NAXIS2'] = int(low_res_shape[1])
 	hdul[0].header['CRPIX1'] = (low_res_shape[0]/2,
 		'Pixel coordinate of reference point')
 	hdul[0].header['CRPIX2'] = (low_res_shape[1]/2,
@@ -153,13 +157,18 @@ def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
 	hdul[0].header['CRVAL2'] = (-70,
 		'[deg] Coordinate value at reference point')
 
-	# Use the first object to generate our WCS object
-	return wcs.WCS(fobj=hdul,header=hdul[0].header)
+	# Use the first object to generate our WCS object. Ignore warnings
+	# about not having an actual image in hdul.
+	with warnings.catch_warnings():
+		warnings.simplefilter('ignore')
+		w_ds = wcs.WCS(fobj=hdul,header=hdul[0].header)
+
+	return w_ds
 
 
 def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 	drizzle_pixel_scale,noise_model,psf_model,offset_pattern,
-	wcs_distortion=None):
+	wcs_distortion=None,pixfrac=1.0,kernel='square'):
 	"""Generates a simulated drizzled HST image, accounting for
 	gemoetric distortions, the dithering pattern, and correlated
 	read noise from drizzling.
@@ -189,6 +198,10 @@ def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 			Note that the parameters relating to pixel scale, size of
 			the image, and reference pixels will be overwritten. If None
 			no gemoetric distortions will be applied.
+		pixfrac (float): The fraction of the pixel that the pixel
+			flux is contained in. Passed to the drizzle algorithm.
+		kernel (str): The string for the kernel to be used by the drizzle
+			algorithm.
 
 	Returns:
 		(np.array): The drizzled image produced from len(offset_pattern)
@@ -207,7 +220,8 @@ def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 		high_res_pixel_scale,detector_pixel_scale,wcs_distortion)
 
 	# Initialize our drizzle class with the target output wcs.
-	driz = Drizzle(outwcs=w_driz)
+	driz = Drizzle(outwcs=w_driz,pixfrac=pixfrac,kernel=kernel,
+		fillval='0')
 
 	# Get the distorted sub images to which we will add noise and then add
 	# them to our drizzle.
@@ -220,8 +234,11 @@ def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 		image_dither = psf_model(image_dither)
 		image_dither += noise_model(image_dither)
 
-		# Feed to drizzle, note WCS translation
-		driz.add_image(image_dither,offset_wcs(w_dither, offset_pattern[d_i]))
+		# Feed to drizzle, note WCS translation. Also drizzle reverses the
+		# axis convention so transpose the image.
+		driz.add_image(image_dither.T,offset_wcs(w_dither,
+			offset_pattern[d_i]))
 
-	# Get final image from drizzle
-	return driz.outsci
+	# Get final image from drizzle. Drizzle divides by number of exposures,
+	# and we want to undo this effect.
+	return driz.outsci.T*len(offset_pattern)

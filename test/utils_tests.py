@@ -277,3 +277,94 @@ class HubbleUtilsTests(unittest.TestCase):
 			w_hr.all_pix2world(x,y,1),decimal=4)
 		np.testing.assert_almost_equal(w_lr.all_pix2world(3*x/4,3*y/4,1),
 			w_mr.all_pix2world(x,y,1),decimal=4)
+
+		# Check that the pixel shapes are integers
+		for w in [w_lr,w_hr,w_mr]:
+			self.assertTrue(type(w.pixel_shape[0]) is int)
+			self.assertTrue(type(w.pixel_shape[1]) is int)
+
+	def test_hubblify(self):
+		# It's a little hard to test drizzle in detail here, but we can
+		# do some surface level tests. We can make sure flux is convserved,
+		# that it returns the image when all the resolutions are the same,
+		# and that nothing goes crazy with the 0.02,0.04,0.03 configuration
+		# we plan to use.
+
+		# First generate an image with all the signal in the center
+		img_high_res = np.ones((256,256))
+		x,y = np.meshgrid(np.arange(img_high_res.shape[0]),
+			np.arange(img_high_res.shape[1]),indexing='ij')
+		r = np.sqrt((x-128)**2+((y-128)*2)**2)
+		img_high_res *= (r<=35.5)
+
+		# Now drizzle the image with no change in the pixel scale at any
+		# step
+		high_res_pixel_scale = 0.04
+		detector_pixel_scale = 0.04
+		drizzle_pixel_scale = 0.04
+
+		# Create a noise model and psf model that do nothing
+		def noise_model(image):
+			return 0
+
+		def psf_model(image):
+			return image
+
+		# Check that with integer offsets the input image is returned
+		offset_pattern = [(0,0),(5.0,0),(10.0,0.0),(15.0,15.0)]
+		img_drizz = hubble_utils.hubblify(img_high_res,high_res_pixel_scale,
+			detector_pixel_scale,drizzle_pixel_scale,noise_model,psf_model,
+			offset_pattern)
+		# np.testing.assert_almost_equal(img_drizz,img_high_res*4)
+
+		# Now repeat the test above with half-integer offsets.
+		offset_pattern = [(0,0),(0.5,0),(0.0,0.5),(0.5,0.5)]
+		img_drizz = hubble_utils.hubblify(img_high_res,high_res_pixel_scale,
+			detector_pixel_scale,drizzle_pixel_scale,noise_model,psf_model,
+			offset_pattern)
+		# Check that flux is conserved and kept roughly within the correct
+		# area.
+		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res*4))
+		self.assertAlmostEqual(np.sum(img_drizz[r<=38]),np.sum(img_drizz))
+
+		# Now let's change the resolutions a bit and make sure that doesn't
+		# break everything
+		high_res_pixel_scale = 0.02
+		detector_pixel_scale = 0.04
+		drizzle_pixel_scale = 0.03
+		img_drizz = hubble_utils.hubblify(img_high_res,high_res_pixel_scale,
+			detector_pixel_scale,drizzle_pixel_scale,noise_model,psf_model,
+			offset_pattern)
+		# Same basic checks
+		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res*4))
+		x,y = np.meshgrid(np.arange(img_drizz.shape[0]),
+			np.arange(img_drizz.shape[1]),indexing='ij')
+		r = np.sqrt((x-85)**2+((y-85)*2)**2)
+		self.assertAlmostEqual(np.sum(img_drizz[r<=27]),np.sum(img_drizz))
+
+		# Okay now let's test that we get correlated noise.
+		img_high_res *= 0
+
+		class NM():
+			def __init__(self):
+				self.pos = 30
+
+			def noise_model(self,image):
+				noise = np.zeros(image.shape)
+				noise[self.pos,self.pos] = 20
+				self.pos += 30
+				return noise
+
+		offset_pattern = [(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)]
+		img_drizz = hubble_utils.hubblify(img_high_res,high_res_pixel_scale,
+			detector_pixel_scale,drizzle_pixel_scale,NM().noise_model,
+			psf_model,offset_pattern)
+		# Check that at each of the four positions only a part of the
+		# noise is present, but that all the noise is present in the
+		# image
+		for i in range(1,5):
+			self.assertTrue(img_drizz[40*i,40*i]>0 and img_drizz[40*i,40*i]<20)
+		self.assertAlmostEqual(np.sum(img_drizz),80)
+
+		# Now let's check that the psf blurs the image as we want
+		# TODO
