@@ -8,6 +8,7 @@ from astropy.io import fits
 from astropy.wcs import wcs
 from drizzle.drizzle import Drizzle
 from scipy.interpolate import RectBivariateSpline
+import warnings
 
 WCS_ORIGIN = 1
 
@@ -92,7 +93,7 @@ def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
 	specified, geometric distortions will be included in the wcs object.
 
 	Args:
-		high_res_shape (tuple): The shape of the high resolution image
+		high_res_shape ([int,..]): The shape of the high resolution image
 		high_res_pixel_scale (float): The pixel width of the high
 			resolution image in units of arcseconds.
 		low_res_pixel_scale (float): The pixel width of the lower
@@ -112,12 +113,14 @@ def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
 	# circular, but it's difficult to modify a wcs once it's been
 	# created.
 	if wcs_distortion is not None:
+		warnings.warn('wcs distortion code is not tested.')
 		hdul = wcs_distortion.to_fits()
 	else:
 		hdul = fits.HDUList([fits.PrimaryHDU()])
 
 	# Get the shape of the expected data
-	scaling = high_res_pixel_scale/low_res_pixel_scale
+	high_res_shape = list(high_res_shape)
+	scaling = low_res_pixel_scale/high_res_pixel_scale
 	low_res_shape = copy.copy(high_res_shape)
 	low_res_shape[0] = low_res_shape[0]//scaling
 	low_res_shape[1] = low_res_shape[1]//scaling

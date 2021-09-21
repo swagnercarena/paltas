@@ -187,7 +187,7 @@ class HubbleUtilsTests(unittest.TestCase):
 			img_high_res[i] += i
 		for j in range(img_high_res.shape[1]):
 			img_high_res[:,j] += j
-		pixel_width = 0.005
+		pixel_width = 0.02/3600
 		npix = 256
 		wcs_hr_dict = {
 			'CTYPE1': 'RA-TAN',
@@ -205,7 +205,7 @@ class HubbleUtilsTests(unittest.TestCase):
 		}
 		w_hr = wcs.WCS(wcs_hr_dict)
 
-		pixel_width = 0.01
+		pixel_width = 0.04/3600
 		npix = 128
 		wcs_lr_dict = {
 			'CTYPE1': 'RA-TAN',
@@ -250,3 +250,30 @@ class HubbleUtilsTests(unittest.TestCase):
 				test_image[i,j] = np.mean(img_high_res[2*i:2*i+2,2*j+1:
 					2*j+3])*4
 		np.testing.assert_almost_equal(test_image,img_dither_array[2])
+
+	def test_generate_downsampled_wcs(self):
+		# Check that the downsampled WCS maps as expected to the higher
+		# res wcs.
+		high_res_shape = (256,256)
+		high_res_pixel_scale = 0.02
+		low_res_pixel_scale = 0.04
+		wcs_distortion = None
+
+		w_lr = hubble_utils.generate_downsampled_wcs(high_res_shape,
+			high_res_pixel_scale,low_res_pixel_scale,wcs_distortion)
+		w_hr = hubble_utils.generate_downsampled_wcs(high_res_shape,
+			high_res_pixel_scale,high_res_pixel_scale,wcs_distortion)
+
+		x,y = np.meshgrid(np.arange(high_res_shape[0]),
+			np.arange(high_res_shape[1]),indexing='ij')
+		np.testing.assert_almost_equal(w_lr.all_pix2world(x/2,y/2,1),
+			w_hr.all_pix2world(x,y,1))
+
+		# Try for another resolution.
+		low_res_pixel_scale = 0.03
+		w_mr = hubble_utils.generate_downsampled_wcs(high_res_shape,
+			high_res_pixel_scale,low_res_pixel_scale,wcs_distortion)
+		np.testing.assert_almost_equal(w_mr.all_pix2world(2*x/3,2*y/3,1),
+			w_hr.all_pix2world(x,y,1),decimal=4)
+		np.testing.assert_almost_equal(w_lr.all_pix2world(3*x/4,3*y/4,1),
+			w_mr.all_pix2world(x,y,1),decimal=4)
