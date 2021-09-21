@@ -187,15 +187,15 @@ class HubbleUtilsTests(unittest.TestCase):
 			img_high_res[i] += i
 		for j in range(img_high_res.shape[1]):
 			img_high_res[:,j] += j
-		pixel_width = 0.01
+		pixel_width = 0.005
 		npix = 256
 		wcs_hr_dict = {
 			'CTYPE1': 'RA-TAN',
 			'CTYPE2': 'DEC-TAN',
 			'CUNIT1': 'deg',
 			'CUNIT2': 'deg',
-			'CDELT1': pixel_width/2,
-			'CDELT2': pixel_width/2,
+			'CDELT1': pixel_width,
+			'CDELT2': pixel_width,
 			'CRPIX1': npix/2,
 			'CRPIX2': npix/2,
 			'CRVAL1': 90,
@@ -233,16 +233,20 @@ class HubbleUtilsTests(unittest.TestCase):
 			for j in range(test_image.shape[1]):
 				test_image[i,j] = np.sum(img_high_res[2*i:2*i+2,2*j:2*j+2])
 		np.testing.assert_almost_equal(test_image,img_dither_array[0])
+		self.assertAlmostEqual(np.sum(img_high_res),
+			np.sum(img_dither_array[0]))
 
 		# Test the two images with offsets
 		test_image = np.zeros((npix,npix))
 		for i in range(len(test_image)):
 			for j in range(test_image.shape[1]):
-				test_image[i,j] = np.sum(img_high_res[2*i+1:2*i+3,2*j:2*j+2])
+				test_image[i,j] = np.mean(img_high_res[2*i+1:2*i+3,
+					2*j:2*j+2])*4
 		np.testing.assert_almost_equal(test_image,img_dither_array[1])
 
 		test_image = np.zeros((npix,npix))
 		for i in range(len(test_image)):
 			for j in range(test_image.shape[1]):
-				test_image[i,j] = np.sum(img_high_res[2*i:2*i+2,2*j+1:2*j+3])
+				test_image[i,j] = np.mean(img_high_res[2*i:2*i+2,2*j+1:
+					2*j+3])*4
 		np.testing.assert_almost_equal(test_image,img_dither_array[2])
