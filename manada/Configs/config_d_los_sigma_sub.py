@@ -109,7 +109,7 @@ config_dict = {
 		'parameters':{
 			'pixel_scale':0.040,'ccd_gain':1.58,'read_noise':3.0,
 			'magnitude_zero_point':output_ab_zeropoint,
-			'exposure_time':TODO,'sky_brightness':21.83,
+			'exposure_time':1380,'sky_brightness':21.83,
 			'num_exposures':1,'background_noise':None
 		}
 	},
