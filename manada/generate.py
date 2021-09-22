@@ -15,10 +15,12 @@ save_folder. If save_folder doesn't exist it will be created.
 """
 # TODO: Variable noise
 import numpy as np
-import argparse, os, sys
+import argparse, os, sys, warnings
 from importlib import import_module
 from manada.Sampling.sampler import Sampler
 from manada.Utils.cosmology_utils import get_cosmology
+from manada.Utils.hubble_utils import hubblify
+from manada.Utils.lenstronomy_utils import PSFHelper
 from manada.Sources.galaxy_catalog import GalaxyCatalog
 from manada.Analysis import dataset_generation
 import matplotlib.pyplot as plt
@@ -32,6 +34,9 @@ from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 import lenstronomy.Util.util as util
+
+# Global filters on the python warnings.
+SERIALIZATIONWARNING = False
 
 
 def parse_args():
@@ -191,12 +196,110 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 	return image,meta_values
 
 
+def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
+	source_class,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise):
+	""" Takes a sample from Sampler.sample toghether with the lenstronomy
+	models and draws an image of the strong lensing system with a
+	simulated drizzling pipeline applied.
+
+	Args:
+		sample (dict): A dictionary containing the parameter values that will
+			be sampled.
+		los_class (manada.Substructure.LOSBase): An instance of the los class.
+			If None no los will be added.
+		subhalo_class (manada.Substructure.SubhalosBase): An instance of the
+			subhalo class. If None no subhalos will be added.
+		main_model_list (list): A list of the main deflector models to
+			be added. If None no main deflector will be added.
+		source_class (manada.Sources.SourceBase): An instance of the
+			SourceBase class that will be used to draw the source
+			image.
+		numpix (int): The number of pixels in the generated image
+		multi_plane (bool): If true the multiplane approximation will
+			be used. Must be true for los.
+		kwargs_numerics (dict): A dict containing the numerics kwargs to
+			pass to lenstronomy
+		mag_cut (float): A magnification cut to enforce on the images. If
+			None no magnitude cut will be enforced.
+		add_noise (bool): If true noise will be added to the image. If False
+			noise must be added after the fact.
+		drizzle_parameters (dict): The parameters to use for the drizzling
+			operation that will be passed to hubblify.
+
+	Returns
+		(np.array,dict): A numpy array containing the generated image
+			and a metavalue dictionary with the corresponding sampled
+			values.
+	"""
+	# First generate a high resolution version of the image.
+	supersample_pixel_scale = sample['drizzle_parameters'][
+		'supersample_pixel_scale']
+	output_pixel_scale = sample['drizzle_parameters']['output_pixel_scale']
+	detector_pixel_scale = sample['detector_parameters']['pixel_scale']
+	offset_pattern = sample['drizzle_parameters']['offset_pattern']
+	wcs_distortion = sample['drizzle_parameters']['wcs_distortion']
+	ss_scaling = detector_pixel_scale/supersample_pixel_scale
+	numpix_ss = int(numpix*ss_scaling)
+
+	# Temporairly reset the detector pixel_scale to the supersampled scale.
+	sample['detector_parameters']['pixel_scale'] = supersample_pixel_scale
+
+	# Modify the numerics kwargs to account for the supersampled pixel scale
+	if 'supersampling_factor' in kwargs_numerics:
+		warnings.warn('kwargs_numerics supersampling_factor modified for ' +
+			'drizzle')
+		kwargs_numerics['supersampling_factor'] = max(1,
+			int(kwargs_numerics['supersampling_factor']/ss_scaling))
+	if 'point_source_supersampling_factor' in kwargs_numerics:
+		warnings.warn('kwargs_numerics point_source_supersampling_factor ' +
+			'modified for drizzle')
+		kwargs_numerics['point_source_supersampling_factor'] = max(1,int(
+			kwargs_numerics['point_source_supersampling_factor']/ss_scaling))
+
+	# Use the normal generation class to make our highres image without
+	# noise.
+	image_ss, meta_values = draw_image(sample,los_class,subhalo_class,
+		main_model_list,source_class,numpix_ss,multi_plane,kwargs_numerics,
+		mag_cut,False)
+	sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
+
+	# Deal with an image that does not pass a cut.
+	if image_ss is None:
+		return image_ss, meta_values
+
+	# Create our noise and psf models.
+	kwargs_detector = sample['detector_parameters']
+	kwargs_psf = sample['psf_parameters']
+	single_band = SingleBand(**kwargs_detector)
+	data_class = DataAPI(numpix=numpix,**kwargs_detector).data_class
+	psf_model_lenstronomy = PSF(**kwargs_psf)
+
+	if add_noise:
+		noise_model = single_band.noise_for_model
+	else:
+		def noise_model(image):
+			return 0
+
+	psf_model = PSFHelper(data_class,psf_model_lenstronomy,
+		kwargs_numerics).psf_model
+
+	# Pass the high resolution image to hubblify
+	image = hubblify(image_ss,supersample_pixel_scale,detector_pixel_scale,
+		output_pixel_scale,noise_model,psf_model,offset_pattern,
+		wcs_distortion=wcs_distortion,pixfrac=1.0,kernel='square')
+
+	return image, meta_values
+
+
 def main():
 	"""Generates the strong lensing images by drawing parameters values from
 	the provided configuration dictionary.
 	"""
 	# Get the user provided arguments
 	args = parse_args()
+
+	# Setup the warning filter
+	global SERIALIZATIONWARNING
 
 	# Get the dictionary from the provided .py file
 	config_dir, config_file = os.path.split(os.path.abspath(args.config_dict))
@@ -227,6 +330,7 @@ def main():
 	los_class = None
 	subhalo_class = None
 	main_model_list = None
+	do_drizzle = False
 	if 'los' in config_dict:
 		los_class = config_dict['los']['class'](sample['los_parameters'],
 			sample['main_deflector_parameters'],sample['source_parameters'],
@@ -238,6 +342,8 @@ def main():
 			sample['source_parameters'],sample['cosmology_parameters'])
 	if 'main_deflector' in config_dict:
 		main_model_list = config_dict['main_deflector']['models']
+	if 'drizzle' in config_dict:
+		do_drizzle = True
 
 	source_class = config_dict['source']['class'](
 		sample['cosmology_parameters'],sample['source_parameters'])
@@ -266,15 +372,20 @@ def main():
 		# We always try
 		tries += 1
 
-		# TODO things should not be passed as config module. Also it
-		# makes more sense to draw the sample and then pass it into this
-		# class.
 		# Draw a sample and generate the image.
 		sample = sampler.sample()
 		kwargs_detector = sample['detector_parameters']
-		image,meta_values = draw_image(sample,los_class,subhalo_class,
-			main_model_list,source_class,numpix,multi_plane,kwargs_numerics,
-			mag_cut,add_noise)
+
+		# Use the drizzling pipeline if the drizzling parameters were
+		# provided.
+		if do_drizzle:
+			image,meta_values = draw_drizzled_image(sample,los_class,
+				subhalo_class,main_model_list,source_class,numpix,multi_plane,
+				kwargs_numerics,mag_cut,add_noise)
+		else:
+			image,meta_values = draw_image(sample,los_class,subhalo_class,
+				main_model_list,source_class,numpix,multi_plane,
+				kwargs_numerics,mag_cut,add_noise)
 
 		# Failed attempt if there is no image output
 		if image is None:
@@ -294,7 +405,19 @@ def main():
 			plt.imsave(filename + '.png', image)
 		for component in sample:
 			for key in sample[component]:
-				meta_values[component+'_'+key] = sample[component][key]
+				comp_value = sample[component][key]
+				# Make sure that lists and other objects that cannot be
+				# serialized well are not written out. Warn about this only
+				# once.
+				if (isinstance(comp_value,str) or isinstance(comp_value,int) or
+					isinstance(comp_value,float)):
+					meta_values[component+'_'+key] = sample[component][key]
+				elif not SERIALIZATIONWARNING:
+					warnings.warn('One or more parameters in config_dict '
+						'cannot be serialized and will not be written to '
+						'metadata.csv')
+					SERIALIZATIONWARNING = True
+
 		metadata = metadata.append(meta_values,ignore_index=True)
 
 		# Write out the metadata every 20 images

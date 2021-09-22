@@ -25,6 +25,8 @@ kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':True}
 # surpress a warning.
 kwargs_numerics['point_source_supersampling_factor'] = (
 	kwargs_numerics['supersampling_factor'])
+# This is always the number of pixels for the CCD. If drizzle is used, the
+# final image will be larger.
 numpix = 128
 seed = 10
 
@@ -116,7 +118,9 @@ config_dict = {
 	},
 	'drizzle':{
 		'parameters':{
-			'supersample_pixel_scale':0.020,'output_pixel_scale':0.030
+			'supersample_pixel_scale':0.020,'output_pixel_scale':0.030,
+			'wcs_distortion':None,
+			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)]
 		}
 	}
 }

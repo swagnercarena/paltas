@@ -175,6 +175,125 @@ class GenerateTests(unittest.TestCase):
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,sub_image)
 
+	def test_draw_drizzled_image(self):
+		# Check that the pipeline works as expected by running through the
+		# same excercises as the draw_image pipeline and comparing
+		# directly to the outputs of that pipeline.
+		# Start with the simplest configuration, a source with nothing lensing
+		# the source
+		source_parameters = {'z_source':0.19499999,
+			'cosmos_folder':cosmos_folder,'max_z':None,
+			'minimum_size_in_pixels':None,'min_apparent_mag':None,
+			'smoothing_sigma':0.0,'random_rotation':False,
+			'min_flux_radius':None,'output_ab_zeropoint':25.95,
+			'source_inclusion_list':np.array([0])}
+		los_class = None
+		subhalo_class = None
+		main_model_list = None
+		source_class = COSMOSIncludeCatalog(cosmology_parameters='planck18',
+			source_parameters=source_parameters)
+		# Set the source redshift to the redshift of the catalog image to avoid
+		# any rescaling
+		source_parameters['z_source'] = source_class.catalog['z'][0]
+		numpix = 200
+		multi_plane = False
+		kwargs_numerics = {'supersampling_factor':1}
+		mag_cut = None
+		add_noise = False
+
+		# Grab the image we want to compare to
+		orig_image,orig_meta = source_class.image_and_metadata(0)
+		orig_image = orig_image[17:-17,:]
+		orig_image = orig_image[:,1:]/2 + orig_image[:,:-1]/2
+		orig_image = orig_image[:,16:-16]
+
+		# Create a fake sample from our sampler
+		sim_pixel_width = orig_meta['pixel_width']
+		sample = {
+			'main_deflector_parameters':{'z_lens':0.0},
+			'source_parameters':source_parameters,
+			'cosmology_parameters':'planck18',
+			'psf_parameters':{'psf_type':'GAUSSIAN',
+				'fwhm': 0.1*orig_meta['pixel_width']},
+			'detector_parameters':{'pixel_scale':sim_pixel_width,
+				'ccd_gain':2.5,'read_noise':4.0,'magnitude_zero_point':25.0,
+				'exposure_time':5400.0,'sky_brightness':22,'num_exposures':1,
+				'background_noise':None},
+			'drizzle_parameters':{'supersample_pixel_scale':sim_pixel_width,
+				'output_pixel_scale':sim_pixel_width,'wcs_distortion':None,
+				'offset_pattern':[(0,0),(0.0,0),(0.0,0.0),(-0.0,-0.0)]}
+		}
+
+		# Draw our image. This should just be the source itself
+		image, meta_values = generate.draw_drizzled_image(sample,los_class,
+			subhalo_class,main_model_list,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+
+		# Check that the image is just the source
+		np.testing.assert_almost_equal(image,orig_image*4)
+
+		# Make the offset pattern more realistic and change the pixel widths
+		sample['drizzle_parameters']['offset_pattern'] = [(0,0),(0.5,0),
+			(0.0,0.5),(0.5,0.5)]
+		sample['detector_parameters']['pixel_scale'] = 0.04
+		sample['drizzle_parameters']['supersample_pixel_scale'] = 0.02
+		sample['drizzle_parameters']['output_pixel_scale'] = 0.03
+		numpix = 128
+
+		# Check that the mag_cut works
+		add_noise=False
+		mag_cut = 1.2
+		image, meta_values = generate.draw_drizzled_image(sample,los_class,
+			subhalo_class,main_model_list,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+		self.assertTrue(image is None)
+		self.assertTrue(meta_values is None)
+
+		# Now add a deflector and see if we get a ring
+		add_noise = False
+		source_parameters['z_source'] = 1.0
+		main_model_list = ['PEMD','SHEAR']
+		main_deflector_parameters =  {'M200':1e13,'z_lens': 0.5,'gamma': 2.0,
+			'theta_E': 1.0,'e1':0.1,'e2':0.1,'center_x':0.02,'center_y':-0.03,
+			'gamma1':0.01,'gamma2':-0.02,'ra_0':0.0, 'dec_0':0.0}
+		sample['main_deflector_parameters'] = main_deflector_parameters
+		image, meta_values = generate.draw_drizzled_image(sample,los_class,
+			subhalo_class,main_model_list,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+
+		# Check for magnification and check most light is not in
+		# center of image
+		self.assertTupleEqual((170,170),image.shape)
+		self.assertGreater(np.sum(image),np.sum(orig_image))
+		self.assertGreater(np.mean(image[0:80,0:80]),
+			np.mean(image[80:90,80:90]))
+
+		# Now we'll turn off our main deflector but create a fake LOS
+		# and subhalo class that gives the same profile.
+		class FakeLOSClass():
+
+			def update_parameters(self,*args,**kwargs):
+				return
+
+			def draw_los(self,*args,**kwargs):
+				model_list = main_model_list
+				kwargs_list = [{'gamma': 2.0,'theta_E': 1.0,'e1':0.1,'e2':0.1,
+					'center_x':0.02,'center_y':-0.03},
+					{'gamma1':0.01,'gamma2':-0.02,'ra_0':0.0, 'dec_0':0.0}]
+				z_list = [main_deflector_parameters['z_lens']]*2
+				return model_list,kwargs_list,z_list
+
+			def calculate_average_alpha(self,*args,**kwargs):
+				return ([],[],[])
+
+		los_class = FakeLOSClass()
+		sample['los_parameters'] = None
+		multi_plane = True
+		los_image, meta_values = generate.draw_drizzled_image(sample,
+			los_class,subhalo_class,None,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+		np.testing.assert_almost_equal(image,los_image)
+
 	def test_main(self):
 		# Test that the main function makes some images
 		old_sys = copy.deepcopy(sys.argv)
@@ -215,6 +334,7 @@ class GenerateTests(unittest.TestCase):
 		# Check that nothing is getting written under cross_object
 		for key in metadata.keys():
 			self.assertFalse('cross_object' in key)
+			self.assertFalse('source_exclusion_list' in key)
 
 		# Remove the metadata file
 		os.remove(os.path.join('test_data','metadata.csv'))
