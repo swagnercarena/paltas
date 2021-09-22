@@ -102,7 +102,8 @@ config_dict = {
 			'psf_type':'PIXEL',
 			'kernel_point_source': fits.open(os.path.join(root_path,
 				'datasets/tinytim/wfc3_uvis_f814w_flat_sub5.fits'))[0].data,
-			'point_source_supersampling_factor':2
+			'point_source_supersampling_factor':(
+				kwargs_numerics['point_source_supersampling_factor'])
 		}
 	},
 	'detector':{

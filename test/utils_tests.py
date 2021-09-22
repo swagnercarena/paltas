@@ -1,10 +1,14 @@
 import unittest
 from manada.Utils import power_law, cosmology_utils, hubble_utils
+from manada.Utils import lenstronomy_utils
 from scipy.integrate import quad
 import numpy as np
 from colossus.cosmology import cosmology
 from astropy import units as u
 from astropy.wcs import wcs
+from lenstronomy.Data.psf import PSF
+from lenstronomy.SimulationAPI.data_api import DataAPI
+from lenstronomy.ImSim.Numerics.numerics_subframe import NumericsSubFrame
 
 
 class PowerLawTests(unittest.TestCase):
@@ -291,10 +295,11 @@ class HubbleUtilsTests(unittest.TestCase):
 		# we plan to use.
 
 		# First generate an image with all the signal in the center
-		img_high_res = np.ones((256,256))
+		numpix = 256
+		img_high_res = np.ones((numpix,numpix))
 		x,y = np.meshgrid(np.arange(img_high_res.shape[0]),
 			np.arange(img_high_res.shape[1]),indexing='ij')
-		r = np.sqrt((x-128)**2+((y-128)*2)**2)
+		r = np.sqrt((x-numpix/2)**2+((y-numpix/2)*2)**2)
 		img_high_res *= (r<=35.5)
 
 		# Now drizzle the image with no change in the pixel scale at any
@@ -366,5 +371,44 @@ class HubbleUtilsTests(unittest.TestCase):
 			self.assertTrue(img_drizz[40*i,40*i]>0 and img_drizz[40*i,40*i]<20)
 		self.assertAlmostEqual(np.sum(img_drizz),80)
 
-		# Now let's check that the psf blurs the image as we want
-		# TODO
+		# Now let's check that the psf blurs the image as we want. Simulate
+		# the use of the lenstronomy psf functions
+		# Image is a point source
+		img_high_res[128,128] = 20
+
+		# Our PSF is just an exponentially decaying line. This way we
+		# can make sure that the psf orientation is preserved here.
+		psf_pixel = np.zeros((129,129))
+		psf_pixel[64,:] = np.exp(-(np.arange(129)-64)**2/100)
+		psf_parameters = {'psf_type':'PIXEL',
+			'kernel_point_source': psf_pixel}
+		kwargs_detector = {'pixel_scale':detector_pixel_scale,
+			'ccd_gain':2.5,'read_noise':4.0,'magnitude_zero_point':25.0,
+			'exposure_time':5400.0,'sky_brightness':22,'num_exposures':1,
+			'background_noise':None}
+		kwargs_numerics = {'supersampling_factor':1,
+			'supersampling_convolution':True,
+			'point_source_supersampling_factor':1}
+
+		# Make the objects we need to interact with the lenstronomy api.
+		psf_model = PSF(**psf_parameters)
+		data_class = DataAPI(numpix=numpix//2,**kwargs_detector).data_class
+		psf_model.set_pixel_size(data_class.pixel_width)
+
+		# Use the lenstronomy helper class.
+		psf_helper = lenstronomy_utils.PSFHelper(data_class,psf_model,
+			kwargs_numerics)
+
+		# Use the psf model in the image generation.
+		img_drizz = hubble_utils.hubblify(img_high_res,high_res_pixel_scale,
+			detector_pixel_scale,drizzle_pixel_scale,noise_model,
+			psf_helper.psf_model,offset_pattern)
+
+		# Check that all the signal is still there
+		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res*4))
+
+		# Check that the signal is contained within the correct strip
+		self.assertAlmostEqual(np.sum(img_drizz[83:88]),np.sum(img_drizz))
+		self.assertGreater(np.sum(img_drizz),np.sum(img_drizz[:,83:88]))
+		self.assertLess(np.sum(img_drizz[:,85]),
+			80/np.sum(np.exp(-(np.arange(129)-64)**2/100)))
