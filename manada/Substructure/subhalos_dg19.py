@@ -80,7 +80,7 @@ class SubhalosDG19(SubhalosBase):
 
 		# Pull the parameters we need from the input dictionaries
 		# Units of m_sun times inverse kpc^2
-		sigma_sub = self.subhalo_parameters['sigma_sub']
+		sigma_sub = max(0, self.subhalo_parameters['sigma_sub'])
 		shmf_plaw_index = self.subhalo_parameters['shmf_plaw_index']
 		# Units of m_sun
 		m_pivot = self.subhalo_parameters['m_pivot']

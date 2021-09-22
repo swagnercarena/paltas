@@ -15,7 +15,12 @@ save_folder. If save_folder doesn't exist it will be created.
 """
 # TODO: Variable noise
 import numpy as np
+<<<<<<< HEAD
 import argparse, os, sys, warnings
+=======
+import argparse, os, sys
+import shutil
+>>>>>>> network
 from importlib import import_module
 from manada.Sampling.sampler import Sampler
 from manada.Utils.cosmology_utils import get_cosmology
@@ -316,6 +321,11 @@ def main():
 	if not os.path.exists(args.save_folder):
 		os.makedirs(args.save_folder)
 	print("Save folder path: {:s}".format(args.save_folder))
+
+	# Copy out config dict
+	shutil.copy(
+		os.path.abspath(args.config_dict),
+		args.save_folder)
 
 	# Set up our sampler and draw an initial sample for initialization
 	sampler = Sampler(config_dict)

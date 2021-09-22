@@ -272,7 +272,7 @@ class LOSDG19(LOSBase):
 		m_min = self.los_parameters['m_min']
 		# Units of M_sun
 		m_max = self.los_parameters['m_max']
-		delta_los = self.los_parameters['delta_los']
+		delta_los = max(0, self.los_parameters['delta_los'])
 		# Get the parameters of the power law fit to the Sheth Tormen mass
 		# function
 		pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
@@ -481,7 +481,7 @@ class LOSDG19(LOSBase):
 		z_lens = self.main_deflector_parameters['z_lens']
 		dz = self.los_parameters['dz']
 		dz *= self.los_parameters['alpha_dz_factor']
-		delta_los = self.los_parameters['delta_los']
+		delta_los = max(0, self.los_parameters['delta_los'])
 		cone_angle = self.los_parameters['cone_angle']
 		m_min = self.los_parameters['m_min']
 		# Units of M_sun
