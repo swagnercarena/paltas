@@ -539,6 +539,15 @@ class SubhalosDG19Tests(unittest.TestCase):
 		self.assertEqual(len(subhalo_kwargs_list),0)
 		self.assertEqual(len(subhalo_z_list),0)
 
+		# Check that things still work in the limit of negative substructure
+		# values (which should just behave like 0).
+		self.sd.subhalo_parameters['sigma_sub'] = -0.1
+		subhalo_model_list, subhalo_kwargs_list, subhalo_z_list = (
+			self.sd.draw_subhalos())
+		self.assertEqual(len(subhalo_model_list),0)
+		self.assertEqual(len(subhalo_kwargs_list),0)
+		self.assertEqual(len(subhalo_z_list),0)
+
 
 class LOSBaseTests(unittest.TestCase):
 
@@ -923,8 +932,7 @@ class LOSDG19Tests(unittest.TestCase):
 	def test_draw_los(self):
 		# Check that the draw returns parameters that can be passsed
 		# into lenstronomy. This will also test convert_to_lenstronomy.
-		los_model_list, los_kwargs_list, los_z_list = (
-			self.ld.draw_los())
+		los_model_list, los_kwargs_list, los_z_list = self.ld.draw_los()
 
 		for model in los_model_list:
 			self.assertEqual(model,'NFW')
@@ -936,6 +944,14 @@ class LOSDG19Tests(unittest.TestCase):
 
 		self.assertGreater(np.min(los_z_list),self.los_parameters['z_min'])
 		self.assertLess(np.max(los_z_list),self.source_parameters['z_source'])
+
+		# Check that things still work if we set delta_los to negative
+		# values
+		self.ld.los_parameters['delta_los'] = -1
+		los_model_list, los_kwargs_list, los_z_list = self.ld.draw_los()
+		self.assertEqual(len(los_model_list),0)
+		self.assertEqual(len(los_kwargs_list),0)
+		self.assertEqual(len(los_z_list),0)
 
 	def test_calculate_average_alpha(self):
 		# Test that the interpolation class on average ensures
