@@ -178,11 +178,12 @@ class GenerateTests(unittest.TestCase):
 	def test_main(self):
 		# Test that the main function makes some images
 		old_sys = copy.deepcopy(sys.argv)
+		output_folder = 'test_data/test_dataset'
 		sys.argv = ['test','test_data/config_dict.py',
-			'test_data','--n','10']
+			output_folder,'--n','10']
 		generate.main()
 
-		image_file_list = glob.glob(os.path.join('test_data','image_*.npy'))
+		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
 
 		self.assertEqual(len(image_file_list),10)
 
@@ -194,7 +195,7 @@ class GenerateTests(unittest.TestCase):
 			os.remove(image_file)
 
 		# Make sure the metadata makes sense
-		metadata = pd.read_csv(os.path.join('test_data','metadata.csv'))
+		metadata = pd.read_csv(os.path.join(output_folder,'metadata.csv'))
 		self.assertEqual(len(metadata),10)
 		self.assertListEqual(list(
 			metadata['cosmology_parameters_cosmology_name']),['planck18']*10)
@@ -217,7 +218,7 @@ class GenerateTests(unittest.TestCase):
 			self.assertFalse('cross_object' in key)
 
 		# Remove the metadata file
-		os.remove(os.path.join('test_data','metadata.csv'))
+		os.remove(os.path.join(output_folder,'metadata.csv'))
 
 		sys.argv = old_sys
 
