@@ -127,7 +127,7 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 			sample['source_parameters'],sample['cosmology_parameters'])
 		los_model_list, los_kwargs_list, los_z_list = los_class.draw_los()
 		interp_model_list, interp_kwargs_list, interp_z_list = (
-			los_class.calculate_average_alpha(numpix*2))
+			los_class.calculate_average_alpha(numpix))
 		complete_lens_model_list += los_model_list + interp_model_list
 		complete_lens_model_kwargs += los_kwargs_list + interp_kwargs_list
 		complete_z_list += los_z_list + interp_z_list

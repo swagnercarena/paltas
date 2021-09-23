@@ -4,7 +4,7 @@
 
 from manada.Sampling import distributions
 import numpy as np
-from scipy.stats import norm, lognorm
+from scipy.stats import norm, truncnorm
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
 from manada.Sources.cosmos import COSMOSExcludeCatalog
@@ -45,7 +45,7 @@ config_dict = {
 	'subhalo':{
 		'class': SubhalosDG19,
 		'parameters':{
-			'sigma_sub':lognorm(scale=2e-3,s=0.5).rvs,
+			'sigma_sub':norm(loc=2e-3,scale=1.1e-3).rvs,
 			'shmf_plaw_index':-1.83,
 			'm_pivot': 1e10,'m_min': 1e7,'m_max': 1e10,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
@@ -56,7 +56,7 @@ config_dict = {
 	'los':{
 		'class': LOSDG19,
 		'parameters':{
-			'delta_los':lognorm(scale=1,s=0.7).rvs,
+			'delta_los':norm(loc=1,scale=0.6).rvs,
 			'm_min':1e7,'m_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
@@ -68,8 +68,8 @@ config_dict = {
 		'parameters':{
 			'M200': 1e13,
 			'z_lens': 0.5,
-			'gamma': lognorm(scale=2.01,s=0.05).rvs,
-			'theta_E': lognorm(scale=1.1,s=0.1).rvs,
+			'gamma': truncnorm(-20,np.inf,loc=2.0,scale=0.1).rvs,
+			'theta_E': truncnorm(-1.1/0.15,np.inf,loc=1.1,scale=0.15).rvs,
 			'e1': norm(loc=0.0,scale=0.1).rvs,
 			'e2': norm(loc=0.0,scale=0.1).rvs,
 			'center_x': norm(loc=0.0,scale=0.16).rvs,
