@@ -23,6 +23,7 @@ class PSFHelper():
 	def __init__(self,data_class,psf_model,kwargs_numerics):
 		# Just initialize the NumericsSubframe object that we will later call
 		# to perform the convolutions
+		psf_model.set_pixel_size(data_class.pixel_width)
 		self.image_numerics = NumericsSubFrame(pixel_grid=data_class,
 			psf=psf_model,**kwargs_numerics)
 		self.data_class = data_class

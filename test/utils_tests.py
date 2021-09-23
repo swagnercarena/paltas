@@ -8,7 +8,6 @@ from astropy import units as u
 from astropy.wcs import wcs
 from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.data_api import DataAPI
-from lenstronomy.ImSim.Numerics.numerics_subframe import NumericsSubFrame
 
 
 class PowerLawTests(unittest.TestCase):
@@ -228,8 +227,9 @@ class HubbleUtilsTests(unittest.TestCase):
 		w_lr = wcs.WCS(wcs_lr_dict)
 
 		offset_pattern = [(0,0),(-0.5,0.0),(0,-0.5)]
+		psf_supersample_factor = 1
 		img_dither_array = hubble_utils.distort_image(img_high_res,w_hr,w_lr,
-			offset_pattern)
+			offset_pattern,psf_supersample_factor)
 
 		# Test the no offset image.
 		test_image = np.zeros((npix,npix))
@@ -254,6 +254,17 @@ class HubbleUtilsTests(unittest.TestCase):
 				test_image[i,j] = np.mean(img_high_res[2*i:2*i+2,2*j+1:
 					2*j+3])*4
 		np.testing.assert_almost_equal(test_image,img_dither_array[2])
+
+		# Now test for a larger psf_supersample_factor
+		psf_supersample_factor = 2
+		offset_pattern = [(0,0),(-0.5,0.0),(0,-0.5)]
+		img_dither_array = hubble_utils.distort_image(img_high_res,w_hr,w_lr,
+			offset_pattern,psf_supersample_factor)
+		np.testing.assert_almost_equal(img_dither_array[0],img_high_res)
+		np.testing.assert_almost_equal(img_dither_array[1,:-1,:],
+			img_high_res[1:,:])
+		np.testing.assert_almost_equal(img_dither_array[2,:,:-1],
+			img_high_res[:,1:])
 
 	def test_generate_downsampled_wcs(self):
 		# Check that the downsampled WCS maps as expected to the higher
@@ -286,6 +297,23 @@ class HubbleUtilsTests(unittest.TestCase):
 		for w in [w_lr,w_hr,w_mr]:
 			self.assertTrue(type(w.pixel_shape[0]) is int)
 			self.assertTrue(type(w.pixel_shape[1]) is int)
+
+	def test_degrade_image(self):
+		# Test that the degraded image gives the output we'd expect.
+		fake_image = np.array([[0,1,2,3],[4,5,6,7],[8,9,10,11],[12,13,14,15]],
+			dtype=np.float)
+
+		# Start by degrading by a factor of 2
+		degrade_factor = 2
+		degrade_2 = hubble_utils.degrade_image(fake_image,degrade_factor)
+		np.testing.assert_almost_equal(degrade_2,np.array(
+			[[10,18],[42,50]]))
+
+		# Now degrade by a factor of 4
+		degrade_factor = 4
+		degrade_2 = hubble_utils.degrade_image(fake_image,degrade_factor)
+		np.testing.assert_almost_equal(degrade_2,np.array(
+			[[120]]))
 
 	def test_hubblify(self):
 		# It's a little hard to test drizzle in detail here, but we can
@@ -393,7 +421,6 @@ class HubbleUtilsTests(unittest.TestCase):
 		# Make the objects we need to interact with the lenstronomy api.
 		psf_model = PSF(**psf_parameters)
 		data_class = DataAPI(numpix=numpix//2,**kwargs_detector).data_class
-		psf_model.set_pixel_size(data_class.pixel_width)
 
 		# Use the lenstronomy helper class.
 		psf_helper = lenstronomy_utils.PSFHelper(data_class,psf_model,
@@ -412,3 +439,28 @@ class HubbleUtilsTests(unittest.TestCase):
 		self.assertGreater(np.sum(img_drizz),np.sum(img_drizz[:,83:88]))
 		self.assertLess(np.sum(img_drizz[:,85]),
 			80/np.sum(np.exp(-(np.arange(129)-64)**2/100)))
+
+		# Repeat the psf test, but now use the psf_supersample_factor
+		# specification.
+		psf_supersample_factor = 2
+		psf_pixel[64,:] = np.exp(-(np.arange(129)-64)**2/100/
+			psf_supersample_factor**2)
+		psf_parameters = {'psf_type':'PIXEL',
+			'kernel_point_source': psf_pixel}
+		kwargs_detector['pixel_scale'] = (
+			detector_pixel_scale/psf_supersample_factor)
+		psf_model = PSF(**psf_parameters)
+		data_class = DataAPI(numpix=numpix,**kwargs_detector).data_class
+		psf_helper = lenstronomy_utils.PSFHelper(data_class,psf_model,
+			kwargs_numerics)
+		img_drizz_ss = hubble_utils.hubblify(img_high_res,high_res_pixel_scale,
+			detector_pixel_scale,drizzle_pixel_scale,noise_model,
+			psf_helper.psf_model,offset_pattern,
+			psf_supersample_factor=psf_supersample_factor)
+
+		# Check that this supersampling does not change the image much but
+		# it does change the image some.
+		np.testing.assert_array_less(np.zeros(img_drizz.shape),
+			np.abs(img_drizz-img_drizz_ss))
+		np.testing.assert_almost_equal(img_drizz_ss,img_drizz,
+			decimal=2)
