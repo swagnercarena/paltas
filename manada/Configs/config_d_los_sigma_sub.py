@@ -45,7 +45,7 @@ config_dict = {
 	'subhalo':{
 		'class': SubhalosDG19,
 		'parameters':{
-			'sigma_sub':norm(loc=2e-3,scale=1.1e-3).rvs,
+			'sigma_sub':0,#norm(loc=2e-3,scale=1.1e-3).rvs,
 			'shmf_plaw_index':-1.83,
 			'm_pivot': 1e10,'m_min': 1e7,'m_max': 1e10,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
@@ -56,7 +56,7 @@ config_dict = {
 	'los':{
 		'class': LOSDG19,
 		'parameters':{
-			'delta_los':norm(loc=1,scale=0.6).rvs,
+			'delta_los':0,#norm(loc=1,scale=0.6).rvs,
 			'm_min':1e7,'m_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
