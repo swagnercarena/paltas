@@ -8,6 +8,7 @@ from scipy.stats import norm, truncnorm
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
 from manada.Sources.cosmos import COSMOSExcludeCatalog
+from lenstronomy.Util.kernel_util import degrade_kernel
 from astropy.io import fits
 import pandas as pd
 import manada
@@ -21,10 +22,6 @@ tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':True}
-# We do not use point_source_supersampling_factor but it must be passed in to
-# surpress a warning.
-kwargs_numerics['point_source_supersampling_factor'] = (
-	kwargs_numerics['supersampling_factor'])
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
@@ -40,6 +37,12 @@ output_ab_zeropoint = 25.127
 # Define the cosmos path
 root_path = manada.__path__[0][:-7]
 cosmos_folder = root_path + r'/datasets/cosmos/COSMOS_23.5_training_sample/'
+
+# Load the empirical psf. Grab a psf from the middle of the first chip.
+# Degrade to account for the 4x supersample
+hdul = fits.open(os.path.join(root_path,
+	'datasets/hst_psf/emp_psf_f814w.fits'))
+psf_pix_map = degrade_kernel(hdul[0].data[17],4)
 
 config_dict = {
 	'subhalo':{
@@ -102,10 +105,7 @@ config_dict = {
 	'psf':{
 		'parameters':{
 			'psf_type':'PIXEL',
-			'kernel_point_source': fits.open(os.path.join(root_path,
-				'datasets/tinytim/wfc3_uvis_f814w_flat_sub5.fits'))[0].data,
-			'point_source_supersampling_factor':(
-				kwargs_numerics['point_source_supersampling_factor'])
+			'kernel_point_source': psf_pix_map
 		}
 	},
 	'detector':{
