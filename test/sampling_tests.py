@@ -74,6 +74,13 @@ class SamplerTests(unittest.TestCase):
 					'num_exposures':1, 'background_noise':None
 				}
 			},
+			'drizzle':{
+				'parameters':{
+					'supersample_pixel_scale':0.020,'output_pixel_scale':0.030,
+					'wcs_distortion':None,
+					'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)]
+				}
+			},
 			'cross_object':{
 				'parameters':{
 					'los:delta_los,subhalo:sigma_sub':tmn
@@ -117,7 +124,7 @@ class SamplerTests(unittest.TestCase):
 			# First check that all the expected dicts are in the object
 			expected_dicts = ['subhalo_parameters','los_parameters',
 				'main_deflector_parameters','source_parameters',
-				'cosmology_parameters']
+				'cosmology_parameters','drizzle_parameters']
 			for dict_name in expected_dicts:
 				self.assertTrue(dict_name in sample)
 
