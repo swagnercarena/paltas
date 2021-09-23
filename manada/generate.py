@@ -39,8 +39,6 @@ import lenstronomy.Util.util as util
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.
 SERIALIZATIONWARNING = True
-KWARGSNUMERICWARNING1 = True
-KWARGSNUMERICWARNING2 = True
 
 
 def parse_args():
@@ -66,7 +64,7 @@ def parse_args():
 
 
 def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
-	numpix,multi_plane,kwargs_numerics,mag_cut,add_noise):
+	numpix,multi_plane,kwargs_numerics,mag_cut,add_noise,apply_psf=True):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system
 
@@ -91,6 +89,8 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 			None no magnitude cut will be enforced.
 		add_noise (bool): If true noise will be added to the image. If False
 			noise must be added after the fact.
+		apply_psf (bool): If true the psf from sample will be applied. IF
+			False the psf must be applied after the fact.
 
 	Returns
 		(np.array,dict): A numpy array containing the generated image
@@ -115,7 +115,11 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 	# initialize our observational objects.
 	kwargs_psf = sample['psf_parameters']
 	kwargs_detector = sample['detector_parameters']
-	psf_model = PSF(**kwargs_psf)
+	# Only apply a psf if required by the user.
+	if apply_psf:
+		psf_model = PSF(**kwargs_psf)
+	else:
+		psf_model = PSF(psf_type='NONE')
 	data_api = DataAPI(numpix=numpix,**kwargs_detector)
 	single_band = SingleBand(**kwargs_detector)
 
@@ -236,9 +240,6 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 			and a metavalue dictionary with the corresponding sampled
 			values.
 	"""
-	# Grab our warning filter
-	global KWARGSNUMERICWARNING1,KWARGSNUMERICWARNING2
-
 	# Generate a high resolution version of the image.
 	supersample_pixel_scale = sample['drizzle_parameters'][
 		'supersample_pixel_scale']
@@ -252,35 +253,23 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 	# Temporairly reset the detector pixel_scale to the supersampled scale.
 	sample['detector_parameters']['pixel_scale'] = supersample_pixel_scale
 
-	# Modify the numerics kwargs to account for the supersampled pixel scale
-	if 'supersampling_factor' in kwargs_numerics:
-		if KWARGSNUMERICWARNING1:
-			warnings.warn('kwargs_numerics supersampling_factor modified '
-				+'for drizzle',category=RuntimeWarning)
-			KWARGSNUMERICWARNING1 = False
-		kwargs_numerics['supersampling_factor'] = max(1,
-			int(kwargs_numerics['supersampling_factor']/ss_scaling))
-	if 'point_source_supersampling_factor' in kwargs_numerics:
-		if KWARGSNUMERICWARNING2:
-			warnings.warn('kwargs_numerics point_source_supersampling_factor'
-				+ ' modified for drizzle',category=RuntimeWarning)
-			KWARGSNUMERICWARNING2 = False
-		kwargs_numerics['point_source_supersampling_factor'] = max(1,int(
-			kwargs_numerics['point_source_supersampling_factor']/ss_scaling))
-		if 'point_source_supersampling_factor' in sample['psf_parameters']:
-			sample['psf_parameters']['point_source_supersampling_factor'] = (
-				kwargs_numerics['point_source_supersampling_factor'])
-
 	# Use the normal generation class to make our highres image without
 	# noise.
 	image_ss, meta_values = draw_image(sample,los_class,subhalo_class,
 		main_model_list,source_class,numpix_ss,multi_plane,kwargs_numerics,
-		mag_cut,False)
+		mag_cut,False,apply_psf=False)
 	sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 
 	# Deal with an image that does not pass a cut.
 	if image_ss is None:
 		return image_ss, meta_values
+
+	# Grab the PSF supersampling factor if present.
+	if 'point_source_supersampling_factor' in sample['psf_parameters']:
+		psf_supersample_factor = (
+			sample['psf_parameters']['point_source_supersampling_factor'])
+	else:
+		psf_supersample_factor = 1
 
 	# Create our noise and psf models.
 	kwargs_detector = sample['detector_parameters']
@@ -301,7 +290,8 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 	# Pass the high resolution image to hubblify
 	image = hubblify(image_ss,supersample_pixel_scale,detector_pixel_scale,
 		output_pixel_scale,noise_model,psf_model,offset_pattern,
-		wcs_distortion=wcs_distortion,pixfrac=1.0,kernel='square')
+		wcs_distortion=wcs_distortion,pixfrac=1.0,kernel='square',
+		psf_supersample_factor=psf_supersample_factor)
 
 	return image, meta_values
 

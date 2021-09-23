@@ -81,6 +81,16 @@ class GenerateTests(unittest.TestCase):
 		# Check that the image is just the source
 		np.testing.assert_almost_equal(image,orig_image)
 
+		# Repeat the same test, but now with a really big psf and demanding
+		# that no psf be added via the boolean input.
+		sample['psf_parameters']['fwhm'] = 10
+		apply_psf = False
+		image, meta_values = generate.draw_image(sample,los_class,
+			subhalo_class,main_model_list,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise,apply_psf=apply_psf)
+		np.testing.assert_almost_equal(image,orig_image)
+		sample['psf_parameters']['fwhm'] =  0.1*orig_meta['pixel_width']
+
 		# Now introduce rotations to the source and make sure that
 		# goes through
 		source_parameters['random_rotation'] = True
@@ -293,6 +303,22 @@ class GenerateTests(unittest.TestCase):
 			los_class,subhalo_class,None,source_class,numpix,multi_plane,
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,los_image)
+
+		# Now incorporate supersampling and make sure the image changes but
+		# not substantially.
+		sample['psf_parameters']['point_source_supersampling_factor'] = 2
+		kwargs_numerics = {'supersampling_factor':2,
+			'point_source_supersampling_factor':2}
+		los_image, meta_values = generate.draw_drizzled_image(sample,
+			los_class,subhalo_class,None,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+
+		# Check that the two arrays are close to equal but not equal
+		self.assertGreater(np.mean(np.abs(image-los_image)),1e-5)
+		np.testing.assert_almost_equal(image,los_image,decimal=2)
+
+		# TODO make sure add_noise works.!
+		self.assertTrue(False)
 
 	def test_main(self):
 		# Test that the main function makes some images

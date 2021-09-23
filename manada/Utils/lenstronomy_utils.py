@@ -44,9 +44,9 @@ class PSFHelper():
 		im_shape = image.shape
 
 		# Convolve the image in the 1d format required by the lenstronomy
-		# class. Make sure the unconvolved keyword is false.
-		conv_flat = self.image_numerics.re_size_convolve(image.flatten(),
-			unconvolved=False)
+		# class.
+		conv_flat = self.image_numerics.convolution_class.convolution2d(
+			image)
 
-		# Reshape the image to be 2d. Also undo flux normalization.
-		return conv_flat.reshape(im_shape)/self.data_class.pixel_width**2
+		# Reshape the image to be 2d.
+		return conv_flat.reshape(im_shape)

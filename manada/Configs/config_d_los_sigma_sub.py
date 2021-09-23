@@ -22,6 +22,10 @@ tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':True}
+# We do not use point_source_supersampling_factor but it must be passed in to
+# surpress a warning.
+kwargs_numerics['point_source_supersampling_factor'] = (
+	kwargs_numerics['supersampling_factor'])
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
@@ -105,7 +109,9 @@ config_dict = {
 	'psf':{
 		'parameters':{
 			'psf_type':'PIXEL',
-			'kernel_point_source': psf_pix_map
+			'kernel_point_source': psf_pix_map,
+			'point_source_supersampling_factor':(
+				kwargs_numerics['point_source_supersampling_factor'])
 		}
 	},
 	'detector':{
