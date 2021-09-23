@@ -298,8 +298,7 @@ class GenerateTests(unittest.TestCase):
 		# Test that the main function makes some images
 		old_sys = copy.deepcopy(sys.argv)
 		output_folder = 'test_data/test_dataset'
-		sys.argv = ['test','test_data/config_dict.py',
-			output_folder,'--n','10']
+		sys.argv = ['test','test_data/config_dict.py',output_folder,'--n','10']
 		generate.main()
 
 		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
@@ -311,6 +310,61 @@ class GenerateTests(unittest.TestCase):
 		for image_file in image_file_list:
 			img = np.load(image_file)
 			self.assertTupleEqual(img.shape,(64,64))
+			os.remove(image_file)
+
+		# Make sure the metadata makes sense
+		metadata = pd.read_csv(os.path.join(output_folder,'metadata.csv'))
+		self.assertEqual(len(metadata),10)
+		self.assertListEqual(list(
+			metadata['cosmology_parameters_cosmology_name']),['planck18']*10)
+		self.assertListEqual(list(
+			metadata['detector_parameters_pixel_scale']),[0.08]*10)
+		self.assertListEqual(list(metadata['subhalo_parameters_c_0']),
+			[18.0]*10)
+		self.assertListEqual(list(metadata['main_deflector_parameters_z_lens']),
+			[0.5]*10)
+		self.assertListEqual(list(metadata['source_parameters_z_source']),
+			[1.5]*10)
+		self.assertGreater(np.std(metadata['source_parameters_catalog_i']),0)
+		self.assertListEqual(list(metadata['psf_parameters_fwhm']),
+			[0.1]*10)
+		# Check that the subhalo_parameters_sigma_sub are being drawn
+		self.assertGreater(np.std(metadata['los_parameters_delta_los']),
+			0.0)
+		# Check that nothing is getting written under cross_object
+		for key in metadata.keys():
+			self.assertFalse('cross_object' in key)
+			self.assertFalse('source_exclusion_list' in key)
+
+		# Remove the metadata file
+		os.remove(os.path.join(output_folder,'metadata.csv'))
+
+		sys.argv = old_sys
+
+		# Also clean up the test cosmos cache
+		test_cosmo_folder = 'test_data/cosmos/'
+		os.remove(test_cosmo_folder+'manada_catalog.npy')
+		for i in range(10):
+			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
+		os.rmdir(test_cosmo_folder+'npy_files')
+
+	def test_main_drizzle(self):
+		# Test that the main function makes some images
+		old_sys = copy.deepcopy(sys.argv)
+		output_folder = 'test_data/test_dataset'
+		sys.argv = ['test','test_data/config_dict_drizz.py',output_folder,
+			'--n','10']
+		generate.main()
+
+		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
+
+		self.assertEqual(len(image_file_list),10)
+
+		# Make sure all of the files are readable and have the correct size
+		# for the config
+		for image_file in image_file_list:
+			img = np.load(image_file)
+			self.assertTupleEqual(img.shape,(85,85))
 			os.remove(image_file)
 
 		# Make sure the metadata makes sense

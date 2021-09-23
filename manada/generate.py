@@ -15,12 +15,8 @@ save_folder. If save_folder doesn't exist it will be created.
 """
 # TODO: Variable noise
 import numpy as np
-<<<<<<< HEAD
 import argparse, os, sys, warnings
-=======
-import argparse, os, sys
 import shutil
->>>>>>> network
 from importlib import import_module
 from manada.Sampling.sampler import Sampler
 from manada.Utils.cosmology_utils import get_cosmology
@@ -40,8 +36,11 @@ from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 import lenstronomy.Util.util as util
 
-# Global filters on the python warnings.
-SERIALIZATIONWARNING = False
+# Global filters on the python warnings. Using this since filter
+# behaviour is a bit weird.
+SERIALIZATIONWARNING = True
+KWARGSNUMERICWARNING1 = True
+KWARGSNUMERICWARNING2 = True
 
 
 def parse_args():
@@ -236,7 +235,10 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 			and a metavalue dictionary with the corresponding sampled
 			values.
 	"""
-	# First generate a high resolution version of the image.
+	# Grab our warning filter
+	global KWARGSNUMERICWARNING1,KWARGSNUMERICWARNING2
+
+	# Generate a high resolution version of the image.
 	supersample_pixel_scale = sample['drizzle_parameters'][
 		'supersample_pixel_scale']
 	output_pixel_scale = sample['drizzle_parameters']['output_pixel_scale']
@@ -251,15 +253,22 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 
 	# Modify the numerics kwargs to account for the supersampled pixel scale
 	if 'supersampling_factor' in kwargs_numerics:
-		warnings.warn('kwargs_numerics supersampling_factor modified for ' +
-			'drizzle')
+		if KWARGSNUMERICWARNING1:
+			warnings.warn('kwargs_numerics supersampling_factor modified '
+				+'for drizzle',category=RuntimeWarning)
+			KWARGSNUMERICWARNING1 = False
 		kwargs_numerics['supersampling_factor'] = max(1,
 			int(kwargs_numerics['supersampling_factor']/ss_scaling))
 	if 'point_source_supersampling_factor' in kwargs_numerics:
-		warnings.warn('kwargs_numerics point_source_supersampling_factor ' +
-			'modified for drizzle')
+		if KWARGSNUMERICWARNING2:
+			warnings.warn('kwargs_numerics point_source_supersampling_factor'
+				+ ' modified for drizzle',category=RuntimeWarning)
+			KWARGSNUMERICWARNING2 = False
 		kwargs_numerics['point_source_supersampling_factor'] = max(1,int(
 			kwargs_numerics['point_source_supersampling_factor']/ss_scaling))
+		if 'point_source_supersampling_factor' in sample['psf_parameters']:
+			sample['psf_parameters']['point_source_supersampling_factor'] = (
+				kwargs_numerics['point_source_supersampling_factor'])
 
 	# Use the normal generation class to make our highres image without
 	# noise.
@@ -403,7 +412,7 @@ def main():
 
 		# Mask out an interior region of the image if requested
 		if hasattr(config_module,'mask_radius'):
-			x_grid, y_grid = util.make_grid(numPix=numpix,
+			x_grid, y_grid = util.make_grid(numPix=image.shape[0],
 			deltapix=kwargs_detector['pixel_scale'])
 			r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
 			image[r<=config_module.mask_radius] = 0
@@ -422,11 +431,11 @@ def main():
 				if (isinstance(comp_value,str) or isinstance(comp_value,int) or
 					isinstance(comp_value,float)):
 					meta_values[component+'_'+key] = sample[component][key]
-				elif not SERIALIZATIONWARNING:
+				elif SERIALIZATIONWARNING:
 					warnings.warn('One or more parameters in config_dict '
 						'cannot be serialized and will not be written to '
-						'metadata.csv')
-					SERIALIZATIONWARNING = True
+						'metadata.csv',category=RuntimeWarning)
+					SERIALIZATIONWARNING = False
 
 		metadata = metadata.append(meta_values,ignore_index=True)
 
