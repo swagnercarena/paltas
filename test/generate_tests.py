@@ -226,8 +226,8 @@ class GenerateTests(unittest.TestCase):
 			'psf_parameters':{'psf_type':'GAUSSIAN',
 				'fwhm': 0.1*orig_meta['pixel_width']},
 			'detector_parameters':{'pixel_scale':sim_pixel_width,
-				'ccd_gain':2.5,'read_noise':4.0,'magnitude_zero_point':25.0,
-				'exposure_time':5400.0,'sky_brightness':22,'num_exposures':1,
+				'ccd_gain':1.58,'read_noise':3.0,'magnitude_zero_point':25.127,
+				'exposure_time':1380.0,'sky_brightness':15.83,'num_exposures':1,
 				'background_noise':None},
 			'drizzle_parameters':{'supersample_pixel_scale':sim_pixel_width,
 				'output_pixel_scale':sim_pixel_width,'wcs_distortion':None,
@@ -317,8 +317,16 @@ class GenerateTests(unittest.TestCase):
 		self.assertGreater(np.mean(np.abs(image-los_image)),1e-5)
 		np.testing.assert_almost_equal(image,los_image,decimal=2)
 
-		# TODO make sure add_noise works.!
-		self.assertTrue(False)
+		# Check that setting the noise flag returns a noisy image
+		add_noise = True
+		sample['psf_parameters']['point_source_supersampling_factor'] = 1
+		kwargs_numerics = {'supersampling_factor':1,
+			'point_source_supersampling_factor':1}
+		los_image_noise, meta_values = generate.draw_drizzled_image(sample,
+			los_class,subhalo_class,None,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+
+		self.assertGreater(np.std(los_image_noise-image),1e-3)
 
 	def test_main(self):
 		# Test that the main function makes some images
