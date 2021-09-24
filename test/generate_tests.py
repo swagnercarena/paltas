@@ -308,14 +308,30 @@ class GenerateTests(unittest.TestCase):
 		# not substantially.
 		sample['psf_parameters']['point_source_supersampling_factor'] = 2
 		kwargs_numerics = {'supersampling_factor':2,
+			'supersampling_convolution':True,
 			'point_source_supersampling_factor':2}
 		los_image, meta_values = generate.draw_drizzled_image(sample,
 			los_class,subhalo_class,None,source_class,numpix,multi_plane,
 			kwargs_numerics,mag_cut,add_noise)
 
 		# Check that the two arrays are close to equal but not equal
-		self.assertGreater(np.mean(np.abs(image-los_image)),1e-5)
-		np.testing.assert_almost_equal(image,los_image,decimal=2)
+		self.assertGreater(np.mean(np.abs(image-los_image)),0)
+		np.testing.assert_almost_equal(image,los_image)
+
+		# Repeat the same test for a pixel kernel
+		psf_pix_map = np.zeros((27,27))
+		psf_pix_map[12:14,12:14] = 1e-4
+		psf_pix_map[13,13] = 1
+		sample['psf_parameters'] = {'psf_type':'PIXEL',
+			'kernel_point_source': psf_pix_map,
+			'point_source_supersampling_factor':2}
+		los_image_pixel, meta_values = generate.draw_drizzled_image(sample,
+			los_class,subhalo_class,None,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+
+		# Check that the two arrays are close to equal but not equal
+		self.assertGreater(np.mean(np.abs(image-los_image_pixel)),0)
+		np.testing.assert_almost_equal(image,los_image_pixel,decimal=3)
 
 		# Check that setting the noise flag returns a noisy image
 		add_noise = True

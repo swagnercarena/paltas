@@ -207,6 +207,33 @@ def degrade_image(image,degrade_factor):
 	return new_image
 
 
+@numba.njit()
+def upsample_image(image,upsample_factor):
+	"""Create an upsampled image by repeating the same pixel value
+	multiple times.
+
+	Args:
+		image (np.array): The 2D numpy image to degrade
+		upsample_factor (int): The integer factor by which
+			to upsample the image.
+
+	Returns:
+		(np.array): A degraded version of the input image.
+	"""
+	# Create the new image to save the output to.
+	new_image = np.zeros((image.shape[0]*upsample_factor,
+			image.shape[1]*upsample_factor))
+
+	# Manually write the image value at each coordinate. For loops are not
+	# expensive in numba.
+	for i in range(new_image.shape[0]):
+		for j in range(new_image.shape[1]):
+			new_image[i,j] = image[int(i//upsample_factor),
+				int(j//upsample_factor)]
+
+	return new_image
+
+
 def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 	drizzle_pixel_scale,noise_model,psf_model,offset_pattern,
 	wcs_distortion=None,pixfrac=1.0,kernel='square',

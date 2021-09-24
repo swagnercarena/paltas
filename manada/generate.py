@@ -39,6 +39,8 @@ import lenstronomy.Util.util as util
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.
 SERIALIZATIONWARNING = True
+KWARGSNUMERICWARNING1 = True
+KWARGSNUMERICWARNING2 = True
 
 
 def parse_args():
@@ -240,6 +242,10 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 			and a metavalue dictionary with the corresponding sampled
 			values.
 	"""
+	# Grab our warning flags
+	global KWARGSNUMERICWARNING1
+	global KWARGSNUMERICWARNING2
+
 	# Generate a high resolution version of the image.
 	supersample_pixel_scale = sample['drizzle_parameters'][
 		'supersample_pixel_scale']
@@ -252,6 +258,22 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 
 	# Temporairly reset the detector pixel_scale to the supersampled scale.
 	sample['detector_parameters']['pixel_scale'] = supersample_pixel_scale
+
+	# Modify the numerics kwargs to account for the supersampled pixel scale
+	if 'supersampling_factor' in kwargs_numerics:
+		if KWARGSNUMERICWARNING1:
+			warnings.warn('kwargs_numerics supersampling_factor modified '
+				+'for drizzle',category=RuntimeWarning)
+			KWARGSNUMERICWARNING1 = False
+		kwargs_numerics['supersampling_factor'] = max(1,
+			int(kwargs_numerics['supersampling_factor']/ss_scaling))
+	if 'point_source_supersampling_factor' in kwargs_numerics:
+		if KWARGSNUMERICWARNING2:
+			warnings.warn('kwargs_numerics point_source_supersampling_factor'
+				+ ' modified for drizzle',category=RuntimeWarning)
+			KWARGSNUMERICWARNING2 = False
+		kwargs_numerics['point_source_supersampling_factor'] = max(1,int(
+			kwargs_numerics['point_source_supersampling_factor']/ss_scaling))
 
 	# Use the normal generation class to make our highres image without
 	# noise.
@@ -268,6 +290,9 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 	if 'point_source_supersampling_factor' in sample['psf_parameters']:
 		psf_supersample_factor = (
 			sample['psf_parameters']['point_source_supersampling_factor'])
+		kwargs_numerics['point_source_supersampling_factor'] = (
+			psf_supersample_factor)
+		kwargs_numerics['supersampling_factor'] = psf_supersample_factor
 	else:
 		psf_supersample_factor = 1
 
