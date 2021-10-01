@@ -102,7 +102,8 @@ config_dict = {
 	'psf':{
 		'parameters':{
 			'psf_type':'PIXEL',
-			'kernel_point_source': psf_pix_map
+			'kernel_point_source': psf_pix_map,
+			'point_source_supersampling_factor':2
 		}
 	},
 	'detector':{

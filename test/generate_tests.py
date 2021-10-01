@@ -187,6 +187,12 @@ class GenerateTests(unittest.TestCase):
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,sub_image)
 
+		# Cleanup
+		os.remove(cosmos_folder+'manada_catalog.npy')
+		for i in range(10):
+			os.remove(cosmos_folder+'npy_files/img_%d.npy'%(i))
+		os.rmdir(cosmos_folder+'npy_files')
+
 	def test_draw_drizzled_image(self):
 		# Check that the pipeline works as expected by running through the
 		# same excercises as the draw_image pipeline and comparing
@@ -317,6 +323,12 @@ class GenerateTests(unittest.TestCase):
 
 		self.assertGreater(np.std(los_image_noise-image),1e-3)
 
+		# Cleanup
+		os.remove(cosmos_folder+'manada_catalog.npy')
+		for i in range(10):
+			os.remove(cosmos_folder+'npy_files/img_%d.npy'%(i))
+		os.rmdir(cosmos_folder+'npy_files')
+
 	def test_draw_drizzled_image_psf(self):
 		# Test the pixel psf behaves identically to using fftconvolve
 		# Setup a fairly basic situation with a source at redshift 1.0 an a
@@ -399,6 +411,41 @@ class GenerateTests(unittest.TestCase):
 			fftconvolve(image,psf_pixel,mode='same'),2)
 		np.testing.assert_almost_equal(scipy_image,image_degrade_psf,
 			decimal=6)
+
+		# Now just make sure we can raise some errors. First an error
+		# if no point_source_supersampling_factor was specified.
+		with self.assertRaises(ValueError):
+			sample['psf_parameters'] = {'psf_type':'PIXEL',
+				'kernel_point_source': psf_pixel}
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
+				los_class,subhalo_class,main_model_list,source_class,numpix,
+				multi_plane,kwargs_numerics,mag_cut,add_noise)
+
+		# Next an error if it doesn't equal the psf_supersample_factor
+		with self.assertRaises(ValueError):
+			sample['psf_parameters'] = {'psf_type':'PIXEL',
+				'kernel_point_source': psf_pixel,
+				'point_source_supersampling_factor':1}
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
+				los_class,subhalo_class,main_model_list,source_class,numpix,
+				multi_plane,kwargs_numerics,mag_cut,add_noise)
+
+		# Next an error if the psf_supersample_factor is larger than the scaling
+		# provided by the drizzle parameters.
+		with self.assertRaises(ValueError):
+			sample['psf_parameters']['point_source_supersampling_factor'] = 4
+			sample['psf_parameters'] = {'psf_type':'PIXEL',
+				'kernel_point_source': psf_pixel,
+				'point_source_supersampling_factor':4}
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
+				los_class,subhalo_class,main_model_list,source_class,numpix,
+				multi_plane,kwargs_numerics,mag_cut,add_noise)
+
+		# Cleanup
+		os.remove(cosmos_folder+'manada_catalog.npy')
+		for i in range(10):
+			os.remove(cosmos_folder+'npy_files/img_%d.npy'%(i))
+		os.rmdir(cosmos_folder+'npy_files')
 
 	def test_main(self):
 		# Test that the main function makes some images

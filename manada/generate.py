@@ -299,6 +299,16 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 			+ f' than the supersampling {ss_scaling} defined in the drizzle '
 			+'parameters.')
 
+	# Make sure that if the user provided a PIXEL psf that the user specified
+	# the same supersampling factor as for the drizzle_parameters
+	if sample['psf_parameters']['psf_type'] == 'PIXEL' and (
+		'point_source_supersampling_factor' not in sample['psf_parameters'] or
+		sample['psf_parameters']['point_source_supersampling_factor'] !=
+		psf_supersample_factor):
+		raise ValueError('Must specify point_source_supersampling_factor for '
+			'PIXEL psf and the value must equal psf_supersample_factor in the '
+			' drizzle parameters')
+
 	# We'll bypass lenstronomy's supersampling code by modifying
 	# the data api.
 	kwargs_numerics['point_source_supersampling_factor'] = 1
