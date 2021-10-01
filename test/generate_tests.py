@@ -412,6 +412,10 @@ class GenerateTests(unittest.TestCase):
 		np.testing.assert_almost_equal(scipy_image,image_degrade_psf,
 			decimal=6)
 
+		# Make sure the sample detector_parameters weren't changed in place.
+		self.assertEqual(sample['detector_parameters']['pixel_scale'],
+			sim_pixel_width*2)
+
 		# Now just make sure we can raise some errors. First an error
 		# if no point_source_supersampling_factor was specified.
 		with self.assertRaises(ValueError):

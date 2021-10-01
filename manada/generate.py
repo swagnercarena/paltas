@@ -15,7 +15,7 @@ save_folder. If save_folder doesn't exist it will be created.
 """
 # TODO: Variable noise
 import numpy as np
-import argparse, os, sys, warnings
+import argparse, os, sys, warnings, copy
 import shutil
 from importlib import import_module
 from manada.Sampling.sampler import Sampler
@@ -245,6 +245,9 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 	# Grab our warning flags
 	global KWARGSNUMERICWARNING1
 	global KWARGSNUMERICWARNING2
+
+	# Copy the sample since we will be modifying some parameters
+	sample = copy.deepcopy(sample)
 
 	# Generate a high resolution version of the image.
 	supersample_pixel_scale = sample['drizzle_parameters'][
