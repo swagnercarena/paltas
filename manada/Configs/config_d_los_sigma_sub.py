@@ -2,7 +2,6 @@
 # drawn from COSMOS, and only varying the d_los and sigma_sub of the DG_19
 # subhalo and los classes
 
-from manada.Sampling import distributions
 import numpy as np
 from scipy.stats import norm, truncnorm
 from manada.Substructure.los_dg19 import LOSDG19
@@ -14,12 +13,6 @@ import pandas as pd
 import manada
 import os
 
-# Define a multivariate distribution we'll use
-mean = np.ones(2)
-cov = np.array([[1.0,0.7],[0.7,1.0]])
-min_values = np.zeros(2)
-tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
-
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':True}
 # We do not use point_source_supersampling_factor but it must be passed in to
@@ -29,7 +22,6 @@ kwargs_numerics['point_source_supersampling_factor'] = (
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
-seed = 10
 
 # Define some general image kwargs for the dataset
 mask_radius = 0.5
@@ -46,7 +38,8 @@ cosmos_folder = root_path + r'/datasets/cosmos/COSMOS_23.5_training_sample/'
 # Degrade to account for the 4x supersample
 hdul = fits.open(os.path.join(root_path,
 	'datasets/hst_psf/emp_psf_f814w.fits'))
-psf_pix_map = degrade_kernel(hdul[0].data[17],2)
+# Don't leave any 0 values in the psf.
+psf_pix_map = degrade_kernel(hdul[0].data[17]-np.min(hdul[0].data[17]),2)
 
 config_dict = {
 	'subhalo':{
@@ -109,9 +102,7 @@ config_dict = {
 	'psf':{
 		'parameters':{
 			'psf_type':'PIXEL',
-			'kernel_point_source': psf_pix_map,
-			'point_source_supersampling_factor':(
-				kwargs_numerics['point_source_supersampling_factor'])
+			'kernel_point_source': psf_pix_map
 		}
 	},
 	'detector':{
@@ -126,7 +117,8 @@ config_dict = {
 		'parameters':{
 			'supersample_pixel_scale':0.020,'output_pixel_scale':0.030,
 			'wcs_distortion':None,
-			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)]
+			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)],
+			'psf_supersample_factor':2
 		}
 	}
 }

@@ -3,7 +3,9 @@ import pandas as pd
 import unittest
 import sys, glob, copy, os
 from manada import generate
+from scipy.signal import fftconvolve
 from manada.Sources.cosmos import COSMOSIncludeCatalog
+from manada.Utils import hubble_utils
 import manada
 
 # Define the cosmos path
@@ -304,35 +306,6 @@ class GenerateTests(unittest.TestCase):
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,los_image)
 
-		# Now incorporate supersampling and make sure the image changes but
-		# not substantially.
-		sample['psf_parameters']['point_source_supersampling_factor'] = 2
-		kwargs_numerics = {'supersampling_factor':2,
-			'supersampling_convolution':True,
-			'point_source_supersampling_factor':2}
-		los_image, meta_values = generate.draw_drizzled_image(sample,
-			los_class,subhalo_class,None,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
-
-		# Check that the two arrays are close to equal but not equal
-		self.assertGreater(np.mean(np.abs(image-los_image)),0)
-		np.testing.assert_almost_equal(image,los_image)
-
-		# Repeat the same test for a pixel kernel
-		psf_pix_map = np.zeros((27,27))
-		psf_pix_map[12:14,12:14] = 1e-4
-		psf_pix_map[13,13] = 1
-		sample['psf_parameters'] = {'psf_type':'PIXEL',
-			'kernel_point_source': psf_pix_map,
-			'point_source_supersampling_factor':2}
-		los_image_pixel, meta_values = generate.draw_drizzled_image(sample,
-			los_class,subhalo_class,None,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
-
-		# Check that the two arrays are close to equal but not equal
-		self.assertGreater(np.mean(np.abs(image-los_image_pixel)),0)
-		np.testing.assert_almost_equal(image,los_image_pixel,decimal=3)
-
 		# Check that setting the noise flag returns a noisy image
 		add_noise = True
 		sample['psf_parameters']['point_source_supersampling_factor'] = 1
@@ -343,6 +316,89 @@ class GenerateTests(unittest.TestCase):
 			kwargs_numerics,mag_cut,add_noise)
 
 		self.assertGreater(np.std(los_image_noise-image),1e-3)
+
+	def test_draw_drizzled_image_psf(self):
+		# Test the pixel psf behaves identically to using fftconvolve
+		# Setup a fairly basic situation with a source at redshift 1.0 an a
+		# massive main deflector at redshift 0.5.
+		source_parameters = {'z_source':1.0,'cosmos_folder':cosmos_folder,
+			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
+			'smoothing_sigma':0.0,'random_rotation':False,
+			'min_flux_radius':None,'output_ab_zeropoint':25.95,
+			'source_inclusion_list':np.array([0])}
+		los_class = None
+		subhalo_class = None
+		main_model_list = ['PEMD','SHEAR']
+		main_deflector_parameters =  {'M200':1e13,'z_lens': 0.5,'gamma': 2.0,
+			'theta_E': 1.0,'e1':0.1,'e2':0.1,'center_x':0.02,'center_y':-0.03,
+			'gamma1':0.01,'gamma2':-0.02,'ra_0':0.0, 'dec_0':0.0}
+		source_class = COSMOSIncludeCatalog(cosmology_parameters='planck18',
+			source_parameters=source_parameters)
+		numpix = 128
+		multi_plane = False
+		kwargs_numerics = {'supersampling_factor':1}
+		mag_cut = None
+		add_noise = False
+		sim_pixel_width = 0.04
+
+		# Create a fake sample from our sampler
+		sim_pixel_width = 0.04
+		sample = {
+			'main_deflector_parameters':main_deflector_parameters,
+			'source_parameters':source_parameters,
+			'cosmology_parameters':'planck18',
+			'psf_parameters':{'psf_type':'NONE'},
+			'detector_parameters':{'pixel_scale':sim_pixel_width,
+				'ccd_gain':1.58,'read_noise':3.0,'magnitude_zero_point':25.127,
+				'exposure_time':1380.0,'sky_brightness':15.83,'num_exposures':1,
+				'background_noise':None},
+			'drizzle_parameters':{'supersample_pixel_scale':sim_pixel_width,
+				'output_pixel_scale':sim_pixel_width,'wcs_distortion':None,
+				'offset_pattern':[(0,0),(0.0,0),(0.0,0.0),(-0.0,-0.0)],
+				'psf_supersample_factor':1}
+		}
+
+		# Draw our image. This should just be the lensed source without
+		# noise and without a psf. This will be our supersamled image.
+		image, meta_values = generate.draw_drizzled_image(sample,los_class,
+			subhalo_class,main_model_list,source_class,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+		image_degrade = hubble_utils.degrade_image(image,2)
+
+		# Now generate a pixel level psf that isn't supersampled.
+		psf_pixel = np.zeros((63,63))
+		x,y = np.meshgrid(np.arange(63),np.arange(63),indexing='ij')
+		psf_pixel[x,y] = np.exp(-((x-31)**2+(y-31)**2))
+		psf_pixel /= np.sum(psf_pixel)
+		sample['psf_parameters'] = {'psf_type':'PIXEL',
+			'kernel_point_source': psf_pixel,
+			'point_source_supersampling_factor':1}
+
+		# Now generate the image again in the degraded resolution
+		kwargs_numerics = {'supersampling_factor':2}
+		numpix = 64
+		sample['detector_parameters']['pixel_scale'] = sim_pixel_width*2
+		sample['drizzle_parameters']['output_pixel_scale'] = sim_pixel_width*2
+		image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
+			los_class,subhalo_class,main_model_list,source_class,numpix,
+			multi_plane,kwargs_numerics,mag_cut,add_noise)
+
+		# Compare to the scipy image
+		scipy_image = fftconvolve(image_degrade,psf_pixel,mode='same')
+
+		np.testing.assert_almost_equal(scipy_image,image_degrade_psf)
+
+		# Now repeat this process but doing the psf convolution at the
+		# supersampling scale.
+		sample['psf_parameters']['point_source_supersampling_factor'] = 2
+		sample['drizzle_parameters']['psf_supersample_factor'] = 2
+		image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
+			los_class,subhalo_class,main_model_list,source_class,numpix,
+			multi_plane,kwargs_numerics,mag_cut,add_noise)
+		scipy_image = hubble_utils.degrade_image(
+			fftconvolve(image,psf_pixel,mode='same'),2)
+		np.testing.assert_almost_equal(scipy_image,image_degrade_psf,
+			decimal=6)
 
 	def test_main(self):
 		# Test that the main function makes some images

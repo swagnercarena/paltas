@@ -8,6 +8,7 @@ from astropy import units as u
 from astropy.wcs import wcs
 from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.data_api import DataAPI
+from scipy.signal import fftconvolve
 
 
 class PowerLawTests(unittest.TestCase):
@@ -464,3 +465,70 @@ class HubbleUtilsTests(unittest.TestCase):
 			np.abs(img_drizz-img_drizz_ss))
 		np.testing.assert_almost_equal(img_drizz_ss,img_drizz,
 			decimal=2)
+
+
+class LenstronomyUtilsTests(unittest.TestCase):
+
+	def test_psf_model(self):
+		# Test that the psf model class behaves well with a wide set of
+		# psfs.
+		# Create a Gaussian pixel map
+		psf_pixel = np.zeros((63,63))
+		x,y = np.meshgrid(np.arange(63),np.arange(63),indexing='ij')
+		psf_pixel[x,y] = np.exp(-((x-31)**2+(y-31)**2))
+		psf_pixel /= np.sum(psf_pixel)
+
+		# Generate a ring image.
+		image = np.zeros((64,64))
+		x,y = np.meshgrid(np.arange(64),np.arange(64),indexing='ij')
+		image[x,y] = np.exp(-(np.sqrt((x-31)**2+(y-31)**2)-15)**2/4)
+
+		# Setup the lenstronomy objects we want to compare to.
+		detector_pixel_scale = 0.04
+		numpix = 64
+		psf_parameters = {'psf_type':'PIXEL',
+			'kernel_point_source': psf_pixel}
+		kwargs_detector = {'pixel_scale':detector_pixel_scale,
+			'ccd_gain':2.5,'read_noise':4.0,'magnitude_zero_point':25.0,
+			'exposure_time':5400.0,'sky_brightness':22,'num_exposures':1,
+			'background_noise':None}
+		kwargs_numerics = {'supersampling_factor':1,
+			'supersampling_convolution':False,
+			'point_source_supersampling_factor':1}
+		psf_model = PSF(**psf_parameters)
+		data_class = DataAPI(numpix=numpix,**kwargs_detector).data_class
+		psf_helper = lenstronomy_utils.PSFHelper(data_class,psf_model,
+			kwargs_numerics)
+
+		# Convolve with lenstronomy and with scipy
+		helper_image = psf_helper.psf_model(image)
+		scipy_image = fftconvolve(image,psf_pixel,mode='same')
+
+		# Compare the outputs
+		np.testing.assert_almost_equal(helper_image,scipy_image)
+
+		# Check that specify no psf works as well
+		psf_parameters = {'psf_type':'NONE'}
+		psf_model = PSF(**psf_parameters)
+		psf_helper = lenstronomy_utils.PSFHelper(data_class,psf_model,
+			kwargs_numerics)
+
+		# Make sure the helper image is not convolved
+		helper_image = psf_helper.psf_model(image)
+		np.testing.assert_almost_equal(helper_image,image)
+
+		# # Now do the same but with supersampling
+		# numpix = 32
+		# psf_parameters['point_source_supersampling_factor'] = 2
+		# kwargs_numerics = {'supersampling_factor':2,
+		# 	'supersampling_convolution':True,
+		# 	'point_source_supersampling_factor':2}
+		# psf_model = PSF(**psf_parameters)
+		# data_class = DataAPI(numpix=numpix,**kwargs_detector).data_class
+		# psf_helper = lenstronomy_utils.PSFHelper(data_class,psf_model,
+		# 	kwargs_numerics)
+		# helper_image = psf_helper.psf_model(image)
+		# scipy_image = fftconvolve(image,psf_pixel,mode='same')
+
+		# # Compare the outputs
+		# np.testing.assert_almost_equal(helper_image,scipy_image)

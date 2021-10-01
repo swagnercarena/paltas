@@ -3,8 +3,6 @@
 Utility functions for simplifying interactions with lenstronomy classes.
 """
 from lenstronomy.ImSim.Numerics.numerics_subframe import NumericsSubFrame
-from lenstronomy.ImSim.Numerics.convolution import SubgridKernelConvolution
-from manada.Utils import hubble_utils
 
 
 class PSFHelper():
@@ -47,13 +45,12 @@ class PSFHelper():
 
 		# Convolve the image in the 1d format required by the lenstronomy
 		# class.
-		conv_flat = self.image_numerics.convolution_class.convolution2d(image)
+		conv_class = self.image_numerics.convolution_class
 
-		# Forced workaround. Talk with Simon about the right way to do this.
-		if isinstance(self.image_numerics.convolution_class,
-			SubgridKernelConvolution):
-			conv_img = conv_flat.reshape((im_shape[0]//2,im_shape[1]//2))
-			conv_flat = hubble_utils.upsample_image(conv_img,2).flatten()
-
-		# Reshape the image to be 2d.
-		return conv_flat.reshape(im_shape)
+		if conv_class is None:
+			# The psf type was NONE so no convolution should be done
+			return image
+		else:
+			conv_flat = conv_class.convolution2d(image)
+			# Reshape the image to be 2d if a 1d image was returned.
+			return conv_flat.reshape(im_shape)

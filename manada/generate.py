@@ -189,7 +189,7 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 		complete_lens_model, source_light_model, None, None,
 		kwargs_numerics=kwargs_numerics)
 
-	# Generate our image with noise
+	# Generate our image
 	image = complete_image_model.image(complete_lens_model_kwargs,
 		source_kwargs_list, None, None)
 
@@ -287,20 +287,32 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 		return image_ss, meta_values
 
 	# Grab the PSF supersampling factor if present.
-	if 'point_source_supersampling_factor' in sample['psf_parameters']:
+	if 'psf_supersample_factor' in sample['drizzle_parameters']:
 		psf_supersample_factor = (
-			sample['psf_parameters']['point_source_supersampling_factor'])
-		kwargs_numerics['point_source_supersampling_factor'] = (
-			psf_supersample_factor)
-		kwargs_numerics['supersampling_factor'] = psf_supersample_factor
+			sample['drizzle_parameters']['psf_supersample_factor'])
 	else:
+		warnings.warn('No psf_supersample_factor provided so 1 will be assumed.')
 		psf_supersample_factor = 1
+
+	if psf_supersample_factor > ss_scaling:
+		raise ValueError(f'psf_supersample_factor {psf_supersample_factor} larger'
+			+ f' than the supersampling {ss_scaling} defined in the drizzle '
+			+'parameters.')
+
+	# We'll bypass lenstronomy's supersampling code by modifying
+	# the data api.
+	kwargs_numerics['point_source_supersampling_factor'] = 1
+	kwargs_numerics['supersampling_factor'] = 1
+	kwargs_numerics['supersampling_convolution'] = False
+	sample['psf_parameters']['point_source_supersampling_factor'] = 1
+	sample['detector_parameters']['pixel_scale'] /= psf_supersample_factor
 
 	# Create our noise and psf models.
 	kwargs_detector = sample['detector_parameters']
 	kwargs_psf = sample['psf_parameters']
 	single_band = SingleBand(**kwargs_detector)
-	data_class = DataAPI(numpix=numpix,**kwargs_detector).data_class
+	data_class = DataAPI(numpix=numpix*psf_supersample_factor,
+		**kwargs_detector).data_class
 	psf_model_lenstronomy = PSF(**kwargs_psf)
 
 	if add_noise:
