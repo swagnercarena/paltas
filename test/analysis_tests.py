@@ -16,6 +16,7 @@ from shutil import copyfile
 from matplotlib import pyplot as plt
 import numba
 from scipy import special
+from scipy.stats import truncnorm, lognorm
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -1155,3 +1156,104 @@ class ProbabilityClassTests(unittest.TestCase):
 		hyperparameters = hyperparameters*0.02
 		self.assertAlmostEqual(prob_class.log_post_omega(hyperparameters),
 			calculate_manual_log_post(hyperparameters))
+
+
+class PdfFunctionsTests(unittest.TestCase):
+
+	def test_eval_normal_logpdf_approx(self):
+		# For a specific mu, sigma, upper, and lower, test that the log pdf
+		# approximation gives the correct values inside the bounds, and then
+		# suppressed values outside the bounds.
+		mu = 1
+		sigma = 5
+		lower = -10
+		upper = 10
+
+		# Test within the bounds
+		eval_at = np.linspace(-10,10,100)
+		lpdf_approx = Analysis.pdf_functions.eval_normal_logpdf_approx(eval_at,
+			mu,sigma,lower,upper)
+		lpdf = truncnorm((lower-mu)/sigma,(upper-mu)/sigma,loc=mu,
+			scale=sigma).logpdf(eval_at)
+		precision = 5
+		np.testing.assert_almost_equal(lpdf_approx, lpdf, precision)
+
+		# Test outside the bounds
+		eval_at = np.linspace(-20,-10.0001,100)
+		lpdf_approx = Analysis.pdf_functions.eval_normal_logpdf_approx(eval_at,
+			mu,sigma,lower,upper)
+		lpdf = truncnorm(-np.inf,np.inf,loc=mu,scale=sigma).logpdf(eval_at)
+		np.testing.assert_array_less(lpdf_approx, lpdf)
+		# assert greater because of the accept_norm
+		np.testing.assert_array_less(lpdf-1000,lpdf_approx)
+
+		eval_at = np.linspace(10.0001,20,100)
+		lpdf_approx = Analysis.pdf_functions.eval_normal_logpdf_approx(eval_at,
+			mu,sigma,lower,upper)
+		lpdf = truncnorm(-np.inf,np.inf,loc=mu,scale=sigma).logpdf(eval_at)
+		np.testing.assert_array_less(lpdf_approx, lpdf)
+		# assert greater because of the accept_norm
+		np.testing.assert_array_less(lpdf-1000,lpdf_approx)
+
+		# Test that the default values work
+		eval_at = np.linspace(-10,10,100)
+		lpdf_approx = Analysis.pdf_functions.eval_normal_logpdf_approx(eval_at,
+			mu,sigma)
+		lpdf = truncnorm(-np.inf,np.inf,loc=mu,scale=sigma).logpdf(eval_at)
+		np.testing.assert_almost_equal(lpdf_approx,lpdf)
+
+	def test_eval_lognormal_logpdf_approx(self):
+		# For a specific mu, sigma, upper, and lower, test that the log pdf
+		# approximation gives the correct values inside the bounds, and then
+		# suppressed values outside the bounds.
+		mu = 1
+		sigma = 5
+		lower = 1
+		upper = 10
+
+		# Create a temp function for comparing
+		def eval_lognormal_logpdf(eval_at,mu,sigma,lower=-np.inf,upper=np.inf):
+			dist = lognorm(scale=np.exp(mu), s=sigma, loc=0.0)
+			eval_unnormed_logpdf = dist.logpdf(eval_at)
+			accept_norm = dist.cdf(upper) - dist.cdf(lower)
+			eval_normed_logpdf = eval_unnormed_logpdf - np.log(accept_norm)
+			eval_unnormed_logpdf[eval_at<lower] = -np.inf
+			eval_unnormed_logpdf[eval_at>upper] = -np.inf
+			return eval_normed_logpdf
+
+		# Test within the bounds
+		eval_at = np.linspace(1,10,100)
+		lpdf_approx = Analysis.pdf_functions.eval_lognormal_logpdf_approx(
+			eval_at,mu,sigma,lower,upper)
+		lpdf = eval_lognormal_logpdf(eval_at,mu,sigma,lower,upper)
+		precision = 5
+		np.testing.assert_almost_equal(lpdf_approx, lpdf, precision)
+
+		# Test outside the bounds
+		eval_at = np.linspace(0.0000001,0.9999,100)
+		lpdf_approx = Analysis.pdf_functions.eval_lognormal_logpdf_approx(
+			eval_at,mu,sigma,lower,upper)
+		lpdf = eval_lognormal_logpdf(eval_at,mu,sigma)
+		np.testing.assert_array_less(lpdf_approx, lpdf)
+		# assert greater because of the accept_norm
+		np.testing.assert_array_less(lpdf-1000,lpdf_approx)
+
+		eval_at = np.linspace(10.0001,20,100)
+		lpdf_approx = Analysis.pdf_functions.eval_lognormal_logpdf_approx(
+			eval_at,mu,sigma,lower,upper)
+		lpdf = eval_lognormal_logpdf(eval_at,mu,sigma)
+		np.testing.assert_array_less(lpdf_approx, lpdf)
+		# assert greater because of the accept_norm
+		np.testing.assert_array_less(lpdf-1000,lpdf_approx)
+
+		# Check that without bounds the function behaves as expected.
+		lpdf_approx = Analysis.pdf_functions.eval_lognormal_logpdf_approx(
+			eval_at,mu,sigma)
+		lpdf = eval_lognormal_logpdf(eval_at,mu,sigma)
+		np.testing.assert_almost_equal(lpdf_approx, lpdf, precision)
+
+		# Check that the function doesn't fail if the lower is set to -np.inf
+		lpdf_approx = Analysis.pdf_functions.eval_lognormal_logpdf_approx(
+			eval_at,mu,sigma,lower=-np.inf)
+		lpdf = eval_lognormal_logpdf(eval_at,mu,sigma)
+		np.testing.assert_almost_equal(lpdf_approx, lpdf, precision)
