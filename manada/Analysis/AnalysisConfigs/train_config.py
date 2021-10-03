@@ -1,10 +1,10 @@
 import os
 
-batch_size = 1024
+batch_size = 256
 # The number of epochs to train for
 n_epochs = 200
 # The size of the images in the training set
-img_size = (64,64,1)
+img_size = (170,170,1)
 # A random seed to us
 random_seed = 2
 # The list of learning parameters to use

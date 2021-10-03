@@ -163,7 +163,7 @@ def main():
 		print('Make sure your validation images already have noise! Noise ' +
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
-		learning_params,n_val_npy,1,norm_images=norm_images,
+		learning_params,min(batch_size,n_val_npy),1,norm_images=norm_images,
 		input_norm_path=input_norm_path,kwargs_detector=None,
 		log_learning_params=log_learning_params)
 
@@ -198,7 +198,7 @@ def main():
 
 	# Use learning rate decay for optimal learning
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.985,
+		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.95,
 		staircase=True)
 
 	# Use the desired optimizer
