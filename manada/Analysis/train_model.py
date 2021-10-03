@@ -3,7 +3,7 @@
 This script will initialize and train a BNN model on a strong lensing image
 dataset.
 """
-import argparse, os, sys, glob
+import argparse, os, sys, glob, math
 from importlib import import_module
 import tensorflow as tf
 from manada.Analysis import dataset_generation, loss_functions, conv_models
@@ -230,7 +230,7 @@ def main():
 	# TODO add validation data.
 	model.fit(tf_dataset_t,callbacks=callbacks,epochs=n_epochs,
 		steps_per_epoch=steps_per_epoch,validation_data=tf_dataset_v,
-		validation_steps=1)
+		validation_steps=int(math.ceil(n_val_npy/batch_size)))
 
 
 if __name__ == '__main__':
