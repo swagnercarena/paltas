@@ -897,6 +897,27 @@ class ConvModelsTests(unittest.TestCase):
 		# Check that the model compiles
 		model.compile(loss='mean_squared_error')
 
+	def test__xresnet_stack(self):
+		# Test that building the xresnet stack works with different input
+		# shapes.
+		# First try stides of 2 with a dimension size that is divisible by 2
+		x = tf.ones((1000,64,64,64))
+		kernel_size = 3
+		strides = 2
+		conv_shortcut = False
+		name = 'test'
+		blocks = 4
+		filters = 64
+		out = Analysis.conv_models._xresnet_stack(x,filters,kernel_size,strides,
+			conv_shortcut,name,blocks)
+		self.assertTupleEqual((1000,32,32,64),tuple(out.shape))
+
+		# Now repeat the same but with an odd dimension
+		x = tf.ones((1000,63,63,64))
+		out = Analysis.conv_models._xresnet_stack(x,filters,kernel_size,strides,
+			conv_shortcut,name,blocks)
+		self.assertTupleEqual((1000,32,32,64),tuple(out.shape))
+
 	def test_build_xresnet34(self):
 		# Testing every aspect of this will be tricky, so we'll just
 		# do a few sanity check
@@ -938,6 +959,15 @@ class ConvModelsTests(unittest.TestCase):
 				self.assertTrue(layer.bias is None)
 		self.assertEqual(len(model_fa.layers)-len(model.layers),5)
 		self.assertTupleEqual((None,num_outputs),model_fa.output_shape)
+		del model
+
+		# Build a resnet with an image shape that requires padding before the
+		# stacks and make sure the output is sane.
+		image_size = (170,170,1)
+		num_outputs = 8
+		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs)
+		image = np.ones((1,170,170,1))
+		self.assertEqual(np.sum(np.isnan(model.predict(image))),0)
 
 
 class PosteriorFunctionsTests(unittest.TestCase):

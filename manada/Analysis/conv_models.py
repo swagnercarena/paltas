@@ -79,7 +79,16 @@ def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name,blocks):
 		(KerasTensor): A Keras tensorflow tensor representing the input after
 			the stack has been applied
 	"""
-
+	# If the input dimension is not divisible by the stride then we must add
+	# padding.
+	if x.shape[1] % strides > 0:
+		divide_pad = strides - x.shape[1]%strides
+		x = layers.ZeroPadding2D(padding=((divide_pad,0),(0,0)),
+			name=name+'stide_pad_r')(x)
+	if x.shape[2] % strides > 0:
+		divide_pad = strides - x.shape[2]%strides
+		x = layers.ZeroPadding2D(padding=((0,0),(divide_pad,0)),
+			name=name+'stide_pad_c')(x)
 	# Apply each residual block
 	x = _xresnet_block(x,filters,kernel_size,strides,
 		conv_shortcut=conv_shortcut,name=name+'_block1')
