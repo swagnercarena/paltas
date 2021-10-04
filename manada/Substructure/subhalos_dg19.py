@@ -339,7 +339,7 @@ class SubhalosDG19(SubhalosBase):
 		main lens halo.
 
 		Returns:
-			(tuple): A tuple of the lists: the first is the profile type for
+			(tuple): A tuple of three lists: the first is the profile type for
 				each subhalo returned, the second is the lenstronomy kwargs for
 				that subhalo, and the third is the redshift for each subhalo.
 		Notes:

@@ -65,8 +65,9 @@ def parse_args():
 	return args
 
 
-def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
-	numpix,multi_plane,kwargs_numerics,mag_cut,add_noise,apply_psf=True):
+def draw_image(sample,los_class,subhalo_class,main_deflector_class,
+	source_class,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise,
+	apply_psf=True):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system
 
@@ -77,8 +78,9 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 			If None no los will be added.
 		subhalo_class (manada.Substructure.SubhalosBase): An instance of the
 			subhalo class. If None no subhalos will be added.
-		main_model_list (list): A list of the main deflector models to
-			be added. If None no main deflector will be added.
+		main_deflector_class (manada.MainDeflector.MainDeflectorBase): An
+			instance of the main deflector class. If None no main deflector
+			will be added.
 		source_class (manada.Sources.SourceBase): An instance of the
 			SourceBase class that will be used to draw the source
 			image.
@@ -148,20 +150,14 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 		complete_lens_model_list += sub_model_list
 		complete_lens_model_kwargs += sub_kwargs_list
 		complete_z_list += sub_z_list
-	if main_model_list is not None:
+	if main_deflector_class is not None:
+		main_deflector_class.update_parameters(
+			sample['main_deflector_parameters'],sample['cosmology_parameters'])
+		main_model_list, main_kwargs_list, main_z_list = (
+			main_deflector_class.draw_main_deflector())
 		complete_lens_model_list += main_model_list
-		# Get the parameters we need to pull from the main deflector list
-		# from lenstronomy
-		for model in main_model_list:
-			p_names = ProfileListBase._import_class(model,None,
-				None).param_names
-			model_kwargs = {}
-			for param in p_names:
-				model_kwargs[param] = (
-					sample['main_deflector_parameters'][param])
-			complete_lens_model_kwargs += [model_kwargs]
-		# All of the main deflector components are at z_lens
-		complete_z_list += [z_lens]*len(main_model_list)
+		complete_lens_model_kwargs += main_kwargs_list
+		complete_z_list += main_z_list
 
 	complete_lens_model = LensModel(complete_lens_model_list, z_lens,
 		z_source,complete_z_list, cosmo=cosmo.toAstropy(),
@@ -207,7 +203,7 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 	return image,meta_values
 
 
-def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
+def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 	source_class,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system with a
@@ -220,8 +216,9 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 			If None no los will be added.
 		subhalo_class (manada.Substructure.SubhalosBase): An instance of the
 			subhalo class. If None no subhalos will be added.
-		main_model_list (list): A list of the main deflector models to
-			be added. If None no main deflector will be added.
+		main_deflector_class (manada.MainDeflector.MainDeflectorBase): An
+			instance of the main deflector class. If None no main deflector
+			will be added.
 		source_class (manada.Sources.SourceBase): An instance of the
 			SourceBase class that will be used to draw the source
 			image.
@@ -281,7 +278,7 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_model_list,
 	# Use the normal generation class to make our highres image without
 	# noise.
 	image_ss, meta_values = draw_image(sample,los_class,subhalo_class,
-		main_model_list,source_class,numpix_ss,multi_plane,kwargs_numerics,
+		main_deflector_class,source_class,numpix_ss,multi_plane,kwargs_numerics,
 		mag_cut,False,apply_psf=False)
 	sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 
@@ -389,7 +386,7 @@ def main():
 	multi_plane = False
 	los_class = None
 	subhalo_class = None
-	main_model_list = None
+	main_deflector_class = None
 	do_drizzle = False
 	if 'los' in config_dict:
 		los_class = config_dict['los']['class'](sample['los_parameters'],
@@ -401,7 +398,8 @@ def main():
 			sample['subhalo_parameters'],sample['main_deflector_parameters'],
 			sample['source_parameters'],sample['cosmology_parameters'])
 	if 'main_deflector' in config_dict:
-		main_model_list = config_dict['main_deflector']['models']
+		main_deflector_class = config_dict['main_deflector']['class'](
+			sample['main_deflector_parameters'],sample['cosmology_parameters'])
 	if 'drizzle' in config_dict:
 		do_drizzle = True
 
@@ -440,11 +438,11 @@ def main():
 		# provided.
 		if do_drizzle:
 			image,meta_values = draw_drizzled_image(sample,los_class,
-				subhalo_class,main_model_list,source_class,numpix,multi_plane,
-				kwargs_numerics,mag_cut,add_noise)
+				subhalo_class,main_deflector_class,source_class,numpix,
+				multi_plane,kwargs_numerics,mag_cut,add_noise)
 		else:
 			image,meta_values = draw_image(sample,los_class,subhalo_class,
-				main_model_list,source_class,numpix,multi_plane,
+				main_deflector_class,source_class,numpix,multi_plane,
 				kwargs_numerics,mag_cut,add_noise)
 
 		# Failed attempt if there is no image output

@@ -2,6 +2,7 @@ from manada.Configs.config_d_los_sigma_sub import *
 from manada.Sources.cosmos import COSMOSCatalog
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
+from manada.MainDeflector.simple_deflectors import PEMDShear
 from scipy.stats import norm
 
 config_dict = {
@@ -27,7 +28,7 @@ config_dict = {
 		}
 	},
 	'main_deflector':{
-		'models': ['PEMD','SHEAR'],
+		'class': PEMDShear,
 		'parameters':{
 			'M200': 1e13,
 			'z_lens': 0.5,

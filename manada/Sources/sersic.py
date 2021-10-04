@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Provides classes for specifying a sersic light distribution.
+
+This module contains the class required to provide a sersic light distribution
+as the source for manada.
+"""
 from .source_base import SourceBase
 
 

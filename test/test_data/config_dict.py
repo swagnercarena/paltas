@@ -5,6 +5,7 @@ import numpy as np
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
+from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Sources.cosmos import COSMOSCatalog
 import manada
 
@@ -53,7 +54,7 @@ config_dict = {
 		}
 	},
 	'main_deflector':{
-		'models': ['PEMD','SHEAR'],
+		'class': PEMDShear,
 		'parameters':{
 			'M200': loguniform(a=1e11,b=5e13).rvs,
 			'z_lens': 0.5,

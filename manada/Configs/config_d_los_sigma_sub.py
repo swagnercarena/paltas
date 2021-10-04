@@ -6,6 +6,7 @@ import numpy as np
 from scipy.stats import norm, truncnorm
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
+from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Sources.cosmos import COSMOSExcludeCatalog
 from lenstronomy.Util.kernel_util import degrade_kernel
 from astropy.io import fits
@@ -64,7 +65,7 @@ config_dict = {
 		}
 	},
 	'main_deflector':{
-		'models': ['PEMD','SHEAR'],
+		'class': PEMDShear,
 		'parameters':{
 			'M200': 1e13,
 			'z_lens': 0.5,

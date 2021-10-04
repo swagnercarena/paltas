@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+Provides the base class for specifying the source of a lensing system.
+
+This module contains the base class that all the source classes will build
+from. Because the steps for rendering a source can vary between different
+models, the required functions are very sparse.
+"""
 import copy
 from ..Utils.cosmology_utils import get_cosmology
 

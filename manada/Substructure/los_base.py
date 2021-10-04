@@ -87,9 +87,10 @@ class LOSBase():
 		of a main lens halo.
 
 		Returns:
-			(tuple): A tuple of two lists: the first is the profile type for
-			each los halo returned and the second is the lenstronomy kwargs
-			for that halo.
+			(tuple): A tuple of three lists: the first is the profile type for
+			each los halo returned, the second is the lenstronomy kwargs
+			for that halo, and the third is a list of redshift values for
+			each profile.
 		"""
 		raise NotImplementedError
 
