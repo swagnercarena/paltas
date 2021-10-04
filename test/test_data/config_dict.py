@@ -5,6 +5,7 @@ import numpy as np
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
+from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Sources.cosmos import COSMOSCatalog
 import manada
 
@@ -22,6 +23,9 @@ seed = 10
 # Define some general image kwargs for the dataset
 mask_radius = 0.2
 mag_cut = 1.0
+
+# Define arguments that will be used multiple times
+output_ab_zeropoint = 25.127
 
 # Define the cosmos path
 root_path = manada.__path__[0][:-7]
@@ -50,7 +54,7 @@ config_dict = {
 		}
 	},
 	'main_deflector':{
-		'models': ['PEMD','SHEAR'],
+		'class': PEMDShear,
 		'parameters':{
 			'M200': loguniform(a=1e11,b=5e13).rvs,
 			'z_lens': 0.5,
@@ -71,7 +75,7 @@ config_dict = {
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
 			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
 			'smoothing_sigma':0.0,'random_rotation':True,
-			'min_flux_radius':None}
+			'min_flux_radius':None,'output_ab_zeropoint':output_ab_zeropoint}
 	},
 	'cosmology':{
 		'parameters':{
@@ -87,7 +91,7 @@ config_dict = {
 	'detector':{
 		'parameters':{
 			'pixel_scale':0.08,'ccd_gain':2.5,'read_noise':4.0,
-			'magnitude_zero_point':25.9463,
+			'magnitude_zero_point':output_ab_zeropoint,
 			'exposure_time':5400.0,'sky_brightness':22,
 			'num_exposures':1, 'background_noise':None
 		}

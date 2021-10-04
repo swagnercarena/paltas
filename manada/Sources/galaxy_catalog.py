@@ -6,7 +6,7 @@ This module contains the default class for transforming the objects of a
 source catalog into sources to be passed to lenstronomy.
 """
 import numpy as np
-from .source_base import SourceBase, DEFAULT_Z_SOURCE
+from .source_base import SourceBase
 
 
 class GalaxyCatalog(SourceBase):
@@ -18,13 +18,33 @@ class GalaxyCatalog(SourceBase):
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
-			source_parameters: A dictionary containing random_rotation
+		source_parameters (dict): A dictionary containing all the parameters
+			needed to draw sources (in this case random_rotation).
 	"""
-	required_parameters = ('random_rotation',)
+	required_parameters = ('random_rotation','output_ab_zeropoint',
+		'z_source')
+	# This parameter must be set by class inheriting GalaxyCatalog
+	ab_zeropoint = None
 
 	def __len__(self):
 		"""Returns the length of the catalog"""
 		raise NotImplementedError
+
+	def check_parameterization(self, required_params):
+		""" Check that all the required parameters are present in the
+		source_parameters. Also checks ab_zeropoint is set.
+
+		Args:
+			required_params ([str,...]): A list of strings containing the
+				required parameters.
+		"""
+		# Run the base check
+		super().check_parameterization(required_params)
+		# Check ab magnitude zeropoint has been set
+		if (self.__class__.__name__ != 'GalaxyCatalog' and
+			self.__class__.ab_zeropoint is None):
+			raise ValueError('ab_zeropoint must be set by class inheriting '+
+				'GalaxyCatalog.')
 
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy
@@ -39,7 +59,7 @@ class GalaxyCatalog(SourceBase):
 		"""
 		raise NotImplementedError
 
-	def iter_lightmodel_kwargs_samples(self,n_galaxies,z_new=DEFAULT_Z_SOURCE,
+	def iter_lightmodel_kwargs_samples(self,n_galaxies,z_new,
 		**selection_kwargs):
 		"""Yields dicts of lenstronomy LightModel kwargs for n_galaxies,
 		placed at redshift z_new
@@ -55,7 +75,7 @@ class GalaxyCatalog(SourceBase):
 			lenstronomy model lists and kwargs.
 		"""
 		for catalog_i in self.sample_indices(n_galaxies,**selection_kwargs):
-			yield self.draw_source(catalog_i, z_new=z_new)
+			yield self.draw_source(catalog_i)
 
 	def iter_image_and_metadata(self, message=''):
 		"""Yields the image array and metadata for all of the images
@@ -105,7 +125,7 @@ class GalaxyCatalog(SourceBase):
 				phi = 0
 		return catalog_i, phi
 
-	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z_SOURCE, phi=None):
+	def draw_source(self, catalog_i=None, phi=None):
 		"""Creates lenstronomy lightmodel kwargs from a catalog image.
 
 		Args:
@@ -127,11 +147,18 @@ class GalaxyCatalog(SourceBase):
 		catalog_i, phi = self.fill_catalog_i_phi_defaults(catalog_i, phi)
 		img, metadata = self.image_and_metadata(catalog_i)
 		pixel_width = metadata['pixel_width']
+		z_new = self.source_parameters['z_source']
 
 		# With this, lenstronomy will preserve the scale/units of
 		# the input image (in a configuration without lensing,
 		# same pixel widths, etc.)
 		img = img / pixel_width**2
+
+		# Take into account the difference in the magnitude zeropoints
+		# of the input survey and the output survey. Note this doesn't
+		# take into account the color of the object!
+		img *= 10**((self.source_parameters['output_ab_zeropoint']-
+			self.__class__.ab_zeropoint)/2.5)
 
 		pixel_width *= self.z_scale_factor(metadata['z'], z_new)
 

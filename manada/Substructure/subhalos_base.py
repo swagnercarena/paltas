@@ -27,6 +27,8 @@ class SubhalosBase():
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 
+	required_parameters = tuple()
+
 	def __init__(self,subhalo_parameters,main_deflector_parameters,
 		source_parameters,cosmology_parameters):
 
@@ -38,6 +40,9 @@ class SubhalosBase():
 
 		# Turn our cosmology parameters into a colossus cosmology instance
 		self.cosmo = get_cosmology(cosmology_parameters)
+
+		# Check that all the needed parameters are present
+		self.check_parameterization(self.__class__.required_parameters)
 
 	def check_parameterization(self,required_params):
 		""" Check that all the required parameters are present in the
@@ -89,7 +94,7 @@ class SubhalosBase():
 		main lens halo.
 
 		Returns:
-			(tuple): A tuple of the lists: the first is the profile type for
+			(tuple): A tuple of three lists: the first is the profile type for
 				each subhalo returned, the second is the lenstronomy kwargs for
 				that subhalo, and the third is the redshift for each subhalo.
 		"""

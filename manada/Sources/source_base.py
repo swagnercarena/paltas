@@ -1,8 +1,13 @@
+# -*- coding: utf-8 -*-
+"""
+Provides the base class for specifying the source of a lensing system.
+
+This module contains the base class that all the source classes will build
+from. Because the steps for rendering a source can vary between different
+models, the required functions are very sparse.
+"""
 import copy
 from ..Utils.cosmology_utils import get_cosmology
-
-
-DEFAULT_Z_SOURCE = 2.
 
 
 class SourceBase:
@@ -59,13 +64,10 @@ class SourceBase:
 			self.cosmo = get_cosmology(cosmology_parameters)
 
 	def draw_source(self):
-		"""Return lenstronomy LightModel kwargs
-
-		Args:
-			z_new (float): Redshift to place source at
+		"""Return lenstronomy LightModel names and kwargs
 
 		Returns:
-			(list,list) A list containing the model names(s), and
+			(list,list) A list containing the model name(s), and
 				a list containing the model kwargs dictionaries.
 		"""
 		raise NotImplementedError

@@ -43,9 +43,6 @@ class SubhalosDG19(SubhalosBase):
 		super().__init__(subhalo_parameters,main_deflector_parameters,
 			source_parameters,cosmology_parameters)
 
-		# Check that all the needed parameters are present
-		self.check_parameterization(SubhalosDG19.required_parameters)
-
 	@staticmethod
 	@numba.njit()
 	def host_scaling_function(host_m200, z_lens, k1=0.88, k2=1.7):
@@ -80,7 +77,7 @@ class SubhalosDG19(SubhalosBase):
 
 		# Pull the parameters we need from the input dictionaries
 		# Units of m_sun times inverse kpc^2
-		sigma_sub = self.subhalo_parameters['sigma_sub']
+		sigma_sub = max(0, self.subhalo_parameters['sigma_sub'])
 		shmf_plaw_index = self.subhalo_parameters['shmf_plaw_index']
 		# Units of m_sun
 		m_pivot = self.subhalo_parameters['m_pivot']
@@ -339,7 +336,7 @@ class SubhalosDG19(SubhalosBase):
 		main lens halo.
 
 		Returns:
-			(tuple): A tuple of the lists: the first is the profile type for
+			(tuple): A tuple of three lists: the first is the profile type for
 				each subhalo returned, the second is the lenstronomy kwargs for
 				that subhalo, and the third is the redshift for each subhalo.
 		Notes:

@@ -46,9 +46,6 @@ class LOSDG19(LOSBase):
 		super().__init__(los_parameters,main_deflector_parameters,
 			source_parameters,cosmology_parameters)
 
-		# Check that all the needed parameters are present
-		self.check_parameterization(LOSDG19.required_parameters)
-
 	@staticmethod
 	@numba.njit
 	def nu_f_nu(nu):
@@ -272,7 +269,7 @@ class LOSDG19(LOSBase):
 		m_min = self.los_parameters['m_min']
 		# Units of M_sun
 		m_max = self.los_parameters['m_max']
-		delta_los = self.los_parameters['delta_los']
+		delta_los = max(0, self.los_parameters['delta_los'])
 		# Get the parameters of the power law fit to the Sheth Tormen mass
 		# function
 		pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
@@ -406,9 +403,10 @@ class LOSDG19(LOSBase):
 		of a main lens halo.
 
 		Returns:
-			(tuple): A tuple of two lists: the first is the profile type for
-			each los halo returned and the second is the lenstronomy kwargs
-			for that halo.
+			(tuple): A tuple of three lists: the first is the profile type for
+			each los halo returned, the second is the lenstronomy kwargs
+			for that halo, and the third is a list of redshift values for
+			each profile.
 		Notes:
 			The returned lens model list includes terms to correct for
 			the average deflection angle introduced from the los halos.
@@ -481,7 +479,7 @@ class LOSDG19(LOSBase):
 		z_lens = self.main_deflector_parameters['z_lens']
 		dz = self.los_parameters['dz']
 		dz *= self.los_parameters['alpha_dz_factor']
-		delta_los = self.los_parameters['delta_los']
+		delta_los = max(0, self.los_parameters['delta_los'])
 		cone_angle = self.los_parameters['cone_angle']
 		m_min = self.los_parameters['m_min']
 		# Units of M_sun
