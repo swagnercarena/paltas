@@ -19,7 +19,14 @@ class SingleSersicSource(SourceBase):
 	required_parameters = tuple(
 		'amp R_sersic n_sersic e1 e2 center_x center_y'.split())
 
-	def draw_source(self, **kwargs):
+	def draw_source(self):
+		"""Return lenstronomy LightModel kwargs
+
+		Returns:
+			(list,list) A list containing the model names(s), and
+				a list containing the model kwargs dictionaries.
+		"""
+		# Just extract each of the sersic parameters.
 		sersic_params ={
 			k: v
 			for k, v in self.source_parameters.items()

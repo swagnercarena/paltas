@@ -81,7 +81,7 @@ class Sampler():
 			(dict): A dictionary containing the parameter values that will
 			be sampled.
 		"""
-		# Pull the global warning variable an initialize our dict
+		# Pull the global warning variable and initialize our dict
 		full_param_dict = {}
 
 		# For each possible component of our lensing add the parameters

@@ -13,7 +13,7 @@ from lenstronomy.Util.param_util import phi_q2_ellipticity
 import numpy as np
 import numpy.lib.recfunctions
 from tqdm import tqdm
-from .galaxy_catalog import GalaxyCatalog, DEFAULT_Z_SOURCE
+from .galaxy_catalog import GalaxyCatalog
 import scipy
 
 HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
@@ -37,7 +37,7 @@ class COSMOSCatalog(GalaxyCatalog):
 	"""
 	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
 		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'output_ab_zeropoint')
+		'output_ab_zeropoint','z_source')
 	# Average AB magnitude zeropoint for the COSMOS run.
 	ab_zeropoint = 25.95
 
@@ -223,7 +223,7 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 		# Convert half-light radius from pixels to arcseconds
 		self.sercic_info['r_half'] *= HUBBLE_ACS_PIXEL_WIDTH
 
-	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z_SOURCE, phi=None):
+	def draw_source(self, catalog_i=None, phi=None):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
 			a catalog image.
 
@@ -245,6 +245,7 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 		"""
 		catalog_i, phi = self.fill_catalog_i_phi_defaults(catalog_i, phi)
 		metadata = self.catalog[catalog_i]
+		z_new = self.source_parameters['z_source']
 
 		z_scaling = self.z_scale_factor(metadata['z'], z_new)
 

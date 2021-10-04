@@ -2,9 +2,6 @@ import copy
 from ..Utils.cosmology_utils import get_cosmology
 
 
-DEFAULT_Z_SOURCE = 2.
-
-
 class SourceBase:
 	"""
 	Base class for producing lenstronomy LightModel arguments
@@ -60,9 +57,6 @@ class SourceBase:
 
 	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
-
-		Args:
-			z_new (float): Redshift to place source at
 
 		Returns:
 			(list,list) A list containing the model names(s), and

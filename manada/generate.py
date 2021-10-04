@@ -179,7 +179,7 @@ def draw_image(sample,los_class,subhalo_class,main_model_list,source_class,
 		meta_values['source_parameters_catalog_i'] = catalog_i
 		meta_values['source_parameters_phi'] = phi
 		source_model_list, source_kwargs_list = source_class.draw_source(
-			catalog_i=catalog_i, phi=phi, z_new=z_source)
+			catalog_i=catalog_i, phi=phi)
 	else:
 		source_model_list, source_kwargs_list = source_class.draw_source()
 	source_light_model = LightModel(source_model_list)

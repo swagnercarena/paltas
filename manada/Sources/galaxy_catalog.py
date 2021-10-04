@@ -6,8 +6,7 @@ This module contains the default class for transforming the objects of a
 source catalog into sources to be passed to lenstronomy.
 """
 import numpy as np
-from .source_base import SourceBase, DEFAULT_Z_SOURCE
-import warnings
+from .source_base import SourceBase
 
 
 class GalaxyCatalog(SourceBase):
@@ -22,7 +21,8 @@ class GalaxyCatalog(SourceBase):
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources (in this case random_rotation).
 	"""
-	required_parameters = ('random_rotation','output_ab_zeropoint')
+	required_parameters = ('random_rotation','output_ab_zeropoint',
+		'z_source')
 	# This parameter must be set by class inheriting GalaxyCatalog
 	ab_zeropoint = None
 
@@ -59,7 +59,7 @@ class GalaxyCatalog(SourceBase):
 		"""
 		raise NotImplementedError
 
-	def iter_lightmodel_kwargs_samples(self,n_galaxies,z_new=DEFAULT_Z_SOURCE,
+	def iter_lightmodel_kwargs_samples(self,n_galaxies,z_new,
 		**selection_kwargs):
 		"""Yields dicts of lenstronomy LightModel kwargs for n_galaxies,
 		placed at redshift z_new
@@ -75,7 +75,7 @@ class GalaxyCatalog(SourceBase):
 			lenstronomy model lists and kwargs.
 		"""
 		for catalog_i in self.sample_indices(n_galaxies,**selection_kwargs):
-			yield self.draw_source(catalog_i, z_new=z_new)
+			yield self.draw_source(catalog_i)
 
 	def iter_image_and_metadata(self, message=''):
 		"""Yields the image array and metadata for all of the images
@@ -125,7 +125,7 @@ class GalaxyCatalog(SourceBase):
 				phi = 0
 		return catalog_i, phi
 
-	def draw_source(self, catalog_i=None, z_new=DEFAULT_Z_SOURCE, phi=None):
+	def draw_source(self, catalog_i=None, phi=None):
 		"""Creates lenstronomy lightmodel kwargs from a catalog image.
 
 		Args:
@@ -147,6 +147,7 @@ class GalaxyCatalog(SourceBase):
 		catalog_i, phi = self.fill_catalog_i_phi_defaults(catalog_i, phi)
 		img, metadata = self.image_and_metadata(catalog_i)
 		pixel_width = metadata['pixel_width']
+		z_new = self.source_parameters['z_source']
 
 		# With this, lenstronomy will preserve the scale/units of
 		# the input image (in a configuration without lensing,
