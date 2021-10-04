@@ -46,9 +46,6 @@ class LOSDG19(LOSBase):
 		super().__init__(los_parameters,main_deflector_parameters,
 			source_parameters,cosmology_parameters)
 
-		# Check that all the needed parameters are present
-		self.check_parameterization(LOSDG19.required_parameters)
-
 	@staticmethod
 	@numba.njit
 	def nu_f_nu(nu):

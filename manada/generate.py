@@ -27,7 +27,6 @@ from manada.Analysis import dataset_generation
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
-from lenstronomy.LensModel.profile_list_base import ProfileListBase
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.ImSim.image_model import ImageModel

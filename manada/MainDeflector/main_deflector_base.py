@@ -23,6 +23,8 @@ class MainDeflectorBase():
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 
+	required_parameters = tuple()
+
 	def __init__(self,main_deflector_parameters,cosmology_parameters):
 
 		# Save the parameters as a copy to avoid any misunderstanding on the
@@ -32,6 +34,9 @@ class MainDeflectorBase():
 
 		# Turn our cosmology parameters into a colossus cosmology instance
 		self.cosmo = get_cosmology(cosmology_parameters)
+
+		# Check that all the needed parameters are present
+		self.check_parameterization(self.__class__.required_parameters)
 
 	def check_parameterization(self,required_params):
 		""" Check that all the required parameters are present in the

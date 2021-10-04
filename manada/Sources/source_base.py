@@ -64,10 +64,10 @@ class SourceBase:
 			self.cosmo = get_cosmology(cosmology_parameters)
 
 	def draw_source(self):
-		"""Return lenstronomy LightModel kwargs
+		"""Return lenstronomy LightModel names and kwargs
 
 		Returns:
-			(list,list) A list containing the model names(s), and
+			(list,list) A list containing the model name(s), and
 				a list containing the model kwargs dictionaries.
 		"""
 		raise NotImplementedError

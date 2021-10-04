@@ -43,9 +43,6 @@ class SubhalosDG19(SubhalosBase):
 		super().__init__(subhalo_parameters,main_deflector_parameters,
 			source_parameters,cosmology_parameters)
 
-		# Check that all the needed parameters are present
-		self.check_parameterization(SubhalosDG19.required_parameters)
-
 	@staticmethod
 	@numba.njit()
 	def host_scaling_function(host_m200, z_lens, k1=0.88, k2=1.7):

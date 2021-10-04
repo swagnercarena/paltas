@@ -8,3 +8,4 @@ from . import Sampling
 from . import Sources
 from . import Substructure
 from . import Utils
+from . import generate

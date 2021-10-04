@@ -17,14 +17,11 @@ class SingleSersicSource(SourceBase):
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
-		source_parameters: dictionary with source-specific parameters:
-			amp, R_sersic n_sersic, e1, e2, center_x, center_y
-			As described by lenstronomy at:
-			https://lenstronomy.readthedocs.io/en/latest/lenstronomy.LightModel.Profiles.html#lenstronomy.LightModel.Profiles.sersic.SersicElliptic
+		source_parameters: dictionary with source-specific parameters.
 	"""
 
 	required_parameters = tuple(
-		'amp R_sersic n_sersic e1 e2 center_x center_y'.split())
+		'amp R_sersic n_sersic e1 e2 center_x center_y z_source'.split())
 
 	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
@@ -38,6 +35,7 @@ class SingleSersicSource(SourceBase):
 			k: v
 			for k, v in self.source_parameters.items()
 			if k in self.required_parameters}
+		sersic_params.pop('z_source')
 		return (
 			['SERSIC_ELLIPSE'],
 			[sersic_params])

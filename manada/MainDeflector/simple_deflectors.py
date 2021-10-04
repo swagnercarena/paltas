@@ -31,9 +31,6 @@ class PEMD(MainDeflectorBase):
 		# Initialize the super class
 		super().__init__(main_deflector_parameters,cosmology_parameters)
 
-		# Check that all the needed parameters are present
-		self.check_parameterization(PEMD.required_parameters)
-
 	def draw_main_deflector(self):
 		"""Draws the lenstronomy profile names and kwargs for the components
 		of the main deflector.
@@ -84,9 +81,6 @@ class PEMDShear(MainDeflectorBase):
 
 		# Initialize the super class
 		super().__init__(main_deflector_parameters,cosmology_parameters)
-
-		# Check that all the needed parameters are present
-		self.check_parameterization(PEMDShear.required_parameters)
 
 	def draw_main_deflector(self):
 		"""Draws the lenstronomy profile names and kwargs for the components

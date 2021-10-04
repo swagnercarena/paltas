@@ -50,7 +50,8 @@ class SingleSersicSourceTests(SourceBaseTests):
 				e1=0.,
 				e2=0.,
 				center_x=0.,
-				center_y=0.))
+				center_y=0.,
+				z_source=1.0))
 		self.cosmo = get_cosmology('planck18')
 
 	def test_draw_source(self):
