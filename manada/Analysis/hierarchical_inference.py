@@ -7,6 +7,7 @@ network posteriors.
 """
 import numpy as np
 from scipy import special
+import numba
 
 
 # The predicted samples need to be et as a global variable for the pooling to
@@ -17,8 +18,8 @@ predict_samps_hier = None
 # As with the predicted samples, the predicted mu and cov for the analytical
 # calculations should also be set at the global level for optimal
 # performance.
-predict_an_mu = None
-predict_an_cov = None
+mu_pred_array = None
+prec_pred_array = None
 
 
 def log_p_xi_omega(predict_samps_hier,hyperparameters,eval_func_xi_omega):
@@ -73,6 +74,62 @@ def log_p_omega(hyperparameters,eval_func_omega):
 		logpdf = -np.inf
 
 	return logpdf
+
+
+@numba.njit
+def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
+	mu_omega,prec_omega):
+	""" Calculate the log of the integral of p(xi_k|omega)*p(xi_k|d_k,omega_int)/
+	p(xi_k|omega_int) when all three pdfs are Gaussian.
+
+	Args:
+		mu_pred (np.array): The mean output by the network
+		prec_pred (np.array): The precision matrix output by the network
+		mu_omega_i (np.array): The mean output of the interim prior
+		prec_omega_i (np.array): The precision matrix of the interim prior
+		mu_omega (np.array): The mean of the proposed hyperparameter
+			posterior.
+		prec_omega (np.array): The precision matrix of the proposed
+			hyperparameter posterior.
+
+	Returns:
+		(float): The lof of the product of the three Gaussian integrated over
+			all space.
+	Notes:
+		The equation used here breaks down when the combination of precision
+		matrices does not yield a valid precision matrix. When this happen, the
+		output will be -np.inf.
+	"""
+	# This implements the final formula derived in the appendix of
+	# Wagner-Carena et al. 2021.
+
+	# Calculate the values of eta and the combined precision matrix
+	prec_comb = prec_pred+prec_omega-prec_omega_i
+
+	# This is not guaranteed to return a valid precision matrix. When it
+	# doesn't the analytical equation used here is wrong. In those cases
+	# return -np.inf
+	if np.any(np.linalg.eigvals(prec_comb)<=0):
+		return -np.inf
+
+	cov_comb = np.linalg.inv(prec_comb)
+	eta_pred = np.dot(prec_pred,mu_pred)
+	eta_omega_i = np.dot(prec_omega_i,mu_omega_i)
+	eta_omega = np.dot(prec_omega,mu_omega)
+	eta_comb = eta_pred + eta_omega - eta_omega_i
+
+	# Now calculate each of the terms in our exponent
+	exponent = 0
+	exponent -= np.log(abs(np.linalg.det(prec_pred)))
+	exponent -= np.log(abs(np.linalg.det(prec_omega)))
+	exponent += np.log(abs(np.linalg.det(prec_omega_i)))
+	exponent += np.log(abs(np.linalg.det(prec_comb)))
+	exponent += np.dot(mu_pred.T,np.dot(prec_pred,mu_pred))
+	exponent += np.dot(mu_omega.T,np.dot(prec_omega,mu_omega))
+	exponent -= np.dot(mu_omega_i.T,np.dot(prec_omega_i,mu_omega_i))
+	exponent -= np.dot(eta_comb.T,np.dot(cov_comb,eta_comb))
+
+	return -0.5*exponent
 
 
 class ProbabilityClass:
@@ -187,50 +244,77 @@ class ProbabilityClassAnalytical:
 	distributions.
 
 	Args:
-		xi_omega_i_mu (np.array): An array with the length n_params
+		mu_omega_i (np.array): An array with the length n_params
 			specifying the mean of each parameters in the training
 			distribution.
-		xi_omega_i_cov (np.array): A n_params x n_params array
+		cov_omega_i (np.array): A n_params x n_params array
 			specifying the covariance matrix for the training
 			distribution.
 		eval_func_omega (function): A callable function with inputs
 			(hyperparameters) that returns a float equal to the value of
 			log p(omega).
 	"""
-	def __init__(self,xi_omega_i_mu,xi_omega_i_cov,eval_func_omega):
+	def __init__(self,mu_omega_i,cov_omega_i,eval_func_omega):
 		# Save each parameter to the class
-		self.xi_omega_i_mu = xi_omega_i_mu
-		self.xi_omega_i_cov = xi_omega_i_cov
+		self.mu_omega_i = mu_omega_i
+		self.cov_omega_i = cov_omega_i
+		# Store the precision matrix for later use.
+		self.prec_omega_i = np.linalg.inv(cov_omega_i)
 		self.eval_func_omega = eval_func_omega
 
 		# A flag to make sure the prediction values are set
-		self.predictions_init
+		self.predictions_init = False
 
-	def set_predictions(self,predict_an_mu_input,predict_an_cov_input):
+	def set_predictions(self,mu_pred_array_input,prec_pred_array_input):
 		""" Set the global lens mean and covariance prediction values.
 
 		Args:
-			predict_an_mu_input (np.array): An array of shape (n_lenses,
-				n_params) that represents the network predictions and will be
-				reshaped for hierarchical analysis
-			predict_an_cov_input (np.array): An array of shape (n_params,
-				n_samps,n_lenses) that represents the network predictions.
-
-		Notes:
-			Both predict_samps_input and predict_samps_hier_input are allowed
-			as inputs. The functions in posterior_functions use the predict_samps
-			convention (n_samps,n_lenses,n_params) while the functions in this
-			package use predict_samps_hier (n_params,n_samps,n_lenses)
-			convention.
+			mu_pred_array_input (np.array): An array of shape (n_lenses,
+				n_params) that represents the mean network prediction on each
+				lens.
+			prec_pred_array_input (np.array): An array of shape (n_lenses,
+				n_params,n_params) that represents the predicted precision
+				matrix on each lens.
 		"""
 		# Call up the globals and set them.
-		global predict_an_mu
-		global predict_an_cov
-		predict_an_mu = predict_an_mu_input
-		predict_an_cov = predict_an_cov_input
+		global mu_pred_array
+		global prec_pred_array
+		mu_pred_array = mu_pred_array_input
+		prec_pred_array = prec_pred_array_input
 
 		# Set the flag for the predictions being initialized
 		self.predictions_init = True
+
+	@staticmethod
+	@numba.njit
+	def log_integral_product(mu_pred_array,prec_pred_array,mu_omega_i,
+		prec_omega_i,mu_omega,prec_omega):
+		""" For the case of Gaussian distributions, calculate the log of the
+		integral p(xi_k|omega)*p(xi_k|d_k,omega_int)/p(xi_k|omega_int) summed
+		over all of the lenses in the sample.
+
+		Args:
+			mu_pred_array (np.array): An array of the mean output by the
+				network for each lens
+			prec_pred_array (np.array): An array of the precision matrix output
+				by the network for each lens.
+			prec_pred (np.array): The precision matrix output by the network
+			mu_omega_i (np.array): The mean output of the interim prior
+			prec_omega_i (np.array): The precision matrix of the interim prior
+			mu_omega (np.array): The mean of the proposed hyperparameter
+				posterior.
+			prec_omega (np.array): The precision matrix of the proposed
+				hyperparameter posterior.
+		"""
+		# In log space, the product over lenses in the posterior becomes a sum
+		integral = 0
+		for mu_pred, prec_pred in zip(mu_pred_array,prec_pred_array):
+			integral += gaussian_product_analytical(mu_pred,prec_pred,
+				mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		# Treat nan as probability 0.
+		if np.isnan(integral):
+			integral = -np.inf
+		return integral
 
 	def log_post_omega(self,hyperparameters):
 		""" Given the predicted means and covariances, calculate the log
@@ -254,8 +338,13 @@ class ProbabilityClassAnalytical:
 			raise RuntimeError('Must set predictions or behaviour is '
 				+'ill-defined.')
 
-		global predict_an_mu
-		global predict_an_cov
+		global mu_pred_array
+		global prec_pred_array
+
+		# Extract mu_omega and prec_omega from the provided hyperparameters
+		mu_omega = hyperparameters[:len(hyperparameters)//2]
+		cov_omega = np.diag(np.exp(hyperparameters[len(hyperparameters)//2:]*2))
+		prec_omega = np.linalg.inv(cov_omega)
 
 		# Start with the prior on omega
 		lprior = log_p_omega(hyperparameters,self.eval_func_omega)
@@ -264,13 +353,8 @@ class ProbabilityClassAnalytical:
 		if lprior == -np.inf:
 			return lprior
 
-
-
-		# We can use our pre-calculated value of p_samps_omega_i.
-		like_ratio = p_samps_omega - self.p_samps_omega_i
-		like_ratio[np.isinf(self.p_samps_omega_i)] = -np.inf
-		like_ratio = special.logsumexp(like_ratio,axis=0)
-		like_ratio[np.isnan(like_ratio)] = -np.inf
+		like_ratio = self.log_integral_product(mu_pred_array,prec_pred_array,
+			self.mu_omega_i,self.prec_omega_i,mu_omega,prec_omega)
 
 		# Return the likelihood and the prior combined
-		return lprior + np.sum(like_ratio)
+		return lprior + like_ratio
