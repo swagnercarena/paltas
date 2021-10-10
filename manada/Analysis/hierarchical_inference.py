@@ -308,7 +308,9 @@ class ProbabilityClassAnalytical:
 		"""
 		# In log space, the product over lenses in the posterior becomes a sum
 		integral = 0
-		for mu_pred, prec_pred in zip(mu_pred_array,prec_pred_array):
+		for pi in range(len(mu_pred_array)):
+			mu_pred = mu_pred_array[pi]
+			prec_pred = prec_pred_array[pi]
 			integral += gaussian_product_analytical(mu_pred,prec_pred,
 				mu_omega_i,prec_omega_i,mu_omega,prec_omega)
 		# Treat nan as probability 0.
