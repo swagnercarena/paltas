@@ -109,7 +109,8 @@ def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
 	# This is not guaranteed to return a valid precision matrix. When it
 	# doesn't the analytical equation used here is wrong. In those cases
 	# return -np.inf
-	if np.any(np.linalg.eigvals(prec_comb)<=0):
+	eigvals = np.linalg.eigvals(prec_comb.astype(np.complex128))
+	if (np.any(np.real(eigvals)<=0) or np.any(np.imag(eigvals)!=0)):
 		return -np.inf
 
 	cov_comb = np.linalg.inv(prec_comb)
