@@ -6,6 +6,7 @@ This module contains the class required to provide a sersic light distribution
 as the source for manada.
 """
 from .source_base import SourceBase
+from lenstronomy.LightModel.light_model import LightModel
 
 
 class SingleSersicSource(SourceBase):
@@ -39,3 +40,25 @@ class SingleSersicSource(SourceBase):
 		return (
 			['SERSIC_ELLIPSE'],
 			[sersic_params])
+
+
+	@staticmethod
+	def mag_to_amplitude(mag, kwargs_list):
+		"""Converts a user defined magnitude to the corresponding amplitude
+		that lenstronomy will use
+	
+		Args:
+			mag (float): user defined desired magnitude
+			kwargs_list (list(dict)): list containing dict of kwargs for 
+			SERSIC_ELLIPSE, amp parameter not included
+
+		Returns: 
+			(float): amplitude lenstronomy should use to get desired magnitude
+			desired magnitude
+		"""
+
+		sersic_model = LightModel(['SERSIC_ELLIPSE'])
+		flux_amp1 = sersic_model.total_flux(kwargs_list, norm=True)
+		flux_true = 10 ** (mag/2.5)
+
+		return flux_true/flux_amp1[0]
