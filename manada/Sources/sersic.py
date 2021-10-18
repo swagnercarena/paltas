@@ -7,6 +7,7 @@ as the source for manada.
 """
 from .source_base import SourceBase
 from lenstronomy.LightModel.light_model import LightModel
+from lenstronomy.Util.data_util import magnitude2cps
 
 
 class SingleSersicSource(SourceBase):
@@ -43,13 +44,13 @@ class SingleSersicSource(SourceBase):
 
 
 	@staticmethod
-	def mag_to_amplitude(mag, kwargs_list):
+	def mag_to_amplitude(mag, mag_zero_point, kwargs_list):
 		"""Converts a user defined magnitude to the corresponding amplitude
 		that lenstronomy will use
 	
 		Args:
 			mag (float): user defined desired magnitude
-			kwargs_list (list(dict)): list containing dict of kwargs for 
+			kwargs_list (dict): dict of kwargs for 
 			SERSIC_ELLIPSE, amp parameter not included
 
 		Returns: 
@@ -58,7 +59,9 @@ class SingleSersicSource(SourceBase):
 		"""
 
 		sersic_model = LightModel(['SERSIC_ELLIPSE'])
-		flux_amp1 = sersic_model.total_flux(kwargs_list, norm=True)
-		flux_true = 10 ** (mag/2.5)
-
-		return flux_true/flux_amp1[0]
+		# norm=True sets amplitude = 1
+		flux_norm = sersic_model.total_flux([kwargs_list], norm=True)[0]
+		# mag = -2.5*log(flux)
+		flux_true = magnitude2cps(mag, mag_zero_point)
+		
+		return flux_true/flux_norm

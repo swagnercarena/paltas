@@ -190,8 +190,10 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 
 	# Check for magnification cut and apply
 	if mag_cut is not None:
-		mag = np.sum(image)/source_light_model.total_flux(
-			source_kwargs_list)
+
+		#sum in case there's more than one source_light_model
+		mag = np.sum(image)/np.sum(source_light_model.total_flux(
+			source_kwargs_list))
 		if mag < mag_cut:
 			return None,None
 
