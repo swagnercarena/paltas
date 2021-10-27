@@ -50,8 +50,8 @@ class SingleSersicSource(SourceBase):
 	
 		Args:
 			mag (float): user defined desired magnitude
-			kwargs_list (dict): dict of kwargs for 
-			SERSIC_ELLIPSE, amp parameter not included
+			kwargs_list (dict): dict of kwargs for SERSIC_ELLIPSE, amp 
+			parameter not included
 
 		Returns: 
 			(float): amplitude lenstronomy should use to get desired magnitude
@@ -61,7 +61,6 @@ class SingleSersicSource(SourceBase):
 		sersic_model = LightModel(['SERSIC_ELLIPSE'])
 		# norm=True sets amplitude = 1
 		flux_norm = sersic_model.total_flux([kwargs_list], norm=True)[0]
-		# mag = -2.5*log(flux)
 		flux_true = magnitude2cps(mag, mag_zero_point)
 		
 		return flux_true/flux_norm

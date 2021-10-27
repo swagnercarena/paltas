@@ -7,6 +7,7 @@ from manada.Sources.galaxy_catalog import GalaxyCatalog
 from manada.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
 from manada.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
 from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
+from manada.Sources.cosmos_sersic import COSMOSSersic
 from manada.Utils.cosmology_utils import get_cosmology
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
@@ -408,12 +409,35 @@ class COSMOSCatalogTests(SourceBaseTests):
 		# Create a lens that will do nothing
 		lens_kwargs = [{'theta_E': 0.0, 'e1': 0., 'e2': 0., 'gamma': 0.,
 			'center_x': 0, 'center_y': 0}]
-		source_kwargs = [self.c.draw_source(catalog_i=catalog_i)[1][0]]
+		source_kwargs = self.c.draw_source(catalog_i=catalog_i)[1]
 
 		l_image = image_model.image(kwargs_lens=lens_kwargs,
 			kwargs_source=source_kwargs)
 		np.testing.assert_almost_equal(l_image,image)
 
+class COSMOSSersicTests(COSMOSCatalogTests):
+	# implement here
+	def setUp(self):
+		super().setUp()
+		self.source_parameters = {
+			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
+			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
+			'random_rotation':False, 'min_flux_radius':None,
+			'output_ab_zeropoint':25.95, 'z_source':1.5,
+			'mag_sersic':50, 'R_sersic':0.5, 'n_sersic':2, 
+  			'e1_sersic':0, 'e2_sersic':0, 'center_x_sersic':0, 
+			  'center_y_sersic':0}
+
+		self.c = COSMOSSersic(cosmology_parameters='planck18',
+			source_parameters=self.source_parameters)
+
+	def test_draw_source(self):
+		super().test_draw_source()
+		# draw source & make sure list of componenets contains both INTERPOL & SERSIC
+		# make sure all parameters for sersic are there
+		catalog_i = 0
+		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
+		# make sure that when you double the magnitude the flux responds accordingly
 
 class COSMOSSercicCatalogTests(COSMOSCatalogTests):
 

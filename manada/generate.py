@@ -13,7 +13,6 @@ To run this script, pass in the desired config as argument::
 The parameters will be pulled from config.py and the images will be saved in
 save_folder. If save_folder doesn't exist it will be created.
 """
-# TODO: Variable noise
 import numpy as np
 import argparse, os, sys, warnings, copy
 import shutil
@@ -29,6 +28,7 @@ from tqdm import tqdm
 import pandas as pd
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
+from lenstronomy.PointSource.point_source import PointSource
 from lenstronomy.ImSim.image_model import ImageModel
 from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.Data.psf import PSF
@@ -65,8 +65,8 @@ def parse_args():
 
 
 def draw_image(sample,los_class,subhalo_class,main_deflector_class,
-	source_class,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise,
-	apply_psf=True):
+	source_class,point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
+	add_noise,apply_psf=True):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system
 
@@ -83,6 +83,9 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_class (manada.Sources.SourceBase): An instance of the
 			SourceBase class that will be used to draw the source
 			image.
+		point_source_class (manada.PointSource.PointSourceBase): An instance of
+			the PointSourceBase class will be used to draw a point source for
+			the image. If None, no point source will be added.
 		numpix (int): The number of pixels in the generated image
 		multi_plane (bool): If true the multiplane approximation will
 			be used. Must be true for los.
@@ -113,6 +116,8 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	complete_lens_model_list = []
 	complete_lens_model_kwargs = []
 	complete_z_list = []
+	point_source_model_list = []
+	point_source_kwargs_list = []
 
 	# Get the remaining observation kwargs from the sampler and
 	# initialize our observational objects.
@@ -157,6 +162,10 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		complete_lens_model_list += main_model_list
 		complete_lens_model_kwargs += main_kwargs_list
 		complete_z_list += main_z_list
+	if point_source_class is not None:
+		point_source_class.update_parameters(sample['point_source_parameters'])
+		point_source_model_list, point_source_kwargs_list = point_source_class.draw_point_source()
+
 
 	complete_lens_model = LensModel(complete_lens_model_list, z_lens,
 		z_source,complete_z_list, cosmo=cosmo.toAstropy(),
@@ -179,14 +188,16 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_model_list, source_kwargs_list = source_class.draw_source()
 	source_light_model = LightModel(source_model_list)
 
+	point_source_model = PointSource(point_source_model_list)
+
 	# Put it together into an image model
 	complete_image_model = ImageModel(data_api.data_class, psf_model,
-		complete_lens_model, source_light_model, None, None,
+		complete_lens_model, source_light_model, None, point_source_model,
 		kwargs_numerics=kwargs_numerics)
 
 	# Generate our image
 	image = complete_image_model.image(complete_lens_model_kwargs,
-		source_kwargs_list, None, None)
+		source_kwargs_list, None, point_source_kwargs_list)
 
 	# Check for magnification cut and apply
 	if mag_cut is not None:
@@ -205,7 +216,8 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 
 
 def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
-	source_class,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise):
+	source_class,point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
+	add_noise):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system with a
 	simulated drizzling pipeline applied.
@@ -223,6 +235,9 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_class (manada.Sources.SourceBase): An instance of the
 			SourceBase class that will be used to draw the source
 			image.
+		point_source_class (manada.PointSource.PointSourceBase): An instance of
+			the PointSourceBase class will be used to draw a point source for
+			the image. If None, no point source will be added.
 		numpix (int): The number of pixels in the generated image
 		multi_plane (bool): If true the multiplane approximation will
 			be used. Must be true for los.
@@ -279,8 +294,8 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 	# Use the normal generation class to make our highres image without
 	# noise.
 	image_ss, meta_values = draw_image(sample,los_class,subhalo_class,
-		main_deflector_class,source_class,numpix_ss,multi_plane,kwargs_numerics,
-		mag_cut,False,apply_psf=False)
+		main_deflector_class,source_class,point_source_class, 
+		numpix_ss,multi_plane,kwargs_numerics, mag_cut,False,apply_psf=False)
 	sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 
 	# Deal with an image that does not pass a cut.
@@ -388,6 +403,7 @@ def main():
 	los_class = None
 	subhalo_class = None
 	main_deflector_class = None
+	point_source_class = None
 	do_drizzle = False
 	if 'los' in config_dict:
 		los_class = config_dict['los']['class'](sample['los_parameters'],
@@ -403,6 +419,9 @@ def main():
 			sample['main_deflector_parameters'],sample['cosmology_parameters'])
 	if 'drizzle' in config_dict:
 		do_drizzle = True
+	if 'point_source' in config_dict:
+		point_source_class = config_dict['point_source']['class'](
+			sample['point_source_parameters'])
 
 	source_class = config_dict['source']['class'](
 		sample['cosmology_parameters'],sample['source_parameters'])
@@ -439,12 +458,13 @@ def main():
 		# provided.
 		if do_drizzle:
 			image,meta_values = draw_drizzled_image(sample,los_class,
-				subhalo_class,main_deflector_class,source_class,numpix,
-				multi_plane,kwargs_numerics,mag_cut,add_noise)
+				subhalo_class,main_deflector_class,source_class,
+				point_source_class,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 		else:
 			image,meta_values = draw_image(sample,los_class,subhalo_class,
-				main_deflector_class,source_class,numpix,multi_plane,
-				kwargs_numerics,mag_cut,add_noise)
+				main_deflector_class,source_class,point_source_class,numpix,
+				multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		# Failed attempt if there is no image output
 		if image is None:
