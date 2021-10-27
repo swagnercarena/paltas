@@ -8,4 +8,5 @@ from . import Sampling
 from . import Sources
 from . import Substructure
 from . import Utils
+from . import MainDeflector
 from . import generate

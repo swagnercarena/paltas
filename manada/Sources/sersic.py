@@ -42,7 +42,6 @@ class SingleSersicSource(SourceBase):
 			['SERSIC_ELLIPSE'],
 			[sersic_params])
 
-
 	@staticmethod
 	def mag_to_amplitude(mag, mag_zero_point, kwargs_list):
 		"""Converts a user defined magnitude to the corresponding amplitude
