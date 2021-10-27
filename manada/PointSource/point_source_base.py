@@ -6,8 +6,8 @@ This module contains the base class that all the point source classes will
 build from. Because the steps for rendering a source can vary between different
 models, the required functions are very sparse.
 """
-
 import copy
+
 
 class PointSourceBase:
 	"""
@@ -38,7 +38,6 @@ class PointSourceBase:
 			raise ValueError('Not all of the required parameters for the ' +
 				'parameterization are present.')
 
-
 	def update_parameters(self, point_source_parameters=None):
 		"""Update the class parameters
 
@@ -48,7 +47,6 @@ class PointSourceBase:
 		"""
 		if point_source_parameters is not None:
 			self.point_source_parameters.update(point_source_parameters)
-
 
 	def draw_point_source(self):
 		"""Return lenstronomy PointSource names and kwargs
