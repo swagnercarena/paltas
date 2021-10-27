@@ -78,6 +78,32 @@ class SingleSersicSourceTests(SourceBaseTests):
 		assert isinstance(image, np.ndarray)
 		assert image.sum() > 0
 
+	def test_mag_to_amplitude(self):
+		# Test that the magnitude to amplitude conversion follows our basic
+		# intuition.
+		# Start by passing in the same magnitude as the zero point and make
+		# sure that the total flux is 1.
+		mag = 10
+		mag_zero_point = 10
+		kwargs_list = {'amp':1.0,'R_sersic':1.0,'n_sersic':2.0,
+			'e1':0.0,'e2':0.0,'center_x':0.0,'center_y':0.0}
+		amp_class = self.c.mag_to_amplitude(mag,mag_zero_point,
+			kwargs_list)
+
+		# Generate a lenstronomy object with this amplitude and make sure
+		# the total flux is 1.
+		kwargs_list['amp'] = amp_class
+		sersic_model = LightModel(['SERSIC_ELLIPSE'])
+		self.assertEqual(sersic_model.total_flux([kwargs_list])[0],1)
+
+		# Now just check that for a brighter magnitude it's greater than 1
+		mag = 9.5
+		amp_class = self.c.mag_to_amplitude(mag,mag_zero_point,
+			kwargs_list)
+		kwargs_list['amp'] = amp_class
+		sersic_model = LightModel(['SERSIC_ELLIPSE'])
+		self.assertGreater(sersic_model.total_flux([kwargs_list])[0],1)
+
 
 class GalaxyCatalogTests(SourceBaseTests):
 
