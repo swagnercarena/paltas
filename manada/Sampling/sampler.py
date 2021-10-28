@@ -11,6 +11,10 @@ import warnings
 lensing_components = ['subhalo','los','main_deflector','source','cosmology',
 	'psf','detector','drizzle']
 
+# Global filters on the python warnings. Using this since filter
+# behaviour is a bit weird.
+CROSSOBJECTWARNING = True
+
 
 class Sampler():
 	"""Class for drawing lens parameter values from input distribution
@@ -82,6 +86,7 @@ class Sampler():
 			be sampled.
 		"""
 		# Pull the global warning variable and initialize our dict
+		global CROSSOBJECTWARNING
 		full_param_dict = {}
 
 		# For each possible component of our lensing add the parameters
@@ -100,9 +105,10 @@ class Sampler():
 				component, param = cross_param.split(':')
 				param_dict = full_param_dict[component+'_parameters']
 				# Warn the user the first time an overwrite happens
-				if param in param_dict:
+				if param in param_dict and CROSSOBJECTWARNING:
 					warnings.warn('Parameter in cross dict specified elsewhere!'
 						+ ' Will be overwritten')
+					CROSSOBJECTWARNING = False
 				full_param_dict[component+'_parameters'][param] = (
 					cross_dict[cross_param])
 
