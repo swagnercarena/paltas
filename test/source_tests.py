@@ -442,7 +442,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 		np.testing.assert_almost_equal(l_image,image)
 
 class COSMOSSersicTests(COSMOSCatalogTests):
-	# implement here
+	
 	def setUp(self):
 		super().setUp()
 		self.source_parameters = {
@@ -459,11 +459,33 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 
 	def test_draw_source(self):
 		super().test_draw_source()
-		# draw source & make sure list of componenets contains both INTERPOL & SERSIC
-		# make sure all parameters for sersic are there
+
 		catalog_i = 0
 		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
-		# make sure that when you double the magnitude the flux responds accordingly
+		# draw source & make sure list of componenets contains both INTERPOL & SERSIC
+		self.assertTrue('INTERPOL' in lm_list)
+		self.assertTrue('SERSIC_ELLIPSE' in lm_list)
+		# make sure all parameters for sersic are there
+		sersic_params = ('amp', 'R_sersic', 'n_sersic', 'e1', 'e2', 
+			'center_x', 'center_y')
+		for p in sersic_params :
+			self.assertTrue(p in lm_kwargs[1].keys())
+		# make sure that when you double the magnitude the amp responds accordingly
+		zeropoint = 25
+		self.source_parameters['output_ab_zeropoint'] = zeropoint
+		mag = 10
+		self.source_parameters['mag_sersic'] = mag
+		self.c.update_parameters(source_parameters=self.source_parameters)
+		_, lm_kwargs_mag1 = self.c.draw_source(catalog_i)
+		self.source_parameters['mag_sersic'] = 2*mag
+		self.c.update_parameters(source_parameters=self.source_parameters)
+		_, lm_kwargs_mag2 = self.c.draw_source(catalog_i)
+		ratio_true = 10**(-(mag - zeropoint)/2.5) / 10 **(-(2*mag - zeropoint)/2.5)
+		ratio_out = lm_kwargs_mag1[1]['amp'] / lm_kwargs_mag2[1]['amp']
+		# checks out to 7 decimal places (default)
+		self.assertAlmostEqual(ratio_true, ratio_out)
+
+		
 
 class COSMOSSercicCatalogTests(COSMOSCatalogTests):
 
