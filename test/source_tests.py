@@ -462,15 +462,18 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 
 		catalog_i = 0
 		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
-		# draw source & make sure list of componenets contains both INTERPOL & SERSIC
+
+		# draw source & make sure model list contains both INTERPOL & SERSIC
 		self.assertTrue('INTERPOL' in lm_list)
 		self.assertTrue('SERSIC_ELLIPSE' in lm_list)
+
 		# make sure all parameters for sersic are there
 		sersic_params = ('amp', 'R_sersic', 'n_sersic', 'e1', 'e2', 
 			'center_x', 'center_y')
 		for p in sersic_params :
 			self.assertTrue(p in lm_kwargs[1].keys())
-		# make sure that when you double the magnitude the amp responds accordingly
+
+		# make sure that when you double the magnitude the amp is correct
 		zeropoint = 25
 		self.source_parameters['output_ab_zeropoint'] = zeropoint
 		mag = 10

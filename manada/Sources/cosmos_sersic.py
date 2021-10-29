@@ -10,6 +10,17 @@ from .sersic import SingleSersicSource
 
 
 class COSMOSSersic(COSMOSCatalog):
+	"""Combines COSMOS galaxy with Sersic light source
+
+	Args:
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology): 
+			Either a name of colossus cosmology, a dict with 'cosmology name': name
+			of colossus cosmology, an instance of colussus cosmology, or a dict 
+			with H0 and Om0 (other parameters will be set to defaults)
+		source_parameters (dict): A dictionary containing all the parameters 
+			needed to draw sources.
+
+	"""
 
 	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
 		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
@@ -35,13 +46,12 @@ class COSMOSSersic(COSMOSCatalog):
 					sersic_kwargs_dict[param_name[:-7]] = (
 						self.source_parameters[param_name])
 
-				# mag to amp conversion
-				sersic_kwargs_dict.pop('mag')
-				sersic_kwargs_dict['amp'] = SingleSersicSource.mag_to_amplitude(
-					self.source_parameters['mag_sersic'],
-					self.source_parameters['output_ab_zeropoint'],
-					sersic_kwargs_dict)
+		# mag to amp conversion
+		sersic_kwargs_dict.pop('mag')
+		sersic_kwargs_dict['amp'] = SingleSersicSource.mag_to_amplitude(
+			self.source_parameters['mag_sersic'],
+			self.source_parameters['output_ab_zeropoint'], sersic_kwargs_dict)
 
-				kwargs_list.append(sersic_kwargs_dict)
+		kwargs_list.append(sersic_kwargs_dict)
 
-				return model_list, kwargs_list
+		return model_list, kwargs_list

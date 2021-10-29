@@ -4,19 +4,23 @@ import numpy as np
 from scipy.stats import norm, truncnorm
 from manada.MainDeflector.simple_deflectors import PEMD
 from manada.Sources.sersic import SingleSersicSource
+from manada.Sources.cosmos import COSMOSCatalog
+from manada.PointSource.single_point_source import SinglePointSource
 
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':2}
 
 # The number of pixels in the CCD.
-numpix = 64
+numpix = 128
 
 # Define some general image kwargs for the dataset
 # The radius in arcseconds of a mask to apply at the center of the image
-#mask_radius = 0.5
+mask_radius = 0.5
 # A magnification cut - images where the source is magnified by less than this
 # factor will be resampled.
 mag_cut = 2.0
+
+cosmos_folder = '/mnt/c/Users/idkwh/Desktop/LSST_DESC/COSMOS_23.5_training_sample/'
 
 config_dict = {
 	'main_deflector':{
@@ -33,16 +37,21 @@ config_dict = {
 		}
 	},
 	'source':{
-		'class': SingleSersicSource,
+		'class': COSMOSCatalog,
 		'parameters':{
-			'z_source':1.5,
-			'amp':truncnorm(-20.0/2.0,np.inf,loc=20.0,scale=2).rvs,
-			'R_sersic':truncnorm(-1.0/0.2,np.inf,loc=1.0,scale=0.2).rvs,
-			'n_sersic':truncnorm(-1.2/0.2,np.inf,loc=1.2,scale=0.2).rvs,
-			'e1':norm(loc=0.0,scale=0.1).rvs,
-			'e2':norm(loc=0.0,scale=0.1).rvs,
-			'center_x':0.0,
-			'center_y':0.0}
+			'z_source':1.5,'cosmos_folder':cosmos_folder,
+			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
+			'smoothing_sigma':0.08,'random_rotation':True,
+			'output_ab_zeropoint':25.127,
+			'min_flux_radius':10.0,}
+	},
+	'point_source':{
+		'class': SinglePointSource,
+		'parameters':{
+			'x_point_source':0.01,
+			'y_point_source':0.01,
+			'magnitude':24.8,
+			'mag_zeropoint':25.127}
 	},
 	'cosmology':{
 		'parameters':{
