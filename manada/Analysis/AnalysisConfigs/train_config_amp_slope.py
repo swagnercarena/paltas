@@ -54,6 +54,6 @@ optimizer = 'Adam'
 model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
 	'xresnet34_full_as_pm.h5')
 # The learning rate for the model
-learning_rate = 5e-3
+learning_rate = 5e-6
 # Whether or not to use random rotation of the input images
 random_rotation = True
