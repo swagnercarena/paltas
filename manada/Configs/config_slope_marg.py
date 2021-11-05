@@ -3,7 +3,7 @@
 # subhalo and los classes
 
 import numpy as np
-from scipy.stats import norm, truncnorm
+from scipy.stats import norm, truncnorm, uniform
 from manada.Substructure.los_dg19 import LOSDG19
 from manada.Substructure.subhalos_dg19 import SubhalosDG19
 from manada.MainDeflector.simple_deflectors import PEMDShear
@@ -15,10 +15,11 @@ import manada
 import os
 
 # Define the numerics kwargs.
-kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':False}
+kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':True}
 # We do not use point_source_supersampling_factor but it must be passed in to
 # surpress a warning.
-kwargs_numerics['point_source_supersampling_factor'] = 1
+kwargs_numerics['point_source_supersampling_factor'] = (
+	kwargs_numerics['supersampling_factor'])
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
@@ -46,7 +47,7 @@ config_dict = {
 		'class': SubhalosDG19,
 		'parameters':{
 			'sigma_sub':norm(loc=2e-3,scale=1.1e-3).rvs,
-			'shmf_plaw_index':-1.83,
+			'shmf_plaw_index':uniform(loc=-1.92,scale=0.1).rvs,
 			'm_pivot': 1e10,'m_min': 1e7,'m_max': 1e10,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
 			'conc_m_ref': 1e8,'dex_scatter': 0.1,
@@ -103,7 +104,7 @@ config_dict = {
 		'parameters':{
 			'psf_type':'PIXEL',
 			'kernel_point_source': psf_pix_map,
-			'point_source_supersampling_factor':1
+			'point_source_supersampling_factor':2
 		}
 	},
 	'detector':{
@@ -112,6 +113,14 @@ config_dict = {
 			'magnitude_zero_point':output_ab_zeropoint,
 			'exposure_time':5520,'sky_brightness':21.83,
 			'num_exposures':1,'background_noise':None
+		}
+	},
+	'drizzle':{
+		'parameters':{
+			'supersample_pixel_scale':0.020,'output_pixel_scale':0.030,
+			'wcs_distortion':None,
+			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)],
+			'psf_supersample_factor':2
 		}
 	}
 }
