@@ -12,7 +12,7 @@ kwargs_numerics = {'supersampling_factor':2}
 # The number of pixels in the CCD.
 numpix = 100
 
-cosmos_folder = '/mnt/c/Users/idkwh/Desktop/LSST_DESC/COSMOS_23.5_training_sample/'
+cosmos_folder = '/Users/smericks/Desktop/StrongLensing/COSMOS_23.5_training_sample/'
 
 config_dict = {
 	'main_deflector':{

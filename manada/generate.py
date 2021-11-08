@@ -65,7 +65,7 @@ def parse_args():
 
 
 def draw_image(sample,los_class,subhalo_class,main_deflector_class,
-	source_class,point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
+	source_class,lens_light_class,point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
 	add_noise,apply_psf=True):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system
@@ -83,6 +83,8 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_class (manada.Sources.SourceBase): An instance of the
 			SourceBase class that will be used to draw the source
 			image.
+		lens_light_class (manada.Sources.SourceBase): An instance of the 
+			SourceBase class that will be used to draw the lens light
 		point_source_class (manada.PointSource.PointSourceBase): An instance of
 			the PointSourceBase class will be used to draw a point source for
 			the image. If None, no point source will be added.
@@ -116,6 +118,8 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	complete_lens_model_list = []
 	complete_lens_model_kwargs = []
 	complete_z_list = []
+	lens_light_model_list = []
+	lens_light_kwargs_list = []
 	point_source_model_list = []
 	point_source_kwargs_list = []
 
@@ -162,6 +166,10 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		complete_lens_model_list += main_model_list
 		complete_lens_model_kwargs += main_kwargs_list
 		complete_z_list += main_z_list
+	if lens_light_class is not None:
+		lens_light_class.update_parameters(cosmology_parameters=sample['cosmology_parameters'],
+			source_parameters=sample['lens_light_parameters'])
+		lens_light_model_list, lens_light_kwargs_list = lens_light_class.draw_source()
 	if point_source_class is not None:
 		point_source_class.update_parameters(sample['point_source_parameters'])
 		point_source_model_list, point_source_kwargs_list = point_source_class.draw_point_source()
@@ -188,16 +196,17 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_model_list, source_kwargs_list = source_class.draw_source()
 	source_light_model = LightModel(source_model_list)
 
+	lens_light_model = LightModel(lens_light_model_list)
 	point_source_model = PointSource(point_source_model_list)
 
 	# Put it together into an image model
 	complete_image_model = ImageModel(data_api.data_class, psf_model,
-		complete_lens_model, source_light_model, None, point_source_model,
+		complete_lens_model, source_light_model, lens_light_model, point_source_model,
 		kwargs_numerics=kwargs_numerics)
 
 	# Generate our image
 	image = complete_image_model.image(complete_lens_model_kwargs,
-		source_kwargs_list, None, point_source_kwargs_list)
+		source_kwargs_list, lens_light_kwargs_list, point_source_kwargs_list)
 
 	# Check for magnification cut and apply
 	if mag_cut is not None:
@@ -216,7 +225,7 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 
 
 def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
-	source_class,point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
+	source_class,lens_light_class,point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
 	add_noise):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system with a
@@ -235,6 +244,8 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_class (manada.Sources.SourceBase): An instance of the
 			SourceBase class that will be used to draw the source
 			image.
+		lens_light_class (manada.Sources.SourceBase): An instance of the
+			SourceBase class that will be used to draw the lens light
 		point_source_class (manada.PointSource.PointSourceBase): An instance of
 			the PointSourceBase class will be used to draw a point source for
 			the image. If None, no point source will be added.
@@ -294,7 +305,7 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 	# Use the normal generation class to make our highres image without
 	# noise.
 	image_ss, meta_values = draw_image(sample,los_class,subhalo_class,
-		main_deflector_class,source_class,point_source_class, 
+		main_deflector_class,source_class,lens_light_class,point_source_class, 
 		numpix_ss,multi_plane,kwargs_numerics, mag_cut,False,apply_psf=False)
 	sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 
@@ -403,6 +414,7 @@ def main():
 	los_class = None
 	subhalo_class = None
 	main_deflector_class = None
+	lens_light_class = None
 	point_source_class = None
 	do_drizzle = False
 	if 'los' in config_dict:
@@ -419,6 +431,9 @@ def main():
 			sample['main_deflector_parameters'],sample['cosmology_parameters'])
 	if 'drizzle' in config_dict:
 		do_drizzle = True
+	if 'lens_light' in config_dict:
+		lens_light_class = config_dict['lens_light']['class'](
+			sample['cosmology_parameters'], sample['lens_light_parameters'])
 	if 'point_source' in config_dict:
 		point_source_class = config_dict['point_source']['class'](
 			sample['point_source_parameters'])
@@ -458,12 +473,12 @@ def main():
 		# provided.
 		if do_drizzle:
 			image,meta_values = draw_drizzled_image(sample,los_class,
-				subhalo_class,main_deflector_class,source_class,
+				subhalo_class,main_deflector_class,source_class,lens_light_class,
 				point_source_class,numpix,multi_plane,kwargs_numerics,
 				mag_cut,add_noise)
 		else:
 			image,meta_values = draw_image(sample,los_class,subhalo_class,
-				main_deflector_class,source_class,point_source_class,numpix,
+				main_deflector_class,source_class,lens_light_class,point_source_class,numpix,
 				multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		# Failed attempt if there is no image output

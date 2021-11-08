@@ -20,7 +20,7 @@ mask_radius = 0.5
 # factor will be resampled.
 mag_cut = 2.0
 
-cosmos_folder = '/mnt/c/Users/idkwh/Desktop/LSST_DESC/COSMOS_23.5_training_sample/'
+cosmos_folder = '/Users/smericks/Desktop/StrongLensing/COSMOS_23.5_training_sample/'
 
 config_dict = {
 	'main_deflector':{

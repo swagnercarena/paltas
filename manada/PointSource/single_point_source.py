@@ -18,6 +18,7 @@ class SinglePointSource(PointSourceBase):
 
 	required_parameters = ('x_point_source', 'y_point_source', 'magnitude',
 		'mag_zeropoint')
+	# note: optional parameter: 'mag_pert'
 
 	def draw_point_source(self):
 		"""Return lenstronomy PointSource kwargs
@@ -32,6 +33,8 @@ class SinglePointSource(PointSourceBase):
 			'x_point_source']
 		point_source_kwargs['dec_source'] = self.point_source_parameters[
 			'y_point_source']
+		if('mag_pert' in self.point_source_parameters.keys()):
+			point_source_kwargs['mag_pert'] = self.point_source_parameters['mag_pert']
 
 		# flux = amplitude for point source
 		point_source_kwargs['point_amp'] = magnitude2cps(

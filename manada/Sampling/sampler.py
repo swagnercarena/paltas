@@ -8,8 +8,8 @@ set from the input distributions.
 """
 import warnings
 # Definte the components we need the sampler to consider.
-# TODO: add point source here?
-lensing_components = ['subhalo','los','main_deflector','source','point_source',
+# TODO: add point source & lens light
+lensing_components = ['subhalo','los','main_deflector','source','lens_light','point_source',
 	'cosmology','psf','detector','drizzle']
 
 
