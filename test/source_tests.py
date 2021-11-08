@@ -488,6 +488,56 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		# checks out to 7 decimal places (default)
 		self.assertAlmostEqual(ratio_true, ratio_out)
 
+		# test difference betweeen COSMOS+Sersic & SingleSersic
+
+		# define a generic lens model, psf model, data class
+		lens_model = LensModel(['SPEP'])
+		lens_kwargs = [{'theta_E': 0.5, 'e1': 0., 'e2': 0., 'gamma': 2.0,
+			'center_x': 0, 'center_y': 0}]
+		psf_class = PSF(psf_type='NONE')
+		n_pixels = 128
+		pixel_width = 0.08
+		data_class = ImageData(**data_configure_simple(
+			numPix=n_pixels,deltaPix=pixel_width))
+
+		# generate SingleSersicSource image
+		single_sersic_kwargs = {'R_sersic':0.5, 'n_sersic':2, 'e1':0, 
+			'e2':0, 'center_x':0, 'center_y':0}
+		# this will test mag_to_amplitude conversion
+		single_sersic_kwargs['amp'] = SingleSersicSource.mag_to_amplitude(
+			self.source_parameters['mag_sersic'],
+			self.source_parameters['output_ab_zeropoint'],single_sersic_kwargs)
+		light_model = LightModel(['SERSIC_ELLIPSE'])
+		complete_image_model = ImageModel(data_class=data_class,
+			psf_class=psf_class,lens_model_class=lens_model, 
+			source_model_class=light_model)
+		im_sersic = complete_image_model.image(kwargs_lens=lens_kwargs,
+		kwargs_source=[single_sersic_kwargs])
+
+		# generate COSMOSGalaxy image
+		cosmos = COSMOSCatalog(cosmology_parameters='planck18', 
+			source_parameters=self.source_parameters)
+		light_model_list, cosmos_kwargs = cosmos.draw_source(0)
+		light_model = LightModel(light_model_list)
+		complete_image_model = ImageModel(data_class=data_class, psf_class=
+			psf_class, lens_model_class=lens_model, source_model_class=
+			light_model)
+		im_cosmos = complete_image_model.image(kwargs_lens=lens_kwargs, 
+			kwargs_source=cosmos_kwargs)
+		
+		# generate COSMOSSersic image
+		light_model_list, cosmossersic_kwargs = self.c.draw_source(0)
+		light_model = LightModel(light_model_list)
+		complete_image_model = ImageModel(data_class=data_class, psf_class=
+			psf_class, lens_model_class=lens_model, source_model_class=
+			light_model)
+		im_cosmossersic = complete_image_model.image(kwargs_lens=lens_kwargs,
+			kwargs_source=cosmossersic_kwargs)
+
+		# test image diff to ensure we get the same thing back
+		np.testing.assert_almost_equal(im_sersic, im_cosmossersic - im_cosmos)
+		
+		
 		
 
 class COSMOSSercicCatalogTests(COSMOSCatalogTests):

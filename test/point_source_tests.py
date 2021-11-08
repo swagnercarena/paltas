@@ -4,6 +4,8 @@ import os
 from manada.PointSource.point_source_base import PointSourceBase
 from manada.PointSource.single_point_source import SinglePointSource
 from manada.Sources.sersic import SingleSersicSource
+from manada.Sources.cosmos import COSMOSCatalog
+from manada.Sources.cosmos_sersic import COSMOSSersic
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.PointSource.point_source import PointSource
@@ -19,15 +21,37 @@ class PointSourceBaseTests(unittest.TestCase):
     
     def setUp(self):
         self.c = PointSourceBase(point_source_parameters=dict())
+    
+    def test_update_parameters(self):
+        # test passing None
+        self.c.update_parameters(None)
+        self.assertDictEqual(self.c.point_source_parameters, dict())
+        # test passing an element that wasn't there yet
+        prev = self.c.point_source_parameters
+        self.c.update_parameters({'radius':1.})
+        self.assertDictEqual(self.c.point_source_parameters, {'radius':1.})
+    
+    def test_draw_point_source(self):
+        # Just test that the not implemented error is raised.
+        with self.assertRaises(NotImplementedError):
+            self.c.draw_point_source()
 
 class SinglePointSourceTests(PointSourceBaseTests):
     def setUp(self):
-        self.c = SinglePointSource(point_source_parameters=dict(
+        self.point_source_parameters=dict(
             x_point_source=0.001,
             y_point_source=0.001,
             magnitude=22,
             mag_zeropoint=25
-        ))
+        )
+        self.c = SinglePointSource(point_source_parameters=
+            self.point_source_parameters)
+
+    def test_update_parameters(self):
+        # test a parameter originally set in setUp
+        self.point_source_parameters['magnitude'] = 10
+        self.c.update_parameters(self.point_source_parameters)
+        self.assertEqual(self.c.point_source_parameters['magnitude'], 10)
 
     def test_draw_point_source(self):
         list_model, list_kwargs = self.c.draw_point_source()
@@ -40,7 +64,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
         for p in params :
             self.assertTrue(p in list_kwargs[0].keys())
 
-    def test_no_lens_mass(self):
+        # now, test with no lens mass
 
         list_ps_model, list_ps_kwargs = self.c.draw_point_source()
         
@@ -54,26 +78,25 @@ class SinglePointSourceTests(PointSourceBaseTests):
 
         point_source_model = PointSource(list_ps_model)
         
-        # define PSF class
-        #psf_class = PSF(psf_type='GAUSSIAN', fwhm=0.1 * pixel_width)
+        # define PSF class, data class
+        n_pixels = 64
+        pixel_width = 0.08
         psf_class = PSF(psf_type='NONE')
+        data_class = ImageData(**data_configure_simple(numPix=n_pixels,
+            deltaPix=pixel_width))
 
         # draw image with point source
-        n_pixels = 128
-        pixel_width = 0.08
         complete_image_model = ImageModel(data_class=
-            ImageData(**data_configure_simple(numPix=n_pixels,deltaPix=pixel_width)),
-			psf_class=psf_class,
-            lens_model_class=lens_model, source_model_class=source_light_model,
+            data_class,psf_class=psf_class,lens_model_class=lens_model, 
+            source_model_class=source_light_model,
             point_source_class=point_source_model)
         image_withPS = complete_image_model.image(kwargs_lens=lens_kwargs,
 		kwargs_source=source_kwargs, kwargs_ps=list_ps_kwargs)
 
         # draw image without point source
-        complete_image_model = ImageModel(data_class=
-            ImageData(**data_configure_simple(numPix=n_pixels,deltaPix=pixel_width)),
-			psf_class=psf_class,
-            lens_model_class=lens_model, source_model_class=source_light_model,
+        complete_image_model = ImageModel(data_class=data_class,
+            psf_class=psf_class,lens_model_class=lens_model, 
+            source_model_class=source_light_model,
             point_source_class=None)
         image_noPS = complete_image_model.image(kwargs_lens=lens_kwargs,
 		kwargs_source=source_kwargs, kwargs_ps=None)
@@ -90,6 +113,6 @@ class SinglePointSourceTests(PointSourceBaseTests):
         flux_image = np.sum(im_diff)
         self.assertAlmostEqual(flux_true,flux_image)
 
-        # with no PSF, make sure only 4 nonzero pixels
-        self.assertTrue(np.count_nonzero(im_diff) < 5)
-        
+        # make sure light is in the center of the image
+        # 128 x 128 image
+        self.assertTrue( np.sum(im_diff[30:34,30:34]) == flux_image)
