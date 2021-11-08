@@ -253,7 +253,7 @@ class GenerateTests(unittest.TestCase):
 			kwargs_numerics,mag_cut,add_noise)
 
 		# Check that the image is just the source
-		np.testing.assert_almost_equal(image,orig_image*4)
+		np.testing.assert_almost_equal(image,orig_image)
 
 		# Make the offset pattern more realistic and change the pixel widths
 		sample['drizzle_parameters']['offset_pattern'] = [(0,0),(0.5,0),

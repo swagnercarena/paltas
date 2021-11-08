@@ -349,7 +349,7 @@ class HubbleUtilsTests(unittest.TestCase):
 		img_drizz = hubble_utils.hubblify(img_high_res,high_res_pixel_scale,
 			detector_pixel_scale,drizzle_pixel_scale,noise_model,psf_model,
 			offset_pattern)
-		# np.testing.assert_almost_equal(img_drizz,img_high_res*4)
+		np.testing.assert_almost_equal(img_drizz,img_high_res)
 
 		# Now repeat the test above with half-integer offsets.
 		offset_pattern = [(0,0),(0.5,0),(0.0,0.5),(0.5,0.5)]
@@ -358,7 +358,7 @@ class HubbleUtilsTests(unittest.TestCase):
 			offset_pattern)
 		# Check that flux is conserved and kept roughly within the correct
 		# area.
-		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res*4))
+		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res))
 		self.assertAlmostEqual(np.sum(img_drizz[r<=38]),np.sum(img_drizz))
 
 		# Now let's change the resolutions a bit and make sure that doesn't
@@ -370,7 +370,7 @@ class HubbleUtilsTests(unittest.TestCase):
 			detector_pixel_scale,drizzle_pixel_scale,noise_model,psf_model,
 			offset_pattern)
 		# Same basic checks
-		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res*4))
+		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res))
 		x,y = np.meshgrid(np.arange(img_drizz.shape[0]),
 			np.arange(img_drizz.shape[1]),indexing='ij')
 		r = np.sqrt((x-85)**2+((y-85)*2)**2)
@@ -398,7 +398,7 @@ class HubbleUtilsTests(unittest.TestCase):
 		# image
 		for i in range(1,5):
 			self.assertTrue(img_drizz[40*i,40*i]>0 and img_drizz[40*i,40*i]<20)
-		self.assertAlmostEqual(np.sum(img_drizz),80)
+		self.assertAlmostEqual(np.sum(img_drizz),20)
 
 		# Now let's check that the psf blurs the image as we want. Simulate
 		# the use of the lenstronomy psf functions
@@ -433,13 +433,13 @@ class HubbleUtilsTests(unittest.TestCase):
 			psf_helper.psf_model,offset_pattern)
 
 		# Check that all the signal is still there
-		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res*4))
+		self.assertAlmostEqual(np.sum(img_drizz),np.sum(img_high_res))
 
 		# Check that the signal is contained within the correct strip
 		self.assertAlmostEqual(np.sum(img_drizz[83:88]),np.sum(img_drizz))
 		self.assertGreater(np.sum(img_drizz),np.sum(img_drizz[:,83:88]))
 		self.assertLess(np.sum(img_drizz[:,85]),
-			80/np.sum(np.exp(-(np.arange(129)-64)**2/100)))
+			20/np.sum(np.exp(-(np.arange(129)-64)**2/100)))
 
 		# Repeat the psf test, but now use the psf_supersample_factor
 		# specification.
