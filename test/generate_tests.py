@@ -5,6 +5,7 @@ import sys, glob, copy, os
 from manada import generate
 from scipy.signal import fftconvolve
 from manada.Sources.cosmos import COSMOSIncludeCatalog
+from manada.Sources.sersic import SingleSersicSource
 from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Utils import hubble_utils
 import manada
@@ -192,6 +193,32 @@ class GenerateTests(unittest.TestCase):
 			subhalo_class,None,source_class,None,None,numpix,multi_plane,
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,sub_image)
+
+		# TODO: add lens light & validate output
+		# generate image w/ deflector & w/out lens light
+		sample['psf_parameters'] = {'psf_type':'GAUSSIAN',
+				'fwhm': 0.1*orig_meta['pixel_width']}
+		mag_cut=None
+		image, meta_values = generate.draw_image(sample,None,None,main_deflector_class,
+			source_class,None,None,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		# generate image w/ deflector & lens light
+		sample['lens_light_parameters'] = {'z_source':0.5,
+			'amp':20,
+			'R_sersic':1.,
+			'n_sersic':1.2,
+			'e1':0.,
+			'e2':0.,
+			'center_x':0.0,
+			'center_y':0.0}
+		lens_light_class = SingleSersicSource(cosmology_parameters='planck18',
+			source_parameters=sample['lens_light_parameters'])
+		lens_light_image, meta_values = generate.draw_image(sample,None,None,main_deflector_class,
+			source_class,lens_light_class,
+			None,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		# assert sum of center w/ lens light > sum of center orig_image
+		self.assertTrue(np.sum(lens_light_image[90:110,90:110]) > np.sum(image[90:110,90:110]))
+
+		# TODO: add point source & validate output
 
 		# Cleanup
 		os.remove(cosmos_folder+'manada_catalog.npy')
