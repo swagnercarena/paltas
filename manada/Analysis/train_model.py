@@ -198,7 +198,7 @@ def main():
 
 	# Use learning rate decay for optimal learning
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.95,
+		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.98,
 		staircase=True)
 
 	# Use the desired optimizer

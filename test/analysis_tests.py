@@ -4,7 +4,6 @@ import pandas as pd
 import tensorflow as tf
 import glob
 from manada import Analysis
-from scipy.stats import multivariate_normal
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
@@ -16,7 +15,9 @@ from shutil import copyfile
 from matplotlib import pyplot as plt
 import numba
 from scipy import special
-from scipy.stats import truncnorm, lognorm
+from scipy.stats import truncnorm, lognorm, multivariate_normal
+from scipy.integrate import dblquad
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -1065,6 +1066,80 @@ class HierarchicalInferenceTests(unittest.TestCase):
 		self.assertEqual(Analysis.hierarchical_inference.log_p_omega(
 			hyperparameters,eval_func_omega),0.2)
 
+	def test_gaussian_product_analytical(self):
+		# Test for a few combinations of covariance matrices that the results
+		# agree with a numerical integration.
+		# Start simple, covariance matrix is the identity and means are all
+		# the same
+		mu_pred = np.ones(2)
+		prec_pred = np.identity(2)
+		mu_omega_i = np.ones(2)
+		prec_omega_i = np.identity(2)
+		mu_omega = np.ones(2)
+		prec_omega = np.identity(2)
+
+		# Calculate the integral using scipy.
+		mn = multivariate_normal(mean=mu_pred,cov=np.linalg.inv(prec_pred))
+		mn_pred = mn
+		mn_om = mn
+		mn_omi = mn
+
+		def scipy_call(y,x):
+			arr = np.array([x,y])
+			return mn_pred.pdf(arr)*mn_om.pdf(arr)/mn_omi.pdf(arr)
+
+		s_est = dblquad(scipy_call, -20, 20, -20, 20)
+		self.assertAlmostEqual(np.log(s_est[0]),
+			Analysis.hierarchical_inference.gaussian_product_analytical(
+				mu_pred,prec_pred,mu_omega_i,prec_omega_i,mu_omega,prec_omega))
+
+		# Now make it so that omega_i has a larger covariance.
+		prec_omega_i *= 0.5
+		mn_omi = multivariate_normal(mean=mu_omega_i,
+			cov=np.linalg.inv(prec_omega_i))
+		s_est = dblquad(scipy_call, -20, 20, -20, 20)
+		self.assertAlmostEqual(np.log(s_est[0]),
+			Analysis.hierarchical_inference.gaussian_product_analytical(
+				mu_pred,prec_pred,mu_omega_i,prec_omega_i,mu_omega,prec_omega))
+
+		# Now shift the means
+		mu_omega_i *= 2
+		mu_pred *= 0.5
+		mn_pred = multivariate_normal(mean=mu_pred,
+			cov=np.linalg.inv(prec_pred))
+		mn_om = multivariate_normal(mean=mu_omega,
+			cov=np.linalg.inv(prec_omega))
+		mn_omi = multivariate_normal(mean=mu_omega_i,
+			cov=np.linalg.inv(prec_omega_i))
+		s_est = dblquad(scipy_call, -20, 20, -20, 20)
+		self.assertAlmostEqual(np.log(s_est[0]),
+			Analysis.hierarchical_inference.gaussian_product_analytical(
+				mu_pred,prec_pred,mu_omega_i,prec_omega_i,mu_omega,prec_omega))
+
+		# Finally complicate the covariances a bit
+		prec_pred = np.array([[1,0.3],[0.3,1]])
+		prec_omega_i = np.array([[1,-0.3],[-0.3,1]])
+		prec_omega = np.array([[10,0.05],[0.05,10]])
+		mn_pred = multivariate_normal(mean=mu_pred,
+			cov=np.linalg.inv(prec_pred))
+		mn_om = multivariate_normal(mean=mu_omega,
+			cov=np.linalg.inv(prec_omega))
+		mn_omi = multivariate_normal(mean=mu_omega_i,
+			cov=np.linalg.inv(prec_omega_i))
+		s_est = dblquad(scipy_call, -20, 20, -20, 20)
+		self.assertAlmostEqual(np.log(s_est[0]),
+			Analysis.hierarchical_inference.gaussian_product_analytical(
+				mu_pred,prec_pred,mu_omega_i,prec_omega_i,mu_omega,prec_omega))
+
+		# Make sure the providing an invalid set of precision matrices gives
+		# -np.inf
+		prec_pred = np.array([[1,0.8],[0.8,1]])
+		prec_omega_i = np.array([[1,0.0],[0.0,1]])
+		prec_omega = np.array([[0.5,0.05],[0.05,0.5]])
+		self.assertEqual(-np.inf,
+			Analysis.hierarchical_inference.gaussian_product_analytical(
+				mu_pred,prec_pred,mu_omega_i,prec_omega_i,mu_omega,prec_omega))
+
 
 class ProbabilityClassTests(unittest.TestCase):
 
@@ -1156,6 +1231,107 @@ class ProbabilityClassTests(unittest.TestCase):
 		hyperparameters = hyperparameters*0.02
 		self.assertAlmostEqual(prob_class.log_post_omega(hyperparameters),
 			calculate_manual_log_post(hyperparameters))
+
+
+class ProbabilityClassAnalyticalTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		tf.random.set_seed(2)
+
+	def test_set_predictions(self):
+		# Make sure that setting the samples with both input types works
+		n_lenses = 1000
+		mu_pred_array_input = np.random.randn(n_lenses,10)
+		prec_pred_array_input = np.tile(np.expand_dims(np.identity(10),axis=0),
+			(n_lenses,1,1))
+		mu_omega_i = np.ones(10)
+		cov_omega_i = np.identity(10)
+		eval_func_omega = None
+
+		# Establish our ProbabilityClassAnalytical
+		prob_class = Analysis.hierarchical_inference.ProbabilityClassAnalytical(
+			mu_omega_i,cov_omega_i,eval_func_omega)
+
+		# Try setting the predictions
+		prob_class.set_predictions(mu_pred_array_input,prec_pred_array_input)
+		self.assertFalse(Analysis.hierarchical_inference.mu_pred_array is None)
+		self.assertFalse(Analysis.hierarchical_inference.prec_pred_array is None)
+
+	def test_log_integral_product(self):
+		# Make sure that the log integral product just sums the log of each
+		# integral
+		n_lenses = 1000
+		mu_pred_array = np.random.randn(n_lenses,10)
+		prec_pred_array = np.tile(np.expand_dims(np.identity(10),axis=0),
+			(n_lenses,1,1))
+		mu_omega_i = np.ones(10)
+		prec_omega_i = np.identity(10)
+		mu_omega = np.ones(10)
+		prec_omega = np.identity(10)
+
+		# First calculate the value by hand.
+		hand_integral = 0
+		for i in range(len(mu_pred_array)):
+			mu_pred = mu_pred_array[i]
+			prec_pred = prec_pred_array[i]
+			hand_integral += (
+				Analysis.hierarchical_inference.gaussian_product_analytical(
+					mu_pred,prec_pred,mu_omega_i,prec_omega_i,mu_omega,
+					prec_omega))
+
+		# Now use the class.
+		prob_class = Analysis.hierarchical_inference.ProbabilityClassAnalytical
+		integral = prob_class.log_integral_product(mu_pred_array,
+			prec_pred_array,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+
+		self.assertAlmostEqual(integral,hand_integral)
+
+	def test_log_post_omega(self):
+		# Test that the log_post_omega calculation includes both the integral
+		# and the prior.
+		# Initialize the values we'll need for the probability class.
+		n_lenses = 1000
+		mu_pred_array_input = np.random.randn(n_lenses,10)
+		prec_pred_array_input = np.tile(np.expand_dims(np.identity(10),axis=0),
+			(n_lenses,1,1))
+		mu_omega_i = np.ones(10)
+		cov_omega_i = np.identity(10)
+		prec_omega_i = cov_omega_i
+
+		@numba.njit()
+		def eval_func_omega(hyperparameters):
+			if np.any(hyperparameters[len(hyperparameters)//2:] < 0):
+				return -np.inf
+			return 0
+
+		# Establish our ProbabilityClassAnalytical
+		prob_class = Analysis.hierarchical_inference.ProbabilityClassAnalytical(
+			mu_omega_i,cov_omega_i,eval_func_omega)
+		prob_class.set_predictions(mu_pred_array_input,prec_pred_array_input)
+
+		# Test a simple array of zeros
+		hyperparameters = np.zeros(20)
+		mu_omega = np.zeros(10)
+		prec_omega = np.identity(10)
+		hand_calc = prob_class.log_integral_product(mu_pred_array_input,
+			prec_pred_array_input,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		self.assertAlmostEqual(hand_calc,
+			prob_class.log_post_omega(hyperparameters))
+
+		# Check that violating the prior returns -np.inf
+		hyperparameters = -np.ones(20)
+		self.assertEqual(-np.inf,prob_class.log_post_omega(hyperparameters))
+
+		# Check a more complicated variance matrix
+		hyperparameters = np.random.rand(20)
+		mu_omega = hyperparameters[:10]
+		prec_omega = np.linalg.inv(np.diag(np.exp(hyperparameters[10:])**2))
+		hand_calc = prob_class.log_integral_product(mu_pred_array_input,
+			prec_pred_array_input,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		self.assertAlmostEqual(hand_calc,
+			prob_class.log_post_omega(hyperparameters))
 
 
 class PdfFunctionsTests(unittest.TestCase):
