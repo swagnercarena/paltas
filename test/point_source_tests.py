@@ -116,3 +116,10 @@ class SinglePointSourceTests(PointSourceBaseTests):
         # make sure light is in the center of the image
         # 128 x 128 image
         self.assertTrue( np.sum(im_diff[30:34,30:34]) == flux_image)
+
+        # test draw image with mag_pert
+        self.point_source_parameters['mag_pert'] = [1, 1, 1, 1, 1]
+        self.c.update_parameters(self.point_source_parameters)
+        list_model, list_kwargs = self.c.draw_point_source()
+        # make sure mag_pert is passed to lenstronomy
+        self.assertTrue('mag_pert' in list_kwargs[0].keys())
