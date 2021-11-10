@@ -208,25 +208,25 @@ class DiagonalCovarianceLoss(BaseLoss):
 				the output.
 		"""
 		# The posterior is the mean with random noise.
-		y_pred, std_pred = self.convert_output(output)
+		y_pred, log_var_pred = self.convert_output(output)
 		y_pred = y_pred.numpy()
-		std_pred = std_pred.numpy()
+		log_var_pred = log_var_pred.numpy()
 
 		predict_samps = y_pred + np.random.randn(n_samps,y_pred.shape[0],
-			y_pred.shape[1])*std_pred
+			y_pred.shape[1])*np.exp(log_var_pred/2)
 		return predict_samps
 
 	@staticmethod
-	def log_gauss_diag(y_true,y_pred,std_pred):
+	def log_gauss_diag(y_true,y_pred,log_var_pred):
 		""" Return the negative log posterior of a Gaussian with diagonal
 		covariance matrix
 
 		Args:
 			y_true (tf.Tensor): The true values of the parameters
 			y_pred (tf.Tensor): The predicted value of the parameters
-			std_pred (tf.Tensor): The predicted diagonal entries of the
-				covariance. Note that std_pred is assumed to be the log of the
-				covariance matrix values.
+			log_var_pred (tf.Tensor): The predicted diagonal entries of the
+				covariance. Note that log_var_pred is assumed to be the log of
+				the covariance matrix values.
 
 		Returns:
 			(tf.Tensor): The TF graph for calculating the nlp
@@ -235,8 +235,8 @@ class DiagonalCovarianceLoss(BaseLoss):
 			This loss does not include the constant factor of 1/(2*pi)^(d/2).
 		"""
 		return 0.5*tf.reduce_sum(tf.multiply(tf.square(y_pred-y_true),
-			tf.exp(-std_pred)),axis=-1) + 0.5*tf.reduce_sum(
-			std_pred,axis=-1)
+			tf.exp(-log_var_pred)),axis=-1) + 0.5*tf.reduce_sum(
+			log_var_pred,axis=-1)
 
 	def loss(self,y_true,output):
 		""" Returns the loss of the predicted parameters.
@@ -251,14 +251,14 @@ class DiagonalCovarianceLoss(BaseLoss):
 		Returns:
 			(tf.Tensor): The loss function as a tf.Tensor.
 		"""
-		y_pred, std_pred = self.convert_output(output)
+		y_pred, log_var_pred = self.convert_output(output)
 
 		# Add each possible flip to the loss list. We will then take the
 		# minimum.
 		loss_list = []
 		for flip_mat in self.flip_mat_list:
 			loss_list.append(self.log_gauss_diag(y_true,
-				tf.matmul(y_pred,flip_mat),std_pred))
+				tf.matmul(y_pred,flip_mat),log_var_pred))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
 
