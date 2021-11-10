@@ -644,7 +644,7 @@ class DiagonalCovarianceTests(unittest.TestCase):
 		np.testing.assert_almost_equal(np.mean(predict_samps,axis=0),
 			output.numpy()[:,:10],decimal=1)
 		np.testing.assert_almost_equal(np.std(predict_samps,axis=0),
-			output.numpy()[:,:10],decimal=1)
+			np.exp(output.numpy()[:,:10]/2),decimal=1)
 
 	def test_log_gauss_diag(self):
 		# Will not be used for this test, but must be passed in.
