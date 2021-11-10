@@ -15,6 +15,9 @@ class PointSourceBase:
 
 	Args:
 		point_source_parameters: dictionary with source-specific parameters
+
+	Notes:
+		Has no required parameters by default.
 	"""
 
 	required_parameters = tuple()
