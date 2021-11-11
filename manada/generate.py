@@ -24,6 +24,7 @@ from manada.Utils.lenstronomy_utils import PSFHelper
 from manada.Sources.galaxy_catalog import GalaxyCatalog
 from manada.Analysis import dataset_generation
 import matplotlib.pyplot as plt
+from numpy.lib.utils import source
 from tqdm import tqdm
 import pandas as pd
 from lenstronomy.LensModel.lens_model import LensModel
@@ -34,6 +35,8 @@ from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 import lenstronomy.Util.util as util
+from lenstronomy.Analysis.td_cosmography import TDCosmography
+from scipy.stats import norm
 
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.
@@ -62,7 +65,6 @@ def parse_args():
 		help='Generate the tf record for the training set.')
 	args = parser.parse_args()
 	return args
-
 
 def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	source_class,lens_light_class,point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
@@ -197,7 +199,7 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	source_light_model = LightModel(source_model_list)
 
 	lens_light_model = LightModel(lens_light_model_list)
-	point_source_model = PointSource(point_source_model_list)
+	point_source_model = PointSource(point_source_model_list, lensModel=complete_lens_model, save_cache=True)
 
 	# Put it together into an image model
 	complete_image_model = ImageModel(data_api.data_class, psf_model,
@@ -220,6 +222,35 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	# If no noise is specified, don't add noise
 	if add_noise:
 		image += single_band.noise_for_model(image)
+
+	# calculate time delays & image positions, then add to meta_values
+	if point_source_class is not None:
+		# calculate image positions
+		x_image, y_image = point_source_model.image_position(point_source_kwargs_list,complete_lens_model_kwargs)
+		num_images = len(x_image[0])
+		meta_values['num_images'] = num_images
+		# calculate time delays
+		if sample['point_source_parameters']['compute_time_delays']:
+			if 'kappa_ext' in sample['point_source_parameters'].keys():
+				td = complete_lens_model.arrival_time(x_image[0], y_image[0], complete_lens_model_kwargs, sample['point_source_parameters']['kappa_ext'])
+				td = td - td[0]
+			else :
+				raise ValueError('must define kappa_ext in point_source parameters to compute time delays')
+		# add to meta_values
+		pfix = 'point_source_parameters_'
+		for i in range(0,4):
+			if i < num_images:
+				meta_values[pfix+'x_image_'+str(i)] = x_image[0][i]
+				meta_values[pfix+'y_image_'+str(i)] = y_image[0][i]
+			else :
+				meta_values[pfix+'x_image_'+str(i)] = np.nan
+				meta_values[pfix+'y_image_'+str(i)] = np.nan
+				
+			if sample['point_source_parameters']['compute_time_delays']:
+				if i < len(td):
+					meta_values[pfix+'time_delay_' + str(i)] = td[i]
+				else:
+					meta_values[pfix+'time_delay_' + str(i)] = np.nan
 
 	return image,meta_values
 
@@ -517,7 +548,7 @@ def main():
 		# Write out the metadata every 20 images
 		if nt == 0:
 			# Sort the keys lexographically to ensure consistent writes
-			metadata = metadata.reindex(sorted(metadata.columns), axis=1)
+			#metadata = metadata.reindex(sorted(metadata.columns), axis=1)
 			metadata.to_csv(metadata_path, index=None)
 			metadata = pd.DataFrame()
 		elif nt%20 == 0:

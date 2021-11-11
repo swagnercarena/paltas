@@ -51,7 +51,8 @@ config_dict = {
 			'x_point_source':0.01,
 			'y_point_source':0.01,
 			'magnitude':24.8,
-			'mag_zeropoint':25.127}
+			'mag_zeropoint':25.127,
+			'compute_time_delays':False}
 	},
 	'cosmology':{
 		'parameters':{

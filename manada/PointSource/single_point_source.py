@@ -14,11 +14,26 @@ class SinglePointSource(PointSourceBase):
 
 	Args:
 		point_source_parameters: dictionary with source-specific parameters.
+
+	TODO: 
+	Notes:
+		Required parameters: 
+			x_point_source (float):
+			y_point_source (float):
+			magnitude (float):
+			mag_zeropoint (float):
+			compute_time_delays (bool):
+			 
+		Optional parameters: 
+			mag_pert (list of floats): List of fractional magnification pertubations 
+				that will be applied to each image.
+			kappa_ext (float): External convergence used to calculate time delays.
+				If compute_time_delays = True, this parameter must be defined.
+
 	"""
 
 	required_parameters = ('x_point_source', 'y_point_source', 'magnitude',
-		'mag_zeropoint')
-	# note: optional parameter: 'mag_pert'
+		'mag_zeropoint', 'compute_time_delays')
 
 	def draw_point_source(self):
 		"""Return lenstronomy PointSource kwargs
