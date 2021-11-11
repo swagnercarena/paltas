@@ -14,6 +14,8 @@ kwargs_numerics = {'supersampling_factor':2}
 numpix = 128
 
 # Define some general image kwargs for the dataset
+# The radius in arcseconds of a mask to apply at the center of the image
+mask_radius = 0.5
 # A magnification cut - images where the source is magnified by less than this
 # factor will be resampled.
 mag_cut = 2.0
@@ -41,19 +43,7 @@ config_dict = {
 			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
 			'smoothing_sigma':0.08,'random_rotation':True,
 			'output_ab_zeropoint':25.127,
-			'min_flux_radius':10.0}
-	},
-	'lens_light':{
-		'class': SingleSersicSource,
-		'parameters':{
-			'z_source':1.5,
-			'amp':truncnorm(-20.0/2.0,np.inf,loc=20.0,scale=2).rvs,
-			'R_sersic':truncnorm(-1.0/0.2,np.inf,loc=1.0,scale=0.2).rvs,
-			'n_sersic':truncnorm(-1.2/0.2,np.inf,loc=1.2,scale=0.2).rvs,
-			'e1':norm(loc=0.0,scale=0.1).rvs,
-			'e2':norm(loc=0.0,scale=0.1).rvs,
-			'center_x':0.0,
-			'center_y':0.0}
+			'min_flux_radius':10.0,}
 	},
 	'point_source':{
 		'class': SinglePointSource,
@@ -62,8 +52,8 @@ config_dict = {
 			'y_point_source':0.01,
 			'magnitude':24.8,
 			'mag_zeropoint':25.127,
-			'mag_pert':norm(1,0.2).rvs(size=5),
-			'compute_time_delays':False}
+			'compute_time_delays':True,
+			'kappa_ext':0.2}
 	},
 	'cosmology':{
 		'parameters':{
