@@ -199,8 +199,9 @@ class GenerateTests(unittest.TestCase):
 		sample['psf_parameters'] = {'psf_type':'GAUSSIAN',
 				'fwhm': 0.1*orig_meta['pixel_width']}
 		mag_cut=None
-		image, meta_values = generate.draw_image(sample,None,None,main_deflector_class,
-			source_class,None,None,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		image, meta_values = generate.draw_image(sample,None,None,
+			main_deflector_class,source_class,None,None,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
 		# generate image w/ deflector & lens light
 		sample['lens_light_parameters'] = {'z_source':0.5,
 			'amp':20,
@@ -212,11 +213,12 @@ class GenerateTests(unittest.TestCase):
 			'center_y':0.0}
 		lens_light_class = SingleSersicSource(cosmology_parameters='planck18',
 			source_parameters=sample['lens_light_parameters'])
-		lens_light_image, meta_values = generate.draw_image(sample,None,None,main_deflector_class,
-			source_class,lens_light_class,
+		lens_light_image, meta_values = generate.draw_image(sample,None,None,
+			main_deflector_class,source_class,lens_light_class,
 			None,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		# assert sum of center w/ lens light > sum of center orig_image
-		self.assertTrue(np.sum(lens_light_image[90:110,90:110]) > np.sum(image[90:110,90:110]))
+		self.assertTrue(np.sum(lens_light_image[90:110,90:110]) >
+			np.sum(image[90:110,90:110]))
 
 		# TODO: add point source & validate output
 
@@ -456,18 +458,20 @@ class GenerateTests(unittest.TestCase):
 		with self.assertRaises(ValueError):
 			sample['psf_parameters'] = {'psf_type':'PIXEL',
 				'kernel_point_source': psf_pixel}
-			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-				los_class,subhalo_class,main_deflector_class,source_class,None,None,
-				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(
+				sample,los_class,subhalo_class,main_deflector_class,
+				source_class,None,None,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 
 		# Next an error if it doesn't equal the psf_supersample_factor
 		with self.assertRaises(ValueError):
 			sample['psf_parameters'] = {'psf_type':'PIXEL',
 				'kernel_point_source': psf_pixel,
 				'point_source_supersampling_factor':1}
-			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-				los_class,subhalo_class,main_deflector_class,source_class,None,None,
-				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(
+				sample,los_class,subhalo_class,main_deflector_class,
+				source_class,None,None,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 
 		# Next an error if the psf_supersample_factor is larger than the scaling
 		# provided by the drizzle parameters.
@@ -476,9 +480,10 @@ class GenerateTests(unittest.TestCase):
 			sample['psf_parameters'] = {'psf_type':'PIXEL',
 				'kernel_point_source': psf_pixel,
 				'point_source_supersampling_factor':4}
-			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-				los_class,subhalo_class,main_deflector_class,source_class,None,None,
-				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(
+				sample,los_class,subhalo_class,main_deflector_class,
+				source_class,None,None,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 
 		# Cleanup
 		os.remove(cosmos_folder+'manada_catalog.npy')

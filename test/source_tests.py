@@ -441,6 +441,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 			kwargs_source=source_kwargs)
 		np.testing.assert_almost_equal(l_image,image)
 
+
 class COSMOSSersicTests(COSMOSCatalogTests):
 	
 	def setUp(self):
@@ -451,8 +452,8 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 			'random_rotation':False, 'min_flux_radius':None,
 			'output_ab_zeropoint':25.95, 'z_source':1.5,
 			'mag_sersic':50, 'R_sersic':0.5, 'n_sersic':2, 
-  			'e1_sersic':0, 'e2_sersic':0, 'center_x_sersic':0, 
-			  'center_y_sersic':0}
+			'e1_sersic':0, 'e2_sersic':0, 'center_x_sersic':0,
+			'center_y_sersic':0}
 
 		self.c = COSMOSSersic(cosmology_parameters='planck18',
 			source_parameters=self.source_parameters)
@@ -470,7 +471,7 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		# make sure all parameters for sersic are there
 		sersic_params = ('amp', 'R_sersic', 'n_sersic', 'e1', 'e2', 
 			'center_x', 'center_y')
-		for p in sersic_params :
+		for p in sersic_params:
 			self.assertTrue(p in lm_kwargs[1].keys())
 
 		# make sure that when you double the magnitude the amp is correct
@@ -483,7 +484,8 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		self.source_parameters['mag_sersic'] = 2*mag
 		self.c.update_parameters(source_parameters=self.source_parameters)
 		_, lm_kwargs_mag2 = self.c.draw_source(catalog_i)
-		ratio_true = 10**(-(mag - zeropoint)/2.5) / 10 **(-(2*mag - zeropoint)/2.5)
+		ratio_true = 10**(-(mag - zeropoint)/2.5) / 10 **(-(2*mag -
+			zeropoint)/2.5)
 		ratio_out = lm_kwargs_mag1[1]['amp'] / lm_kwargs_mag2[1]['amp']
 		# checks out to 7 decimal places (default)
 		self.assertAlmostEqual(ratio_true, ratio_out)
@@ -519,25 +521,23 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 			source_parameters=self.source_parameters)
 		light_model_list, cosmos_kwargs = cosmos.draw_source(0)
 		light_model = LightModel(light_model_list)
-		complete_image_model = ImageModel(data_class=data_class, psf_class=
-			psf_class, lens_model_class=lens_model, source_model_class=
-			light_model)
+		complete_image_model = ImageModel(data_class=data_class,
+			psf_class=psf_class,lens_model_class=lens_model,
+			source_model_class=light_model)
 		im_cosmos = complete_image_model.image(kwargs_lens=lens_kwargs, 
 			kwargs_source=cosmos_kwargs)
 		
 		# generate COSMOSSersic image
 		light_model_list, cosmossersic_kwargs = self.c.draw_source(0)
 		light_model = LightModel(light_model_list)
-		complete_image_model = ImageModel(data_class=data_class, psf_class=
-			psf_class, lens_model_class=lens_model, source_model_class=
-			light_model)
+		complete_image_model = ImageModel(data_class=data_class,
+			psf_class=psf_class,lens_model_class=lens_model,
+			source_model_class=light_model)
 		im_cosmossersic = complete_image_model.image(kwargs_lens=lens_kwargs,
 			kwargs_source=cosmossersic_kwargs)
 
 		# test image diff to ensure we get the same thing back
-		np.testing.assert_almost_equal(im_sersic, im_cosmossersic - im_cosmos)
-		
-		
+		np.testing.assert_almost_equal(im_sersic,im_cosmossersic-im_cosmos)
 		
 
 class COSMOSSercicCatalogTests(COSMOSCatalogTests):
