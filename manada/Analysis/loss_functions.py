@@ -225,7 +225,7 @@ class DiagonalCovarianceLoss(BaseLoss):
 			y_true (tf.Tensor): The true values of the parameters
 			y_pred (tf.Tensor): The predicted value of the parameters
 			log_var_pred (tf.Tensor): The predicted diagonal entries of the
-				covariance. Note that log_std_pred is assumed to be the log of
+				covariance. Note that log_var_pred is assumed to be the log of
 				the covariance matrix values.
 
 		Returns:

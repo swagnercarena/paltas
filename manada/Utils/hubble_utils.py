@@ -317,4 +317,4 @@ def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 
 	# Get final image from drizzle. Drizzle divides by number of exposures,
 	# and we want to undo this effect.
-	return driz.outsci.T*len(offset_pattern)
+	return driz.outsci.T

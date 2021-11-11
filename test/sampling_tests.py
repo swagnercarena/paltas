@@ -3,6 +3,7 @@ import unittest
 from manada.Sampling.sampler import Sampler
 from manada.Sampling import distributions
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
+from scipy.stats import truncnorm
 import warnings
 
 
@@ -81,6 +82,25 @@ class SamplerTests(unittest.TestCase):
 					'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)]
 				}
 			},
+			'point_source':{
+				'class': None,
+				'parameters':{
+					'x_point_source':0.01,'y_point_source':0.01,'magnitude':24.8,
+					'mag_zeropoint':25.127
+				}
+			},
+			'lens_light':{
+				'class': None,
+				'parameters':{
+					'z_source':1.5,
+					'amp':truncnorm(-20.0/2.0,np.inf,loc=20.0,scale=2).rvs,
+					'R_sersic':truncnorm(-1.0/0.2,np.inf,loc=1.0,scale=0.2).rvs,
+					'n_sersic':truncnorm(-1.2/0.2,np.inf,loc=1.2,scale=0.2).rvs,
+					'e1':norm(loc=0.0,scale=0.1).rvs,
+					'e2':norm(loc=0.0,scale=0.1).rvs,
+					'center_x':0.0,'center_y':0.0
+				}
+			},
 			'cross_object':{
 				'parameters':{
 					'los:delta_los,subhalo:sigma_sub':tmn
@@ -124,7 +144,8 @@ class SamplerTests(unittest.TestCase):
 			# First check that all the expected dicts are in the object
 			expected_dicts = ['subhalo_parameters','los_parameters',
 				'main_deflector_parameters','source_parameters',
-				'cosmology_parameters','drizzle_parameters']
+				'cosmology_parameters','drizzle_parameters',
+				'lens_light_parameters','point_source_parameters']
 			for dict_name in expected_dicts:
 				self.assertTrue(dict_name in sample)
 
