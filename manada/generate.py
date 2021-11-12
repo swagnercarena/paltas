@@ -230,7 +230,8 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		x_image, y_image = point_source_model.image_position(
 			point_source_kwargs_list,complete_lens_model_kwargs)
 		num_images = len(x_image[0])
-		meta_values['num_images'] = num_images
+		pfix = 'point_source_parameters_'
+		meta_values[pfix+'num_images'] = num_images
 		# Calculate time delays
 		if sample['point_source_parameters']['compute_time_delays']:
 			if 'kappa_ext' in sample['point_source_parameters'].keys():
@@ -242,7 +243,6 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 				raise ValueError('must define kappa_ext in point_source ' +
 					'parameters to compute time delays')
 		# Add to meta_values
-		pfix = 'point_source_parameters_'
 		for i in range(0,4):
 			if i < num_images:
 				meta_values[pfix+'x_image_'+str(i)] = x_image[0][i]

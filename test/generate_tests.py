@@ -6,6 +6,7 @@ from manada import generate
 from scipy.signal import fftconvolve
 from manada.Sources.cosmos import COSMOSIncludeCatalog
 from manada.Sources.sersic import SingleSersicSource
+from manada.PointSource.single_point_source import SinglePointSource
 from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Utils import hubble_utils
 import manada
@@ -194,7 +195,7 @@ class GenerateTests(unittest.TestCase):
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,sub_image)
 
-		# TODO: add lens light & validate output
+		# add lens light & validate output
 		# generate image w/ deflector & w/out lens light
 		sample['psf_parameters'] = {'psf_type':'GAUSSIAN',
 				'fwhm': 0.1*orig_meta['pixel_width']}
@@ -220,7 +221,57 @@ class GenerateTests(unittest.TestCase):
 		self.assertTrue(np.sum(lens_light_image[90:110,90:110]) >
 			np.sum(image[90:110,90:110]))
 
-		# TODO: add point source & validate output
+		# add point source & validate output
+		sample['point_source_parameters'] = {
+			'x_point_source':0.001,
+			'y_point_source':0.001,
+			'magnitude':22,
+			'mag_zeropoint':25,
+			'compute_time_delays':False
+			}
+		point_source_class = SinglePointSource(sample['point_source_parameters'])
+		image_ps, meta_values = generate.draw_image(sample,None,None,
+				main_deflector_class,source_class,None,point_source_class,
+				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		
+		# check that more light is added to the image
+		self.assertTrue(np.sum(image_ps) > np.sum(image))
+
+		# check that image positions are written to metadata
+		pfix = 'point_source_parameters_'
+		self.assertTrue(pfix+'num_images' in meta_values.keys())
+		self.assertTrue(pfix+'x_image_0' in meta_values.keys())
+		self.assertTrue(pfix+'y_image_1' in meta_values.keys())
+		self.assertTrue(pfix+'x_image_3' in meta_values.keys())
+		self.assertTrue(pfix+'y_image_3' in meta_values.keys())
+
+		# check that if num_images < 3, we get Nan for image 2 & image 3
+		if(meta_values[pfix+'num_images'] < 3):
+			self.assertTrue(meta_values[pfix+'x_image_3'] == np.nan)
+			self.assertTrue(meta_values[pfix+'y_image_2'] == np.nan)
+
+		# test time delay computation
+		sample['point_source_parameters']['compute_time_delays'] = True
+
+		# check that if kappa_ext is not defined, we get a ValueError
+		with self.assertRaises(ValueError):
+			image, meta_values = generate.draw_image(sample,None,None,
+				main_deflector_class,source_class,None,point_source_class,
+				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+
+		# check that correct metadata is written
+		sample['point_source_parameters']['kappa_ext'] = 0.01
+		image, meta_values = generate.draw_image(sample,None,None,
+			main_deflector_class,source_class,None,point_source_class,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		self.assertTrue(pfix+'x_image_0' in meta_values.keys())
+		self.assertTrue(pfix+'time_delay_0' in meta_values.keys())
+		self.assertTrue(pfix+'time_delay_3' in meta_values.keys())
+
+		# check that if num_images < 3, we get Nan for time delay 3
+		if(meta_values[pfix+'num_images'] < 4):
+			self.assertTrue(meta_values[pfix+'time_delay_3'] == np.nan)
+
 
 		# Cleanup
 		os.remove(cosmos_folder+'manada_catalog.npy')

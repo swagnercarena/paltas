@@ -15,14 +15,14 @@ class SinglePointSource(PointSourceBase):
 	Args:
 		point_source_parameters: dictionary with source-specific parameters.
 
-	TODO: 
 	Notes:
 		Required parameters: 
-			x_point_source (float):
-			y_point_source (float):
-			magnitude (float):
-			mag_zeropoint (float):
-			compute_time_delays (bool):
+			x_point_source (float),
+			y_point_source (float),
+			magnitude (float),
+			mag_zeropoint (float): absolute magnitude zeropoint of detector
+			compute_time_delays (bool): will add time delays to metadata if True.
+				Must define kappa_ext (see below) if True.
 			 
 		Optional parameters: 
 			mag_pert (list of floats): List of fractional magnification pertubations 

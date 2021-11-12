@@ -37,7 +37,8 @@ class SinglePointSourceTests(PointSourceBaseTests):
 			x_point_source=0.001,
 			y_point_source=0.001,
 			magnitude=22,
-			mag_zeropoint=25
+			mag_zeropoint=25,
+			compute_time_delays=False
 		)
 		self.c = SinglePointSource(
 			point_source_parameters=self.point_source_parameters)
