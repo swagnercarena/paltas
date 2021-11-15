@@ -13,9 +13,6 @@ kwargs_numerics = {'supersampling_factor':2}
 # The number of pixels in the CCD.
 numpix = 128
 
-# Define some general image kwargs for the dataset
-# The radius in arcseconds of a mask to apply at the center of the image
-mask_radius = 0.5
 # A magnification cut - images where the source is magnified by less than this
 # factor will be resampled.
 mag_cut = 2.0
@@ -30,8 +27,8 @@ config_dict = {
 			'z_lens': 0.5,
 			'gamma': truncnorm(-20,np.inf,loc=2.0,scale=0.1).rvs,
 			'theta_E': truncnorm(-1.1/0.15,np.inf,loc=1.1,scale=0.15).rvs,
-			'e1': norm(loc=0.0,scale=0.1).rvs,
-			'e2': norm(loc=0.0,scale=0.1).rvs,
+			'e1': norm(loc=0.0,scale=0.08).rvs,
+			'e2': norm(loc=0.0,scale=0.08).rvs,
 			'center_x': norm(loc=0.0,scale=0.1).rvs,
 			'center_y': norm(loc=0.0,scale=0.16).rvs,
 		}
@@ -51,7 +48,8 @@ config_dict = {
 			'x_point_source':0.01,
 			'y_point_source':0.01,
 			'magnitude':24.8,
-			'mag_zeropoint':25.127,
+			'output_ab_zeropoint':25.127,
+			'mag_pert':norm(1,0.2).rvs(size=5),
 			'compute_time_delays':False}
 	},
 	'cosmology':{

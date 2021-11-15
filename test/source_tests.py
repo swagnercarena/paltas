@@ -45,7 +45,8 @@ class SingleSersicSourceTests(SourceBaseTests):
 		self.c = SingleSersicSource(
 			cosmology_parameters='planck18',
 			source_parameters=dict(
-				amp=1.,
+				magnitude=20,
+				output_ab_zeropoint=25,
 				R_sersic=1.,
 				n_sersic=2.,
 				e1=0.,

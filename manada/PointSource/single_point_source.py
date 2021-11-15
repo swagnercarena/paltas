@@ -21,19 +21,20 @@ class SinglePointSource(PointSourceBase):
 			y_point_source (float),
 			magnitude (float),
 			mag_zeropoint (float): absolute magnitude zeropoint of detector
-			compute_time_delays (bool): will add time delays to metadata if True.
-				Must define kappa_ext (see below) if True.
+			compute_time_delays (bool): will add time delays to metadata if 
+				True. Must define kappa_ext (see below) if True.
 			 
 		Optional parameters: 
-			mag_pert (list of floats): List of fractional magnification pertubations 
-				that will be applied to each image.
-			kappa_ext (float): External convergence used to calculate time delays.
-				If compute_time_delays = True, this parameter must be defined.
+			mag_pert (list of floats): List of fractional magnification 
+				pertubations that will be applied to each image.
+			kappa_ext (float): External convergence used to calculate time 
+				delays. If compute_time_delays = True, this parameter must be 
+				defined.
 
 	"""
 
 	required_parameters = ('x_point_source', 'y_point_source', 'magnitude',
-		'mag_zeropoint', 'compute_time_delays')
+		'output_ab_zeropoint', 'compute_time_delays')
 
 	def draw_point_source(self):
 		"""Return lenstronomy PointSource kwargs
@@ -49,11 +50,13 @@ class SinglePointSource(PointSourceBase):
 		point_source_kwargs['dec_source'] = self.point_source_parameters[
 			'y_point_source']
 		if('mag_pert' in self.point_source_parameters.keys()):
-			point_source_kwargs['mag_pert'] = self.point_source_parameters['mag_pert']
+			point_source_kwargs['mag_pert'] = self.point_source_parameters[
+				'mag_pert']
 
-		# flux = amplitude for point source
+		# mag to amp conversion
+		# note: flux = amplitude for point source
 		point_source_kwargs['point_amp'] = magnitude2cps(
 			self.point_source_parameters['magnitude'],
-			self.point_source_parameters['mag_zeropoint'])
+			self.point_source_parameters['output_ab_zeropoint'])
 
 		return ['SOURCE_POSITION'], [point_source_kwargs]

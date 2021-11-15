@@ -5,6 +5,7 @@ from scipy.stats import norm, truncnorm
 from manada.MainDeflector.simple_deflectors import PEMD
 from manada.Sources.sersic import SingleSersicSource
 
+output_ab_zeropoint = 25.127
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':2}
 
@@ -36,7 +37,8 @@ config_dict = {
 		'class': SingleSersicSource,
 		'parameters':{
 			'z_source':1.5,
-			'amp':truncnorm(-20.0/2.0,np.inf,loc=20.0,scale=2).rvs,
+			'magnitude':norm(loc=23.0,scale=0.1).rvs,
+			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-1.0/0.2,np.inf,loc=1.0,scale=0.2).rvs,
 			'n_sersic':truncnorm(-1.2/0.2,np.inf,loc=1.2,scale=0.2).rvs,
 			'e1':norm(loc=0.0,scale=0.1).rvs,

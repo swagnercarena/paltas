@@ -37,7 +37,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 			x_point_source=0.001,
 			y_point_source=0.001,
 			magnitude=22,
-			mag_zeropoint=25,
+			output_ab_zeropoint=25,
 			compute_time_delays=False
 		)
 		self.c = SinglePointSource(
@@ -111,7 +111,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 
 		# make sure the flux is what we expect
 		flux_true = magnitude2cps(self.c.point_source_parameters['magnitude'],
-			self.c.point_source_parameters['mag_zeropoint'])
+			self.c.point_source_parameters['output_ab_zeropoint'])
 		flux_image = np.sum(im_diff)
 		self.assertAlmostEqual(flux_true,flux_image)
 

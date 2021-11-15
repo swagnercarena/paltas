@@ -205,7 +205,8 @@ class GenerateTests(unittest.TestCase):
 			kwargs_numerics,mag_cut,add_noise)
 		# generate image w/ deflector & lens light
 		sample['lens_light_parameters'] = {'z_source':0.5,
-			'amp':20,
+			'magnitude':20,
+			'output_ab_zeropoint':25.95,
 			'R_sersic':1.,
 			'n_sersic':1.2,
 			'e1':0.,
@@ -226,10 +227,11 @@ class GenerateTests(unittest.TestCase):
 			'x_point_source':0.001,
 			'y_point_source':0.001,
 			'magnitude':22,
-			'mag_zeropoint':25,
+			'output_ab_zeropoint':25.95,
 			'compute_time_delays':False
 			}
-		point_source_class = SinglePointSource(sample['point_source_parameters'])
+		point_source_class = SinglePointSource(
+			sample['point_source_parameters'])
 		image_ps, meta_values = generate.draw_image(sample,None,None,
 				main_deflector_class,source_class,None,point_source_class,
 				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)

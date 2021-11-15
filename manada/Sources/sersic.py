@@ -22,8 +22,8 @@ class SingleSersicSource(SourceBase):
 		source_parameters: dictionary with source-specific parameters.
 	"""
 
-	required_parameters = tuple(
-		'amp R_sersic n_sersic e1 e2 center_x center_y z_source'.split())
+	required_parameters = ('magnitude', 'output_ab_zeropoint', 'R_sersic', 
+		'n_sersic', 'e1', 'e2', 'center_x', 'center_y', 'z_source')
 
 	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
@@ -38,6 +38,13 @@ class SingleSersicSource(SourceBase):
 			for k, v in self.source_parameters.items()
 			if k in self.required_parameters}
 		sersic_params.pop('z_source')
+		sersic_params.pop('output_ab_zeropoint')
+
+		# mag to amp conversion
+		sersic_params.pop('magnitude')
+		sersic_params['amp'] = SingleSersicSource.mag_to_amplitude(
+			self.source_parameters['magnitude'],
+			self.source_parameters['output_ab_zeropoint'], sersic_params)
 		return (
 			['SERSIC_ELLIPSE'],
 			[sersic_params])

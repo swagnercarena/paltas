@@ -5,6 +5,7 @@ from scipy.stats import norm, truncnorm, uniform
 from manada.MainDeflector.simple_deflectors import PEMD
 from manada.Sources.cosmos_sersic import COSMOSSersic
 
+output_ab_zeropoint=25.127
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':2}
 
@@ -30,13 +31,11 @@ config_dict = {
 	'source':{
 		'class': COSMOSSersic,
 		'parameters':{
-			'z_source':1.5,
-			'cosmos_folder':cosmos_folder,
-			'max_z':1.0,
-			'minimum_size_in_pixels':64,'min_apparent_mag':20,
+			'z_source':1.5,'cosmos_folder':cosmos_folder,
+			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
 			'smoothing_sigma':0.08,'random_rotation':True,
+			'output_ab_zeropoint':output_ab_zeropoint,
 			'min_flux_radius':10.0,
-			'output_ab_zeropoint':25.127,
 			# need to ask about this \/
 			'mag_sersic':uniform(loc=20, scale=2).rvs,
 			'R_sersic':truncnorm(-1.0/0.2,np.inf,loc=1.0,scale=0.2).rvs,
@@ -57,7 +56,7 @@ config_dict = {
 	'detector':{
 		'parameters':{
 			'pixel_scale':0.04,'ccd_gain':1.58,'read_noise':3.0,
-			'magnitude_zero_point':25.127,
+			'magnitude_zero_point':output_ab_zeropoint,
 			'exposure_time':1380,'sky_brightness':21.83,
 			'num_exposures':1,'background_noise':None
 		}
