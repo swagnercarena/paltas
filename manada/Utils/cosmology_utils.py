@@ -53,3 +53,24 @@ def kpc_per_arcsecond(z,cosmo):
 	kpc_per_arcsecond = (cosmo.angularDiameterDistance(z) *np.pi/180/3600 /
 		h * 1e3)
 	return kpc_per_arcsecond
+
+def ddt(sample,cosmo):
+	"""Calculates time delay distance given lens redshift, source redshift, and
+	cosmology.
+
+	Args: 
+		sample (dict): Dictionary containing dictionaries of parameters for each
+			model component. Generated using Sampler .sample() method
+		cosmo (colossus.cosmology.Cosmology): An instance of the colossus
+			cosmology object
+	
+	Returns:
+		(float): Time delay distance
+	"""
+	z_lens = sample['main_deflector_parameters']['z_lens']
+	z_source = sample['source_parameters']['z_source']
+	D_d = cosmo.angularDiameterDistance(z_lens)
+	D_s = cosmo.angularDiameterDistance(z_source)
+	D_ds =  ( 1/ (1+z_source) ) * cosmo.comovingDistance(z_min=z_lens,
+		z_max=z_source) 
+	return (1+z_lens) * D_d * D_s / D_ds
