@@ -72,5 +72,6 @@ def ddt(sample,cosmo):
 	D_d = cosmo.angularDiameterDistance(z_lens)
 	D_s = cosmo.angularDiameterDistance(z_source)
 	D_ds =  ( 1/ (1+z_source) ) * cosmo.comovingDistance(z_min=z_lens,
-		z_max=z_source) 
-	return (1+z_lens) * D_d * D_s / D_ds
+		z_max=z_source)
+	# convert from Mpc/h to Mpc 
+	return (1+z_lens) * D_d * D_s / (D_ds*cosmo.h)

@@ -247,6 +247,10 @@ class GenerateTests(unittest.TestCase):
 		self.assertTrue(pfix+'x_image_3' in meta_values.keys())
 		self.assertTrue(pfix+'y_image_3' in meta_values.keys())
 
+		# check that image magnifications are written to metadata
+		self.assertTrue(pfix+'magnification_0' in meta_values.keys()) 
+		self.assertTrue(pfix+'magnification_3' in meta_values.keys())
+
 		# check that if num_images < 3, we get Nan for image 2 & image 3
 		if(meta_values[pfix+'num_images'] < 3):
 			self.assertTrue(meta_values[pfix+'x_image_3'] == np.nan)
@@ -269,6 +273,7 @@ class GenerateTests(unittest.TestCase):
 		self.assertTrue(pfix+'x_image_0' in meta_values.keys())
 		self.assertTrue(pfix+'time_delay_0' in meta_values.keys())
 		self.assertTrue(pfix+'time_delay_3' in meta_values.keys())
+		self.assertTrue(pfix+'ddt' in meta_values.keys())
 
 		# check that if num_images < 3, we get Nan for time delay 3
 		if(meta_values[pfix+'num_images'] < 4):

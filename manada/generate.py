@@ -18,7 +18,7 @@ import argparse, os, sys, warnings, copy
 import shutil
 from importlib import import_module
 from manada.Sampling.sampler import Sampler
-from manada.Utils.cosmology_utils import get_cosmology
+from manada.Utils.cosmology_utils import get_cosmology, ddt
 from manada.Utils.hubble_utils import hubblify
 from manada.Utils.lenstronomy_utils import PSFHelper
 from manada.Sources.galaxy_catalog import GalaxyCatalog
@@ -232,6 +232,15 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		num_images = len(x_image[0])
 		pfix = 'point_source_parameters_'
 		meta_values[pfix+'num_images'] = num_images
+
+		# TODO: Calculate magnifications using complete_lens_model
+		magnifications = complete_lens_model.magnification(x_image[0],
+			y_image[0],complete_lens_model_kwargs)
+		# if mag_pert is defined, add that pertubation
+		if 'mag_pert' in sample['point_source_parameters'].keys():
+			magnifications = magnifications * sample['point_source_parameters'][
+				'mag_pert'][0:len(magnifications)]
+
 		# Calculate time delays
 		if sample['point_source_parameters']['compute_time_delays']:
 			if 'kappa_ext' in sample['point_source_parameters'].keys():
@@ -242,14 +251,19 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 			else:
 				raise ValueError('must define kappa_ext in point_source ' +
 					'parameters to compute time delays')
-		# Add to meta_values
+
+			# TODO: calculate time delay distance
+			meta_values[pfix+'ddt'] = ddt(sample,source_class.cosmo)
+
 		for i in range(0,4):
 			if i < num_images:
 				meta_values[pfix+'x_image_'+str(i)] = x_image[0][i]
 				meta_values[pfix+'y_image_'+str(i)] = y_image[0][i]
+				meta_values[pfix+'magnification_'+str(i)] = magnifications[i]
 			else:
 				meta_values[pfix+'x_image_'+str(i)] = np.nan
 				meta_values[pfix+'y_image_'+str(i)] = np.nan
+				meta_values[pfix+'magnification_'+str(i)] = np.nan
 				
 			if sample['point_source_parameters']['compute_time_delays']:
 				if i < len(td):
