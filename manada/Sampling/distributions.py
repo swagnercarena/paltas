@@ -7,6 +7,8 @@ This module contains classes that define distributions that can be effecitvely
 sampled from.
 """
 import numpy as np
+from numpy.lib.financial import _npv_dispatcher
+from numpy.linalg.linalg import _qr_dispatcher
 
 
 class MultivariateLogNormal():
@@ -125,3 +127,95 @@ class TruncatedMultivariateNormal():
 			keep_draws = np.squeeze(keep_draws)
 
 		return keep_draws
+
+class EllipticitiesTranslation():
+	"""Class that takes in distributions for q_lens and phi_lens, returns 
+		samples of e1 and e2 correspondingly
+	
+	Args: 
+		q_dist: distribution for axis ratio (can be callable or constant)
+		phi_dist: distribution for orientation angle in radians (can be 
+			callable or constant)
+
+	Notes: 
+
+	"""
+	def __init__(self,q_dist,phi_dist):
+		
+		self.q_dist = q_dist
+		self.phi_dist = phi_dist
+
+	def __call__(self):
+		"""
+		Returns
+			e1,e2: x-direction ellipticity eccentricity, xy-direction 
+				ellipticity eccentricity
+		"""
+
+		if callable(self.q_dist):
+			q = self.q_dist()
+		else:
+			q = self.q_dist
+		if callable(self.phi_dist):
+			phi = self.phi_dist()
+		else:
+			phi = self.phi_dist
+		
+		e1 = (1 - q)/(1+q) * np.cos(2*phi)
+		e2 = (1 - q)/(1+q) * np.sin(2*phi)
+
+		return e1,e2
+
+class KappaTransformDistribution():
+	"""Class that returns 1 / (1-Kext) ~ n where n is sampled from a 
+		distribution given by n_dist
+	
+	Args: 
+		n_dist: distribution for 1 / (1-Kext) (can be callable or constant)
+
+	Notes:
+	"""
+
+	def __init__(self,n_dist):
+		self.n_dist = n_dist
+
+	def __call__(self):
+		
+		if callable(self.n_dist):
+			n = self.n_dist()
+		else:
+			n = self.n_dist
+		
+		return 1 - (1/n)
+
+class DuplicateXY():
+	"""Class that returns two copies of x, y coordinates drawn from 
+		distributions
+
+	Args: 
+		x_dist: distribution for x (can be callable or constant)
+		y_dist: distribution for y (can be callable or constant)
+	
+	Notes:
+	"""
+
+	def __init__(self,x_dist,y_dist):
+		self.x_dist = x_dist
+		self.y_dist = y_dist
+	
+	def __call__(self):
+		"""
+		Returns
+			x, y, x, y: Two copies of x,y sampled from x_dist and y_dist
+		"""
+
+		if callable(self.x_dist):
+			x = self.x_dist()
+		else:
+			x = self.x_dist
+		if callable(self.y_dist):
+			y = self.y_dist()
+		else:
+			y = self.y_dist
+		
+		return x,y,x,y

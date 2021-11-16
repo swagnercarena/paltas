@@ -220,3 +220,43 @@ class DistributionsTests(unittest.TestCase):
 		self.assertTrue(np.prod(draws[:,0]<max_values[0]))
 		self.assertTrue(np.prod(draws[:,1]<max_values[1]))
 		np.testing.assert_almost_equal(np.mean(draws,axis=0),mean,decimal=2)
+
+	def testEllipticitiesTranslation(self):
+		# test w/ constants
+		dist = distributions.EllipticitiesTranslation(q_dist=0.1,phi_dist=0)
+		e1,e2 = dist()
+		self.assertAlmostEqual(e1,0.9/1.1)
+		self.assertAlmostEqual(e2,0)
+		# test w/ distributions
+		dist = distributions.EllipticitiesTranslation(q_dist=uniform(
+			loc=0.,scale=0.1).rvs,phi_dist=uniform(loc=0,scale=np.pi/4).rvs)
+		e1,e2 = dist()
+		print('e1: ', e1)
+		self.assertTrue(e1 >= 0)
+		self.assertTrue(e2 >= 0)
+			
+
+	def testKappaTransformDistribution(self):
+		# test w/ constants
+		dist = distributions.KappaTransformDistribution(n_dist=.2)
+		kappa = dist()
+		self.assertAlmostEqual(kappa,1 - 1/0.2)
+		# test w/ distributions
+		dist = distributions.KappaTransformDistribution(n_dist=
+			uniform(loc=0.8,scale=0.1).rvs)
+		kappa = dist()
+		self.assertTrue(kappa < 0)
+
+	def testDuplicateXY(self):
+		# test w/ constants
+		dist = distributions.DuplicateXY(x_dist=1,y_dist=2)
+		x1,y1,x2,y2 = dist()
+		self.assertTrue(x1==1 and x2==1 and y1==2 and y2==2)
+		# test w/ distributions
+		dist = distributions.DuplicateXY(x_dist=uniform(loc=1,scale=1).rvs,
+			y_dist=uniform(loc=-2,scale=1).rvs)
+		x1,y1,x2,y2 = dist()
+		self.assertTrue(x1>0 and x2>0 and y1<0 and y2<0)
+
+
+
