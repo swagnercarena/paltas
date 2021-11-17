@@ -256,6 +256,17 @@ class GenerateTests(unittest.TestCase):
 			self.assertTrue(meta_values[pfix+'x_image_3'] == np.nan)
 			self.assertTrue(meta_values[pfix+'y_image_2'] == np.nan)
 
+		# test using lens_equation_solver parameters in sample:
+		sample['lens_equation_solver_parameters'] = {
+			'min_distance':0.05
+		}
+		image_ps, meta_values = generate.draw_image(sample,None,None,
+				main_deflector_class,source_class,None,point_source_class,
+				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+				
+		# check that more light is added to the image
+		self.assertTrue(np.sum(image_ps) > np.sum(image))
+
 		# test time delay computation
 		sample['point_source_parameters']['compute_time_delays'] = True
 
@@ -278,7 +289,6 @@ class GenerateTests(unittest.TestCase):
 		# check that if num_images < 3, we get Nan for time delay 3
 		if(meta_values[pfix+'num_images'] < 4):
 			self.assertTrue(meta_values[pfix+'time_delay_3'] == np.nan)
-
 
 		# Cleanup
 		os.remove(cosmos_folder+'manada_catalog.npy')

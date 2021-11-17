@@ -10,7 +10,7 @@ import warnings
 # Definte the components we need the sampler to consider.
 # TODO: add point source & lens light
 lensing_components = ['subhalo','los','main_deflector','source','lens_light',
-	'point_source','cosmology','psf','detector','drizzle']
+	'point_source','lens_equation_solver','cosmology','psf','detector','drizzle']
 
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.

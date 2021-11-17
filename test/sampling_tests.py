@@ -222,12 +222,13 @@ class DistributionsTests(unittest.TestCase):
 		np.testing.assert_almost_equal(np.mean(draws,axis=0),mean,decimal=2)
 
 	def testEllipticitiesTranslation(self):
-		# test w/ constants
+		# test mapping w/ constants
 		dist = distributions.EllipticitiesTranslation(q_dist=0.1,phi_dist=0)
 		e1,e2 = dist()
 		self.assertAlmostEqual(e1,0.9/1.1)
 		self.assertAlmostEqual(e2,0)
-		# test w/ distributions
+		# test mapping w/ distributions
+		# cos(2phi) positive, sin(2phi) positive
 		dist = distributions.EllipticitiesTranslation(q_dist=uniform(
 			loc=0.,scale=0.1).rvs,phi_dist=uniform(loc=0,scale=np.pi/4).rvs)
 		e1,e2 = dist()
@@ -235,28 +236,51 @@ class DistributionsTests(unittest.TestCase):
 		self.assertTrue(e1 >= 0)
 		self.assertTrue(e2 >= 0)
 			
+	def testExternalShearTranslation(self):
+		# test mapping w/ constants
+		dist = distributions.ExternalShearTranslation(gamma_dist=1.5,
+			phi_dist=np.pi/12)
+		g1,g2 = dist()
+		self.assertAlmostEqual(g1,1.5*np.sqrt(3)/2)
+		self.assertAlmostEqual(g2,1.5*0.5)
+		# test mapping w/ distributions
+		g = uniform(loc=0, scale=0.5).rvs
+		# sin(2phi) positive, cos(2phi) negative
+		p = uniform(loc=np.pi/4,scale=np.pi/4).rvs
+		dist = distributions.ExternalShearTranslation(gamma_dist=g,phi_dist=p)
+		g1,g2 = dist()
+		self.assertTrue(np.abs(g1)< 1 and np.abs(g2) < 1)
+		self.assertTrue(g1 < 0 and g2 > 0)
 
 	def testKappaTransformDistribution(self):
-		# test w/ constants
+		# test mapping w/ constants
 		dist = distributions.KappaTransformDistribution(n_dist=.2)
 		kappa = dist()
 		self.assertAlmostEqual(kappa,1 - 1/0.2)
-		# test w/ distributions
+		# test mapping w/ distributions
 		dist = distributions.KappaTransformDistribution(n_dist=
 			uniform(loc=0.8,scale=0.1).rvs)
 		kappa = dist()
 		self.assertTrue(kappa < 0)
 
 	def testDuplicateXY(self):
-		# test w/ constants
+		# test mapping w/ constants
 		dist = distributions.DuplicateXY(x_dist=1,y_dist=2)
 		x1,y1,x2,y2 = dist()
 		self.assertTrue(x1==1 and x2==1 and y1==2 and y2==2)
-		# test w/ distributions
+		# test mapping w/ distributions
 		dist = distributions.DuplicateXY(x_dist=uniform(loc=1,scale=1).rvs,
 			y_dist=uniform(loc=-2,scale=1).rvs)
 		x1,y1,x2,y2 = dist()
 		self.assertTrue(x1>0 and x2>0 and y1<0 and y2<0)
 
-
-
+	def testRedshiftsTruncNorm(self):
+		# z_lens has min of 0.5
+		# z_source has min of 0, centered at 0.6
+		# check that z_source > 0.5 is enforced for multiple draws
+		dist = distributions.RedshiftsTruncNorm(
+			z_lens_min=10,z_lens_mean=1,z_lens_std=0.05,
+			z_source_min=1,z_source_mean=0.6,z_source_std=0.6)
+		for i in range(0,5):
+			z_lens,z_source = dist()
+			self.assertTrue(z_lens > 0.5 and z_source > 0.5)

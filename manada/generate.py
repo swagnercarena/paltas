@@ -200,8 +200,14 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	source_light_model = LightModel(source_model_list)
 
 	lens_light_model = LightModel(lens_light_model_list)
+
+	# point source may need lens eqn solver kwargs
+	lens_equation_params = None
+	if 'lens_equation_solver_parameters' in sample.keys() :
+		lens_equation_params = sample['lens_equation_solver_parameters']
 	point_source_model = PointSource(point_source_model_list,
-		lensModel=complete_lens_model, save_cache=True)
+		lensModel=complete_lens_model, save_cache=True, 
+		kwargs_lens_eqn_solver=lens_equation_params)
 
 	# Put it together into an image model
 	complete_image_model = ImageModel(data_api.data_class,psf_model,

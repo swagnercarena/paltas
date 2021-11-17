@@ -9,6 +9,7 @@ sampled from.
 import numpy as np
 from numpy.lib.financial import _npv_dispatcher
 from numpy.linalg.linalg import _qr_dispatcher
+from scipy.stats import truncnorm
 
 
 class MultivariateLogNormal():
@@ -148,7 +149,7 @@ class EllipticitiesTranslation():
 	def __call__(self):
 		"""
 		Returns
-			e1,e2: x-direction ellipticity eccentricity, xy-direction 
+			e1,e2: samples of x-direction ellipticity eccentricity, xy-direction 
 				ellipticity eccentricity
 		"""
 
@@ -165,6 +166,42 @@ class EllipticitiesTranslation():
 		e2 = (1 - q)/(1+q) * np.sin(2*phi)
 
 		return e1,e2
+
+class ExternalShearTranslation():
+	"""Class that maps samples of gamma_ext, phi_ext distributions to 
+		gamma1, gamma2
+	
+	Args: 
+		gamma_dist: distribution for external shear modulus (callable 
+			or constant) 
+		phi_dist: distribution for orientation angle in radians (callable 
+			or constant)
+	
+	Notes:
+	"""
+
+	def __init__(self, gamma_dist,phi_dist):
+		self.gamma_dist = gamma_dist
+		self.phi_dist = phi_dist
+	
+	def __call__(self):
+		"""
+		Returns:
+			gamma1,gamma2: samples of external shear coordinate values 
+		"""
+		if callable(self.gamma_dist):
+			gamma = self.gamma_dist()
+		else:
+			gamma = self.gamma_dist
+		if callable(self.phi_dist):
+			phi = self.phi_dist()
+		else:
+			phi = self.phi_dist
+		
+		gamma1 = gamma * np.cos(2*phi)
+		gamma2 = gamma * np.sin(2*phi)
+		
+		return gamma1,gamma2
 
 class KappaTransformDistribution():
 	"""Class that returns 1 / (1-Kext) ~ n where n is sampled from a 
@@ -219,3 +256,45 @@ class DuplicateXY():
 			y = self.y_dist
 		
 		return x,y,x,y
+
+class RedshiftsTruncNorm():
+	"""Class that samples z_lens and z_source from truncated normal 
+		distributions, forcing z_source > z_lens to be true
+
+	Args: 
+		z_lens_min: # of std deviations away to stop (see scipy.stats definition 
+			of minimum bound)
+		z_lens_mean:
+		z_lens_std:
+		z_source_min: # of std deviations away to stop (see scipy.stats 
+			definition of minimum bound)
+		z_source_mean:
+		z_source_std:
+
+	Notes:
+	"""
+
+	def __init__(self, z_lens_min,z_lens_mean,z_lens_std,z_source_min,
+		z_source_mean,z_source_std):
+		self.z_lens_dist = truncnorm(z_lens_min,np.inf,loc=z_lens_mean,
+			scale=z_lens_std).rvs
+		self.z_source_min = z_source_min
+		self.z_source_mean = z_source_mean
+		self.z_source_std = z_source_std
+	
+	def __call__(self):
+		"""
+		Returns: 
+			z_lens,z_source:
+		"""
+		z_lens = self.z_lens_dist()
+		clip = (z_lens - self.z_source_mean) / self.z_source_std
+		# number of std. devs away to stop 
+		if(self.z_source_min > clip):
+			self.z_source_min = clip
+		
+		z_source = truncnorm(self.z_source_min,np.inf,self.z_source_mean,
+			self.z_source_std).rvs()
+
+		return z_lens,z_source
+		

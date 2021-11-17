@@ -1,9 +1,9 @@
 # Configuration to reproduce H0RTON dataset
 
 import numpy as np
-from scipy.stats import norm, uniform
+from scipy.stats import norm, uniform, truncnorm
 import manada.Sampling.distributions as dist
-from manada.MainDeflector.simple_deflectors import PEMD
+from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Sources.sersic import SingleSersicSource
 from manada.PointSource.single_point_source import SinglePointSource
 from astropy.io import fits
@@ -12,7 +12,7 @@ import manada
 
 output_ab_zeropoint = 25.9463
 # Define the numerics kwargs.
-kwargs_numerics = {'supersampling_factor':2}
+kwargs_numerics = {'supersampling_factor':1}
 
 # The number of pixels in the CCD.
 numpix = 64
@@ -24,11 +24,12 @@ psf_path = root_path + '/datasets/hst_psf/psf_101.fits'
 psf_map = fits.getdata(psf_path)
 kernel_cut = kernel_util.cut_psf(psf_map, kernel_size)
 
+
 config_dict = {
 	'main_deflector':{
-		'class': PEMD,
+		'class': PEMDShear,
 		'parameters':{
-			'z_lens': norm(loc=0.5,scale=0.2).rvs,
+			'z_lens': truncnorm(2.5,np.inf,loc=0.5,scale=0.2).rvs,
 			'gamma': norm(loc=2.0,scale=0.1).rvs,
 			'theta_E': norm(loc=1.1,scale=0.1).rvs,
 			'e1,e2': dist.EllipticitiesTranslation(q_dist=
@@ -36,12 +37,17 @@ config_dict = {
                 phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None,
+			'gamma1,gamma2': dist.ExternalShearTranslation(gamma_dist=
+				uniform(loc=0.,scale=0.05).rvs, 
+				phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
+			'ra_0':0.0,
+			'dec_0':0.0,
 		}
 	},
 	'source':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':norm(loc=2.,scale=0.4).rvs,
+			'z_source':truncnorm(5,np.inf,loc=2.,scale=0.4).rvs,
             'magnitude':uniform(loc=20,scale=5).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':norm(loc=0.35,scale=0.05).rvs,
@@ -80,6 +86,14 @@ config_dict = {
                 norm(loc=1.,scale=0.025).rvs)
         }
 	},
+	'lens_equation_solver':{
+		'parameters':{
+			'min_distance':0.05,
+			'search_window':numpix*0.08,
+			'num_iter_max':100,
+			'precision_limit':10**(-10)
+		}
+	},
 	'cosmology':{
 		'parameters':{
 			'cosmology_name': 'planck18'
@@ -106,7 +120,10 @@ config_dict = {
             y_dist=norm(loc=0,scale=0.07).rvs),
             'source:center_x,source:center_y,point_source:x_point_source,point_source:y_point_source': 
             dist.DuplicateXY(x_dist=uniform(loc=-0.2,scale=0.4).rvs,
-            y_dist=uniform(loc=-0.2,scale=0.4).rvs)
+            y_dist=uniform(loc=-0.2,scale=0.4).rvs),
+			'main_deflector:z_lens,source:z_source':dist.RedshiftsTruncNorm(
+				z_lens_min=2.5,z_lens_mean=0.5,z_lens_std=0.2,
+				z_source_min=5,z_source_mean=2,z_source_std=0.4)
         }
     }
 }
