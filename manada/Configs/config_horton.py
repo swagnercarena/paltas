@@ -8,6 +8,7 @@ from manada.Sources.sersic import SingleSersicSource
 from manada.PointSource.single_point_source import SinglePointSource
 from astropy.io import fits
 from lenstronomy.Util import kernel_util
+import manada
 
 output_ab_zeropoint = 25.9463
 # Define the numerics kwargs.
@@ -18,7 +19,8 @@ numpix = 64
 
 # prepare psf (from baobab)
 kernel_size=91
-psf_path = '/Users/smericks/Desktop/StrongLensing/psf_101.fits'
+root_path = manada.__path__[0][:-7]
+psf_path = root_path + '/datasets/hst_psf/psf_101.fits'
 psf_map = fits.getdata(psf_path)
 kernel_cut = kernel_util.cut_psf(psf_map, kernel_size)
 
