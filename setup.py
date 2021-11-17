@@ -11,7 +11,7 @@ readme = open("README.rst").read()
 
 PACKAGE_PATH = os.path.abspath(os.path.join(__file__, os.pardir))
 
-required_packages = ['numpy>=1.13','lenstronomy>=1.6.0']
+required_packages = open('requirements.txt').read().splitlines()
 
 setup(
 	name='manada',
