@@ -29,11 +29,11 @@ config_dict = {
 	'main_deflector':{
 		'class': PEMDShear,
 		'parameters':{
-			'z_lens': truncnorm(2.5,np.inf,loc=0.5,scale=0.2).rvs,
+			'z_lens': truncnorm(-2.5,np.inf,loc=0.5,scale=0.2).rvs,
 			'gamma': norm(loc=2.0,scale=0.1).rvs,
 			'theta_E': norm(loc=1.1,scale=0.1).rvs,
 			'e1,e2': dist.EllipticitiesTranslation(q_dist=
-                norm(loc=0.7,scale=0.15).rvs,
+                truncnorm(-2.666,2.,loc=0.7,scale=0.15).rvs,
                 phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None,
@@ -47,13 +47,13 @@ config_dict = {
 	'source':{
 		'class': SingleSersicSource,
 		'parameters':{
-			'z_source':truncnorm(5,np.inf,loc=2.,scale=0.4).rvs,
+			'z_source':truncnorm(-5,np.inf,loc=2.,scale=0.4).rvs,
             'magnitude':uniform(loc=20,scale=5).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
-			'R_sersic':norm(loc=0.35,scale=0.05).rvs,
-			'n_sersic':norm(loc=3.,scale=0.5).rvs,
+			'R_sersic':truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
+			'n_sersic':truncnorm(-6.,np.inf,loc=3.,scale=0.5).rvs,
 			'e1,e2':dist.EllipticitiesTranslation(q_dist=
-                norm(loc=0.6,scale=0.15).rvs,
+                truncnorm(-3.,4.,loc=0.6,scale=0.15).rvs,
                 phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None}
@@ -65,10 +65,10 @@ config_dict = {
 			'z_source':None,
 			'magnitude':uniform(loc=19,scale=2).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
-			'R_sersic':norm(loc=0.8,scale=0.15).rvs,
-			'n_sersic':norm(loc=3,scale=0.55).rvs,
+			'R_sersic':truncnorm(-1.333,np.inf,loc=0.8,scale=0.15).rvs,
+			'n_sersic':truncnorm(-2.,np.inf,loc=3,scale=0.55).rvs,
 			'e1,e2':dist.EllipticitiesTranslation(q_dist=
-                norm(loc=0.85,scale=0.15).rvs,
+                truncnorm(-np.inf,1.,loc=0.85,scale=0.15).rvs,
                 phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None}
@@ -80,10 +80,12 @@ config_dict = {
 			'y_point_source':None,
 			'magnitude':uniform(loc=20,scale=2.5).rvs,
 			'output_ab_zeropoint':25.127,
-			'mag_pert':norm(1,0.2).rvs(size=5),
+			'mag_pert': dist.MultipleValues(dist=norm(1,0.2).rvs,num=5),
 			'compute_time_delays':True,
 			'kappa_ext': dist.KappaTransformDistribution(n_dist=
-                norm(loc=1.,scale=0.025).rvs)
+                norm(loc=1.,scale=0.025).rvs),
+			'time_delay_error': dist.MultipleValues(
+				dist=norm(loc=0.,scale=0.25).rvs, num=5)
         }
 	},
 	'lens_equation_solver':{
@@ -122,8 +124,8 @@ config_dict = {
             dist.DuplicateXY(x_dist=uniform(loc=-0.2,scale=0.4).rvs,
             y_dist=uniform(loc=-0.2,scale=0.4).rvs),
 			'main_deflector:z_lens,source:z_source':dist.RedshiftsTruncNorm(
-				z_lens_min=2.5,z_lens_mean=0.5,z_lens_std=0.2,
-				z_source_min=5,z_source_mean=2,z_source_std=0.4)
+				z_lens_min=-2.5,z_lens_mean=0.5,z_lens_std=0.2,
+				z_source_min=-5,z_source_mean=2,z_source_std=0.4)
         }
     }
 }

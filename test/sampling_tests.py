@@ -284,3 +284,13 @@ class DistributionsTests(unittest.TestCase):
 		for i in range(0,5):
 			z_lens,z_source = dist()
 			self.assertTrue(z_lens > 0.5 and z_source > 0.5)
+
+	def testMultipleValues(self):
+		# Test size of return
+		dist = distributions.MultipleValues(dist=norm(loc=1.0,scale=0.5).rvs,
+			num=5)
+		sample = dist()
+		self.assertTrue(len(sample) == 5)
+		# Test that returns are distinct
+		sample2 = dist()
+		self.assertFalse(np.array_equal(sample,sample2))

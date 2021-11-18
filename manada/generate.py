@@ -253,6 +253,12 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 				td = complete_lens_model.arrival_time(x_image[0],y_image[0],
 					complete_lens_model_kwargs,
 					sample['point_source_parameters']['kappa_ext'])
+				# apply errors if defined in config_dict
+				if 'time_delay_errors' in sample['point_source_parameters'].keys():
+					errors = sample['point_source_parameters'][
+						'time_delay_errors']
+					errors = errors[0:len(td)-1]
+					td = td + errors
 				td -= td[0]
 			else:
 				raise ValueError('must define kappa_ext in point_source ' +

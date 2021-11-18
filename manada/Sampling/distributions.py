@@ -290,11 +290,29 @@ class RedshiftsTruncNorm():
 		z_lens = self.z_lens_dist()
 		clip = (z_lens - self.z_source_mean) / self.z_source_std
 		# number of std. devs away to stop 
-		if(self.z_source_min > clip):
+		if(clip > self.z_source_min):
 			self.z_source_min = clip
 		
 		z_source = truncnorm(self.z_source_min,np.inf,self.z_source_mean,
 			self.z_source_std).rvs()
 
 		return z_lens,z_source
-		
+
+class MultipleValues():
+	"""Class to call dist.rvs(size=num)
+
+	Args:
+		dist: callable distribution from scipy.stats
+		num: number of samples to return in one call
+
+	Notes:
+	"""
+
+	def __init__(self, dist, num):
+		self.dist = dist
+		self.num = num
+	
+	def __call__(self):
+		"""Returns num samples from dist
+		"""
+		return self.dist(size=self.num)

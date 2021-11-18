@@ -30,6 +30,8 @@ class SinglePointSource(PointSourceBase):
 			kappa_ext (float): External convergence used to calculate time 
 				delays. If compute_time_delays = True, this parameter must be 
 				defined.
+			time_delay_error (float): error in days will be added to time delay
+				calculation (can be negative or positive error)
 
 	"""
 
