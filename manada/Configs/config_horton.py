@@ -10,7 +10,9 @@ from astropy.io import fits
 from lenstronomy.Util import kernel_util
 import manada
 
+# define constants used across the config
 output_ab_zeropoint = 25.9463
+
 # Define the numerics kwargs.
 kwargs_numerics = {'supersampling_factor':1}
 
@@ -24,6 +26,8 @@ psf_path = root_path + '/datasets/hst_psf/psf_101.fits'
 psf_map = fits.getdata(psf_path)
 kernel_cut = kernel_util.cut_psf(psf_map, kernel_size)
 
+# define general image kwargs
+mag_cut = 2.0
 
 config_dict = {
 	'main_deflector':{
@@ -31,7 +35,7 @@ config_dict = {
 		'parameters':{
 			'z_lens': truncnorm(-2.5,np.inf,loc=0.5,scale=0.2).rvs,
 			'gamma': norm(loc=2.0,scale=0.1).rvs,
-			'theta_E': norm(loc=1.1,scale=0.1).rvs,
+			'theta_E': truncnorm(-6.0,np.inf,loc=1.1,scale=0.1).rvs,
 			'e1,e2': dist.EllipticitiesTranslation(q_dist=
                 truncnorm(-2.666,2.,loc=0.7,scale=0.15).rvs,
                 phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
@@ -53,7 +57,7 @@ config_dict = {
 			'R_sersic':truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
 			'n_sersic':truncnorm(-6.,np.inf,loc=3.,scale=0.5).rvs,
 			'e1,e2':dist.EllipticitiesTranslation(q_dist=
-                truncnorm(-3.,4.,loc=0.6,scale=0.15).rvs,
+                truncnorm(-3.,4.,loc=0.6,scale=0.1).rvs,
                 phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None}
@@ -66,7 +70,7 @@ config_dict = {
 			'magnitude':uniform(loc=19,scale=2).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-1.333,np.inf,loc=0.8,scale=0.15).rvs,
-			'n_sersic':truncnorm(-2.,np.inf,loc=3,scale=0.55).rvs,
+			'n_sersic':truncnorm(-2.,np.inf,loc=3,scale=0.5).rvs,
 			'e1,e2':dist.EllipticitiesTranslation(q_dist=
                 truncnorm(-np.inf,1.,loc=0.85,scale=0.15).rvs,
                 phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
@@ -80,7 +84,7 @@ config_dict = {
 			'y_point_source':None,
 			'magnitude':uniform(loc=20,scale=2.5).rvs,
 			'output_ab_zeropoint':25.127,
-			'mag_pert': dist.MultipleValues(dist=norm(1,0.2).rvs,num=5),
+			'mag_pert': dist.MultipleValues(dist=norm(1,0.1).rvs,num=5),
 			'compute_time_delays':True,
 			'kappa_ext': dist.KappaTransformDistribution(n_dist=
                 norm(loc=1.,scale=0.025).rvs),
