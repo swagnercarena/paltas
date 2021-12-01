@@ -203,7 +203,7 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 
 	# point source may need lens eqn solver kwargs
 	lens_equation_params = None
-	if 'lens_equation_solver_parameters' in sample.keys() :
+	if 'lens_equation_solver_parameters' in sample.keys():
 		lens_equation_params = sample['lens_equation_solver_parameters']
 	point_source_model = PointSource(point_source_model_list,
 		lensModel=complete_lens_model, save_cache=True, 
@@ -230,7 +230,7 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	if add_noise:
 		image += single_band.noise_for_model(image)
 
-	# Calculate time delays & image positions, then add to meta_values
+	# Calculate time delays and image positions, then add to meta_values
 	if point_source_class is not None:
 		# Calculate image positions
 		x_image, y_image = point_source_model.image_position(
@@ -239,13 +239,14 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		pfix = 'point_source_parameters_'
 		meta_values[pfix+'num_images'] = num_images
 
-		# TODO: Calculate magnifications using complete_lens_model
+		# Calculate magnifications using complete_lens_model
 		magnifications = complete_lens_model.magnification(x_image[0],
 			y_image[0],complete_lens_model_kwargs)
-		# if mag_pert is defined, add that pertubation
+		# If mag_pert is defined, add that pertubation
 		if 'mag_pert' in sample['point_source_parameters'].keys():
-			magnifications = magnifications * sample['point_source_parameters'][
-				'mag_pert'][0:len(magnifications)]
+			magnifications = magnifications * (
+				sample['point_source_parameters']['mag_pert'][
+					0:len(magnifications)])
 
 		# Calculate time delays
 		if sample['point_source_parameters']['compute_time_delays']:
@@ -254,7 +255,8 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 					complete_lens_model_kwargs,
 					sample['point_source_parameters']['kappa_ext'])
 				# apply errors if defined in config_dict
-				if 'time_delay_errors' in sample['point_source_parameters'].keys():
+				if 'time_delay_errors' in (
+					sample['point_source_parameters'].keys()):
 					errors = sample['point_source_parameters'][
 						'time_delay_errors']
 					errors = errors[0:len(td)-1]

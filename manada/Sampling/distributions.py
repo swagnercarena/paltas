@@ -7,8 +7,6 @@ This module contains classes that define distributions that can be effecitvely
 sampled from.
 """
 import numpy as np
-from numpy.lib.financial import _npv_dispatcher
-from numpy.linalg.linalg import _qr_dispatcher
 from scipy.stats import truncnorm
 
 
@@ -129,9 +127,10 @@ class TruncatedMultivariateNormal():
 
 		return keep_draws
 
+
 class EllipticitiesTranslation():
 	"""Class that takes in distributions for q_lens and phi_lens, returns 
-		samples of e1 and e2 correspondingly
+	samples of e1 and e2 correspondingly
 	
 	Args: 
 		q_dist: distribution for axis ratio (can be callable or constant)
@@ -166,6 +165,7 @@ class EllipticitiesTranslation():
 		e2 = (1 - q)/(1+q) * np.sin(2*phi)
 
 		return e1,e2
+
 
 class ExternalShearTranslation():
 	"""Class that maps samples of gamma_ext, phi_ext distributions to 
@@ -203,6 +203,7 @@ class ExternalShearTranslation():
 		
 		return gamma1,gamma2
 
+
 class KappaTransformDistribution():
 	"""Class that returns 1 / (1-Kext) ~ n where n is sampled from a 
 		distribution given by n_dist
@@ -224,6 +225,7 @@ class KappaTransformDistribution():
 			n = self.n_dist
 		
 		return 1 - (1/n)
+
 
 class DuplicateXY():
 	"""Class that returns two copies of x, y coordinates drawn from 
@@ -256,6 +258,7 @@ class DuplicateXY():
 			y = self.y_dist
 		
 		return x,y,x,y
+
 
 class RedshiftsTruncNorm():
 	"""Class that samples z_lens and z_source from truncated normal 
@@ -297,6 +300,7 @@ class RedshiftsTruncNorm():
 			self.z_source_std).rvs()
 
 		return z_lens,z_source
+
 
 class MultipleValues():
 	"""Class to call dist.rvs(size=num)

@@ -155,7 +155,6 @@ class CosmologyTests(unittest.TestCase):
 			places=2)
 
 
-
 class HubbleUtilsTests(unittest.TestCase):
 
 	def test_offset_wcs(self):

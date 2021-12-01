@@ -23,7 +23,6 @@ class SinglePointSource(PointSourceBase):
 			mag_zeropoint (float): absolute magnitude zeropoint of detector
 			compute_time_delays (bool): will add time delays to metadata if 
 				True. Must define kappa_ext (see below) if True.
-			 
 		Optional parameters: 
 			mag_pert (list of floats): List of fractional magnification 
 				pertubations that will be applied to each image.

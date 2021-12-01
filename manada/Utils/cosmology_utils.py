@@ -54,6 +54,7 @@ def kpc_per_arcsecond(z,cosmo):
 		h * 1e3)
 	return kpc_per_arcsecond
 
+
 def ddt(sample,cosmo):
 	"""Calculates time delay distance given lens redshift, source redshift, and
 	cosmology.
@@ -71,7 +72,7 @@ def ddt(sample,cosmo):
 	z_source = sample['source_parameters']['z_source']
 	D_d = cosmo.angularDiameterDistance(z_lens)
 	D_s = cosmo.angularDiameterDistance(z_source)
-	D_ds =  ( 1/ (1+z_source) ) * cosmo.comovingDistance(z_min=z_lens,
+	D_ds =  (1/ (1+z_source)) * cosmo.comovingDistance(z_min=z_lens,
 		z_max=z_source)
 	# convert from Mpc/h to Mpc 
 	return (1+z_lens) * D_d * D_s / (D_ds*cosmo.h)

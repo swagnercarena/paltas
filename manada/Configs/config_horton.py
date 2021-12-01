@@ -29,6 +29,8 @@ kernel_cut = kernel_util.cut_psf(psf_map, kernel_size)
 # define general image kwargs
 mag_cut = 2.0
 
+# Note that some parameters in the config dict are set to None
+# because they will be sampled by the cross_object dict.
 config_dict = {
 	'main_deflector':{
 		'class': PEMDShear,
@@ -36,13 +38,13 @@ config_dict = {
 			'z_lens': truncnorm(-2.5,np.inf,loc=0.5,scale=0.2).rvs,
 			'gamma': norm(loc=2.0,scale=0.1).rvs,
 			'theta_E': truncnorm(-6.0,np.inf,loc=1.1,scale=0.1).rvs,
-			'e1,e2': dist.EllipticitiesTranslation(q_dist=
-                truncnorm(-2.666,2.,loc=0.7,scale=0.15).rvs,
-                phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
+			'e1,e2': dist.EllipticitiesTranslation(
+				q_dist=truncnorm(-2.666,2.,loc=0.7,scale=0.15).rvs,
+				phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None,
-			'gamma1,gamma2': dist.ExternalShearTranslation(gamma_dist=
-				uniform(loc=0.,scale=0.05).rvs, 
+			'gamma1,gamma2': dist.ExternalShearTranslation(
+				gamma_dist=uniform(loc=0.,scale=0.05).rvs,
 				phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'ra_0':0.0,
 			'dec_0':0.0,
@@ -52,16 +54,16 @@ config_dict = {
 		'class': SingleSersicSource,
 		'parameters':{
 			'z_source':truncnorm(-5,np.inf,loc=2.,scale=0.4).rvs,
-            'magnitude':uniform(loc=20,scale=5).rvs,
+			'magnitude':uniform(loc=20,scale=5).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-2,2,loc=0.35,scale=0.05).rvs,
 			'n_sersic':truncnorm(-6.,np.inf,loc=3.,scale=0.5).rvs,
-			'e1,e2':dist.EllipticitiesTranslation(q_dist=
-                truncnorm(-3.,4.,loc=0.6,scale=0.1).rvs,
-                phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
+			'e1,e2':dist.EllipticitiesTranslation(
+				q_dist=truncnorm(-3.,4.,loc=0.6,scale=0.1).rvs,
+				phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None}
-			
+
 	},
 	'lens_light':{
 		'class': SingleSersicSource,
@@ -71,9 +73,9 @@ config_dict = {
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-1.333,np.inf,loc=0.8,scale=0.15).rvs,
 			'n_sersic':truncnorm(-2.,np.inf,loc=3,scale=0.5).rvs,
-			'e1,e2':dist.EllipticitiesTranslation(q_dist=
-                truncnorm(-np.inf,1.,loc=0.85,scale=0.15).rvs,
-                phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
+			'e1,e2':dist.EllipticitiesTranslation(
+				q_dist=truncnorm(-np.inf,1.,loc=0.85,scale=0.15).rvs,
+				phi_dist=uniform(loc=-np.pi/2,scale=np.pi).rvs),
 			'center_x':None,
 			'center_y':None}
 	},
@@ -86,11 +88,11 @@ config_dict = {
 			'output_ab_zeropoint':25.127,
 			'mag_pert': dist.MultipleValues(dist=norm(1,0.1).rvs,num=5),
 			'compute_time_delays':True,
-			'kappa_ext': dist.KappaTransformDistribution(n_dist=
-                norm(loc=1.,scale=0.025).rvs),
+			'kappa_ext': dist.KappaTransformDistribution(
+				n_dist=norm(loc=1.,scale=0.025).rvs),
 			'time_delay_error': dist.MultipleValues(
 				dist=norm(loc=0.,scale=0.25).rvs, num=5)
-        }
+		}
 	},
 	'lens_equation_solver':{
 		'parameters':{
@@ -119,17 +121,19 @@ config_dict = {
 			'num_exposures':1,'background_noise':None
 		}
 	},
-    'cross_object':{
-        'parameters':{
-            'main_deflector:center_x,main_deflector:center_y,lens_light:center_x,lens_light:center_y': 
-            dist.DuplicateXY(x_dist=norm(loc=0,scale=0.07).rvs,
-            y_dist=norm(loc=0,scale=0.07).rvs),
-            'source:center_x,source:center_y,point_source:x_point_source,point_source:y_point_source': 
-            dist.DuplicateXY(x_dist=uniform(loc=-0.2,scale=0.4).rvs,
-            y_dist=uniform(loc=-0.2,scale=0.4).rvs),
+	'cross_object':{
+		'parameters':{
+			('main_deflector:center_x,main_deflector:center_y,lens_light:'+
+				'center_x,lens_light:center_y'):
+			dist.DuplicateXY(x_dist=norm(loc=0,scale=0.07).rvs,
+			y_dist=norm(loc=0,scale=0.07).rvs),
+			('source:center_x,source:center_y,point_source:x_point_source,'+
+				'point_source:y_point_source'):
+			dist.DuplicateXY(x_dist=uniform(loc=-0.2,scale=0.4).rvs,
+			y_dist=uniform(loc=-0.2,scale=0.4).rvs),
 			'main_deflector:z_lens,source:z_source':dist.RedshiftsTruncNorm(
 				z_lens_min=-2.5,z_lens_mean=0.5,z_lens_std=0.2,
 				z_source_min=-5,z_source_mean=2,z_source_std=0.4)
-        }
-    }
+		}
+	}
 }

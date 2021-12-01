@@ -232,7 +232,6 @@ class DistributionsTests(unittest.TestCase):
 		dist = distributions.EllipticitiesTranslation(q_dist=uniform(
 			loc=0.,scale=0.1).rvs,phi_dist=uniform(loc=0,scale=np.pi/4).rvs)
 		e1,e2 = dist()
-		print('e1: ', e1)
 		self.assertTrue(e1 >= 0)
 		self.assertTrue(e2 >= 0)
 			
@@ -258,8 +257,8 @@ class DistributionsTests(unittest.TestCase):
 		kappa = dist()
 		self.assertAlmostEqual(kappa,1 - 1/0.2)
 		# test mapping w/ distributions
-		dist = distributions.KappaTransformDistribution(n_dist=
-			uniform(loc=0.8,scale=0.1).rvs)
+		dist = distributions.KappaTransformDistribution(n_dist=uniform(
+			loc=0.8,scale=0.1).rvs)
 		kappa = dist()
 		self.assertTrue(kappa < 0)
 
