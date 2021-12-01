@@ -22,7 +22,7 @@ class GalaxyCatalog(SourceBase):
 			needed to draw sources (in this case random_rotation).
 	"""
 	required_parameters = ('random_rotation','output_ab_zeropoint',
-		'z_source')
+		'z_source','center_x','center_y')
 	# This parameter must be set by class inheriting GalaxyCatalog
 	ab_zeropoint = None
 
@@ -167,7 +167,8 @@ class GalaxyCatalog(SourceBase):
 			['INTERPOL'],
 			[dict(
 				image=img,
-				center_x=0, center_y=0,
+				center_x=self.source_parameters['center_x'],
+				center_y=self.source_parameters['center_y'],
 				phi_G=phi,
 				scale=pixel_width)])
 

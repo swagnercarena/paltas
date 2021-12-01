@@ -83,7 +83,8 @@ class GalaxyCatalogTests(SourceBaseTests):
 	def setUp(self):
 		self.c = GalaxyCatalog(cosmology_parameters='planck18',
 			source_parameters={'random_rotation':False,
-				'output_ab_zeropoint':None,'z_source':1.5})
+				'output_ab_zeropoint':None,'z_source':1.5,
+				'center_x':0.0,'center_y':0.0})
 		self.cosmo = get_cosmology('planck18')
 
 	def test__len__(self):
@@ -175,6 +176,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
 			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
 			'random_rotation':False, 'min_flux_radius':None,
+			'center_x':0.0,'center_y':0.0,
 			'output_ab_zeropoint':25.95, 'z_source':1.5
 		}
 		self.c = COSMOSCatalog(cosmology_parameters='planck18',
@@ -413,6 +415,27 @@ class COSMOSCatalogTests(SourceBaseTests):
 		l_image = image_model.image(kwargs_lens=lens_kwargs,
 			kwargs_source=source_kwargs)
 		np.testing.assert_almost_equal(l_image,image)
+
+		# Finally test that the images move as expected
+		self.source_parameters['z_source'] = metadata['z']
+		self.source_parameters['center_x'] = metadata['pixel_width']
+		self.source_parameters['center_y'] = metadata['pixel_width']
+		self.c.update_parameters(source_parameters=self.source_parameters)
+		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
+
+		# Test that if we pass these kwargs into a lenstronomy
+		# Interpolation class we get the shifted image.
+		light_model = LightModel(lm_list)
+		image_model = ImageModel(
+			data_class=ImageData(**data_configure_simple(numPix=n_pixels,
+				deltaPix=metadata['pixel_width'])),
+			psf_class=PSF(psf_type='GAUSSIAN',
+				fwhm=0.1 * metadata['pixel_width']),
+			lens_model_class=lens_model,source_model_class=light_model)
+		source_kwargs = [self.c.draw_source(catalog_i=catalog_i)[1][0]]
+		l_image = image_model.image(kwargs_lens=lens_kwargs,
+			kwargs_source=source_kwargs)
+		np.testing.assert_almost_equal(l_image[1:,1:],image[:-1,:-1])
 
 
 class COSMOSSercicCatalogTests(COSMOSCatalogTests):

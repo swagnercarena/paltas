@@ -87,6 +87,8 @@ config_dict = {
 			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
 			'smoothing_sigma':0.00,'random_rotation':True,
 			'output_ab_zeropoint':output_ab_zeropoint,
+			'center_x':norm(loc=0.0,scale=0.16).rvs,
+			'center_y':norm(loc=0.0,scale=0.16).rvs,
 			'min_flux_radius':10.0,'source_exclusion_list':np.append(
 				pd.read_csv(
 					os.path.join(root_path,'manada/Sources/bad_galaxies.csv'),
