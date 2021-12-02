@@ -111,7 +111,7 @@ def main():
 	random_rotation = config_module.random_rotation
 
 	# Set the random seed for our network
-	tf.random.set_seed(random_seed)
+	# tf.random.set_seed(random_seed)
 
 	# Check for tf records for train and validation and prepare them
 	# if needed
