@@ -272,17 +272,19 @@ class DistributionsTests(unittest.TestCase):
 			y_dist=uniform(loc=-2,scale=1).rvs)
 		x1,y1,x2,y2 = dist()
 		self.assertTrue(x1>0 and x2>0 and y1<0 and y2<0)
+		self.assertTrue(x1==x2 and y1==y2)
 
 	def testRedshiftsTruncNorm(self):
 		# z_lens has min of 0.5
 		# z_source has min of 0, centered at 0.6
 		# check that z_source > 0.5 is enforced for multiple draws
 		dist = distributions.RedshiftsTruncNorm(
-			z_lens_min=10,z_lens_mean=1,z_lens_std=0.05,
-			z_source_min=1,z_source_mean=0.6,z_source_std=0.6)
+			z_lens_min=0.5,z_lens_mean=1,z_lens_std=0.05,
+			z_source_min=0,z_source_mean=0.6,z_source_std=0.6)
 		for i in range(0,5):
 			z_lens,z_source = dist()
 			self.assertTrue(z_lens > 0.5 and z_source > 0.5)
+			self.assertTrue(z_source > z_lens)
 
 	def testMultipleValues(self):
 		# Test size of return

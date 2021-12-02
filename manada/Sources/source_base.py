@@ -20,7 +20,7 @@ class SourceBase:
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
-		source_parameters: dictionary with source-specific parameters
+		source_parameters (dict): dictionary with source-specific parameters
 	"""
 
 	required_parameters = tuple()

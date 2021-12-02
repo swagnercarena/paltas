@@ -28,7 +28,24 @@ class COSMOSSersic(COSMOSCatalog):
 		'e1_sersic', 'e2_sersic', 'center_x_sersic', 'center_y_sersic')
 
 	def draw_source(self, catalog_i=None, phi=None):
+		"""Creates lenstronomy kwargs for a COSMOS catalog image and a 
+			Sersic source
 
+		Args:
+			catalog_i (int): Index of image in catalog
+			phi (float): Rotation to apply to the image.
+				If not provided, use random or original rotation
+				depending on source_parameters['random_rotation']
+
+		Returns:
+			(list,list) A list containing the models ['INTERPOL',
+				'SERSIC_ELLIPSE'] and a list of two kwarg dicts for the 
+				instances of the lenstronomy classes
+
+		Notes:
+			If catalog_i is not provided, one that meets the cuts will be
+			selected at random.
+		"""
 		model_list, kwargs_list = COSMOSCatalog.draw_source(self, catalog_i, phi)
 		# look up difference between append & extend
 		model_list.append('SERSIC_ELLIPSE')

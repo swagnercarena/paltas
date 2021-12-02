@@ -13,7 +13,8 @@ class SinglePointSource(PointSourceBase):
 	"""Class to generate single point source model
 
 	Args:
-		point_source_parameters: dictionary with source-specific parameters.
+		point_source_parameters (dict): dictionary with source-specific 
+			parameters.
 
 	Notes:
 		Required parameters: 

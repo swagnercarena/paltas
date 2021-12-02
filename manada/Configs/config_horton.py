@@ -132,8 +132,8 @@ config_dict = {
 			dist.DuplicateXY(x_dist=uniform(loc=-0.2,scale=0.4).rvs,
 			y_dist=uniform(loc=-0.2,scale=0.4).rvs),
 			'main_deflector:z_lens,source:z_source':dist.RedshiftsTruncNorm(
-				z_lens_min=-2.5,z_lens_mean=0.5,z_lens_std=0.2,
-				z_source_min=-5,z_source_mean=2,z_source_std=0.4)
+				z_lens_min=0,z_lens_mean=0.5,z_lens_std=0.2,
+				z_source_min=0,z_source_mean=2,z_source_std=0.4)
 		}
 	}
 }

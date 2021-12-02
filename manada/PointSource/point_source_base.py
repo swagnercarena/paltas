@@ -14,7 +14,8 @@ class PointSourceBase:
 	Base class for producing lenstronomy PointSource arguments
 
 	Args:
-		point_source_parameters: dictionary with source-specific parameters
+		point_source_parameters (dict): dictionary with source-specific 
+			parameters.
 
 	Notes:
 		Has no required parameters by default.

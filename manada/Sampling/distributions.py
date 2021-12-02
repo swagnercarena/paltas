@@ -133,23 +133,24 @@ class EllipticitiesTranslation():
 	samples of e1 and e2 correspondingly
 	
 	Args: 
-		q_dist: distribution for axis ratio (can be callable or constant)
-		phi_dist: distribution for orientation angle in radians (can be 
-			callable or constant)
+		q_dist (scipy.stats.rv_continuous.rvs or float): distribution for 
+			axis ratio (can be callable or constant)
+		phi_dist (scipy.stats.rv_continuous.rvs or float): distribution for 
+			orientation angle in radians (can be callable or constant)
 
 	Notes: 
 
 	"""
 	def __init__(self,q_dist,phi_dist):
-		
 		self.q_dist = q_dist
 		self.phi_dist = phi_dist
 
 	def __call__(self):
-		"""
-		Returns
-			e1,e2: samples of x-direction ellipticity eccentricity, xy-direction 
-				ellipticity eccentricity
+		"""Returns a sample of e1,e2 
+
+		Returns:
+			(float,float): samples of x-direction ellipticity 
+				eccentricity, xy-direction ellipticity eccentricity
 		"""
 
 		if callable(self.q_dist):
@@ -172,10 +173,10 @@ class ExternalShearTranslation():
 		gamma1, gamma2
 	
 	Args: 
-		gamma_dist: distribution for external shear modulus (callable 
-			or constant) 
-		phi_dist: distribution for orientation angle in radians (callable 
-			or constant)
+		gamma_dist (scipy.stats.rv_continuous.rvs or float): distribution for 
+			external shear modulus (callable or constant) 
+		phi_dist (scipy.stats.rv_continuous.rvs or float): distribution for 
+			orientation angle in radians (callable or constant)
 	
 	Notes:
 	"""
@@ -185,9 +186,10 @@ class ExternalShearTranslation():
 		self.phi_dist = phi_dist
 	
 	def __call__(self):
-		"""
+		"""Returns gamma1, gamma2 samples
+
 		Returns:
-			gamma1,gamma2: samples of external shear coordinate values 
+			(float,float): samples of external shear coordinate values 
 		"""
 		if callable(self.gamma_dist):
 			gamma = self.gamma_dist()
@@ -205,11 +207,13 @@ class ExternalShearTranslation():
 
 
 class KappaTransformDistribution():
-	"""Class that returns 1 / (1-Kext) ~ n where n is sampled from a 
-		distribution given by n_dist
+	"""Class that samples Kext given 1 / (1-Kext) ~ n. n is sampled from a 
+		distribution given by n_dist, then Kext is computed given the 
+		transformation
 	
 	Args: 
-		n_dist: distribution for 1 / (1-Kext) (can be callable or constant)
+		n_dist (scipy.stats.rv_continuous.rvs or float): distribution for 
+			1 / (1-Kext) (can be callable or constant)
 
 	Notes:
 	"""
@@ -218,7 +222,11 @@ class KappaTransformDistribution():
 		self.n_dist = n_dist
 
 	def __call__(self):
-		
+		"""Samples 1/(1-Kext), then maps that sample to Kext value
+
+		Returns: 
+			(float): Kext sample
+		"""
 		if callable(self.n_dist):
 			n = self.n_dist()
 		else:
@@ -232,8 +240,10 @@ class DuplicateXY():
 		distributions
 
 	Args: 
-		x_dist: distribution for x (can be callable or constant)
-		y_dist: distribution for y (can be callable or constant)
+		x_dist (scipy.stats.rv_continuous.rvs or float): distribution for x 
+			(can be callable or constant)
+		y_dist (scipy.stats.rv_continuous.rvs or float): distribution for y 
+			(can be callable or constant)
 	
 	Notes:
 	"""
@@ -243,9 +253,11 @@ class DuplicateXY():
 		self.y_dist = y_dist
 	
 	def __call__(self):
-		"""
+		"""Returns two copies of x,y sample
+
 		Returns
-			x, y, x, y: Two copies of x,y sampled from x_dist and y_dist
+			x, y, x, y (float,float,float,float): Two copies of x,y sampled from 
+				x_dist and y_dist
 		"""
 
 		if callable(self.x_dist):
@@ -265,37 +277,40 @@ class RedshiftsTruncNorm():
 		distributions, forcing z_source > z_lens to be true
 
 	Args: 
-		z_lens_min: # of std deviations away to stop (see scipy.stats definition 
-			of minimum bound)
-		z_lens_mean:
-		z_lens_std:
-		z_source_min: # of std deviations away to stop (see scipy.stats 
-			definition of minimum bound)
-		z_source_mean:
-		z_source_std:
+		z_lens_min (float): minimum allowed lens redshift
+		z_lens_mean (float): lens redshift mean
+		z_lens_std (float): lens redshift standard deviation
+		z_source_min (float): minimum allowed source redshift
+		z_source_mean (float): source redshift mean
+		z_source_std (float): source redshift standard deviation
 
 	Notes:
 	"""
 
 	def __init__(self, z_lens_min,z_lens_mean,z_lens_std,z_source_min,
 		z_source_mean,z_source_std):
-		self.z_lens_dist = truncnorm(z_lens_min,np.inf,loc=z_lens_mean,
+		# transform z_lens_min, z_source_min to be in units of std. deviations
+		self.z_lens_min = (z_lens_min - z_lens_mean) / z_lens_std 
+		self.z_source_min = (z_source_min - z_source_mean) / z_source_std
+		# define truncnorm dist for lens redshift
+		self.z_lens_dist = truncnorm(self.z_lens_min,np.inf,loc=z_lens_mean,
 			scale=z_lens_std).rvs
-		self.z_source_min = z_source_min
+		# save z_source info
 		self.z_source_mean = z_source_mean
 		self.z_source_std = z_source_std
 	
 	def __call__(self):
-		"""
+		"""Returns samples of redshifts, ensuring z_source > z_lens
+
 		Returns: 
-			z_lens,z_source:
+			(float,float): z_lens,z_source 
 		"""
 		z_lens = self.z_lens_dist()
 		clip = (z_lens - self.z_source_mean) / self.z_source_std
-		# number of std. devs away to stop 
+		# number of std. devs away to stop (negative)
 		if(clip > self.z_source_min):
 			self.z_source_min = clip
-		
+		# define truncnorm dist for source redshift
 		z_source = truncnorm(self.z_source_min,np.inf,self.z_source_mean,
 			self.z_source_std).rvs()
 
@@ -306,8 +321,8 @@ class MultipleValues():
 	"""Class to call dist.rvs(size=num)
 
 	Args:
-		dist: callable distribution from scipy.stats
-		num: number of samples to return in one call
+		dist (scipy.stats.rv_continuous.rvs): callable distribution
+		num (int): number of samples to return in one call
 
 	Notes:
 	"""
@@ -317,6 +332,9 @@ class MultipleValues():
 		self.num = num
 	
 	def __call__(self):
-		"""Returns num samples from dist
+		"""Returns specified # of samples from dist
+		
+		Returns: 
+			list(float): |num| samples from dist
 		"""
 		return self.dist(size=self.num)
