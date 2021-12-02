@@ -223,8 +223,8 @@ def main():
 			update_freq='batch')
 		callbacks.append(tensorboard)
 	# Save the model weights as long as the validation loss is decreasing
-	modelcheckpoint = ModelCheckpoint(model_weights,monitor='val_loss',
-		save_best_only=True,save_freq='epoch')
+	# modelcheckpoint = ModelCheckpoint(model_weights,monitor='val_loss',
+	# 	save_best_only=True,save_freq='epoch')
 	callbacks.append(modelcheckpoint)
 
 	# TODO add validation data.
