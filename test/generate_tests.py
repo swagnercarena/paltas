@@ -5,6 +5,8 @@ import sys, glob, copy, os
 from manada import generate
 from scipy.signal import fftconvolve
 from manada.Sources.cosmos import COSMOSIncludeCatalog
+from manada.Sources.sersic import SingleSersicSource
+from manada.PointSource.single_point_source import SinglePointSource
 from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Utils import hubble_utils
 import manada
@@ -78,8 +80,8 @@ class GenerateTests(unittest.TestCase):
 
 		# Draw our image. This should just be the source itself
 		image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None, None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		# Check that the image is just the source
 		np.testing.assert_almost_equal(image,orig_image)
@@ -89,8 +91,9 @@ class GenerateTests(unittest.TestCase):
 		sample['psf_parameters']['fwhm'] = 10
 		apply_psf = False
 		image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise,apply_psf=apply_psf)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise,
+			apply_psf=apply_psf)
 		np.testing.assert_almost_equal(image,orig_image)
 		sample['psf_parameters']['fwhm'] =  0.1*orig_meta['pixel_width']
 
@@ -98,8 +101,8 @@ class GenerateTests(unittest.TestCase):
 		# goes through
 		source_parameters['random_rotation'] = True
 		image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_array_less(np.ones(image.shape)*1e-10,
 			np.abs(image-orig_image))
 
@@ -107,8 +110,8 @@ class GenerateTests(unittest.TestCase):
 		source_parameters['random_rotation'] = False
 		add_noise = True
 		image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_array_less(np.ones(image.shape)*1e-10,
 			np.abs(image-orig_image))
 
@@ -116,8 +119,8 @@ class GenerateTests(unittest.TestCase):
 		add_noise=False
 		mag_cut = 1.2
 		image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		self.assertTrue(image is None)
 		self.assertTrue(meta_values is None)
 
@@ -134,8 +137,8 @@ class GenerateTests(unittest.TestCase):
 		# are actually being updated in the draw_image call.
 		main_deflector_parameters['theta_E'] = 1.0
 		image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		# Check for magnification and check most light is not in
 		# center of image
@@ -165,7 +168,7 @@ class GenerateTests(unittest.TestCase):
 		sample['los_parameters'] = None
 		multi_plane = True
 		los_image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,None,source_class,numpix,multi_plane,
+			subhalo_class,None,source_class,None,None,numpix,multi_plane,
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,los_image)
 
@@ -188,9 +191,103 @@ class GenerateTests(unittest.TestCase):
 		sample['subhalo_parameters'] = None
 		multi_plane = True
 		sub_image, meta_values = generate.draw_image(sample,los_class,
-			subhalo_class,None,source_class,numpix,multi_plane,
+			subhalo_class,None,source_class,None,None,numpix,multi_plane,
 			kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,sub_image)
+
+		# Add lens light & validate output
+		# Generate image w/ deflector & w/out lens light
+		sample['psf_parameters'] = {'psf_type':'GAUSSIAN',
+				'fwhm': 0.1*orig_meta['pixel_width']}
+		mag_cut=None
+		image, meta_values = generate.draw_image(sample,None,None,
+			main_deflector_class,source_class,None,None,numpix,multi_plane,
+			kwargs_numerics,mag_cut,add_noise)
+		# Generate image w/ deflector & lens light
+		sample['lens_light_parameters'] = {'z_source':0.5,
+			'magnitude':20,
+			'output_ab_zeropoint':25.95,
+			'R_sersic':1.,
+			'n_sersic':1.2,
+			'e1':0.,
+			'e2':0.,
+			'center_x':0.0,
+			'center_y':0.0}
+		lens_light_class = SingleSersicSource(cosmology_parameters='planck18',
+			source_parameters=sample['lens_light_parameters'])
+		lens_light_image, meta_values = generate.draw_image(sample,None,None,
+			main_deflector_class,source_class,lens_light_class,
+			None,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		# Assert sum of center w/ lens light > sum of center orig_image
+		self.assertTrue(np.sum(lens_light_image[90:110,90:110]) >
+			np.sum(image[90:110,90:110]))
+
+		# Add point source & validate output
+		sample['point_source_parameters'] = {
+			'x_point_source':0.001,
+			'y_point_source':0.001,
+			'magnitude':22,
+			'output_ab_zeropoint':25.95,
+			'compute_time_delays':False}
+		point_source_class = SinglePointSource(
+			sample['point_source_parameters'])
+		image_ps, meta_values = generate.draw_image(sample,None,None,
+				main_deflector_class,source_class,None,point_source_class,
+				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		
+		# Check that more light is added to the image
+		self.assertTrue(np.sum(image_ps) > np.sum(image))
+
+		# Check that image positions are written to metadata
+		pfix = 'point_source_parameters_'
+		self.assertTrue(pfix+'num_images' in meta_values.keys())
+		self.assertTrue(pfix+'x_image_0' in meta_values.keys())
+		self.assertTrue(pfix+'y_image_1' in meta_values.keys())
+		self.assertTrue(pfix+'x_image_3' in meta_values.keys())
+		self.assertTrue(pfix+'y_image_3' in meta_values.keys())
+
+		# Check that image magnifications are written to metadata
+		self.assertTrue(pfix+'magnification_0' in meta_values.keys()) 
+		self.assertTrue(pfix+'magnification_3' in meta_values.keys())
+
+		# Check that if num_images < 3, we get Nan for image 2 & image 3
+		if(meta_values[pfix+'num_images'] < 3):
+			self.assertTrue(meta_values[pfix+'x_image_3'] == np.nan)
+			self.assertTrue(meta_values[pfix+'y_image_2'] == np.nan)
+
+		# Test using lens_equation_solver parameters in sample:
+		sample['lens_equation_solver_parameters'] = {
+			'min_distance':0.05
+		}
+		image_ps, meta_values = generate.draw_image(sample,None,None,
+				main_deflector_class,source_class,None,point_source_class,
+				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+				
+		# Check that more light is added to the image
+		self.assertTrue(np.sum(image_ps) > np.sum(image))
+
+		# Test time delay computation
+		sample['point_source_parameters']['compute_time_delays'] = True
+
+		# Check that if kappa_ext is not defined, we get a ValueError
+		with self.assertRaises(ValueError):
+			image, meta_values = generate.draw_image(sample,None,None,
+				main_deflector_class,source_class,None,point_source_class,
+				numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+
+		# Check that correct metadata is written
+		sample['point_source_parameters']['kappa_ext'] = 0.01
+		image, meta_values = generate.draw_image(sample,None,None,
+			main_deflector_class,source_class,None,point_source_class,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
+		self.assertTrue(pfix+'x_image_0' in meta_values.keys())
+		self.assertTrue(pfix+'time_delay_0' in meta_values.keys())
+		self.assertTrue(pfix+'time_delay_3' in meta_values.keys())
+		self.assertTrue(pfix+'ddt' in meta_values.keys())
+
+		# Check that if num_images < 3, we get Nan for time delay 3
+		if(meta_values[pfix+'num_images'] < 4):
+			self.assertTrue(meta_values[pfix+'time_delay_3'] == np.nan)
 
 		# Cleanup
 		os.remove(cosmos_folder+'manada_catalog.npy')
@@ -249,11 +346,11 @@ class GenerateTests(unittest.TestCase):
 
 		# Draw our image. This should just be the source itself
 		image, meta_values = generate.draw_drizzled_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		# Check that the image is just the source
-		np.testing.assert_almost_equal(image,orig_image*4)
+		np.testing.assert_almost_equal(image,orig_image)
 
 		# Make the offset pattern more realistic and change the pixel widths
 		sample['drizzle_parameters']['offset_pattern'] = [(0,0),(0.5,0),
@@ -267,8 +364,8 @@ class GenerateTests(unittest.TestCase):
 		add_noise=False
 		mag_cut = 1.2
 		image, meta_values = generate.draw_drizzled_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		self.assertTrue(image is None)
 		self.assertTrue(meta_values is None)
 
@@ -282,8 +379,8 @@ class GenerateTests(unittest.TestCase):
 		main_deflector_class = PEMDShear(cosmology_parameters='planck18',
 			main_deflector_parameters=main_deflector_parameters)
 		image, meta_values = generate.draw_drizzled_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		# Check for magnification and check most light is not in
 		# center of image
@@ -314,8 +411,8 @@ class GenerateTests(unittest.TestCase):
 		sample['los_parameters'] = None
 		multi_plane = True
 		los_image, meta_values = generate.draw_drizzled_image(sample,
-			los_class,subhalo_class,None,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			los_class,subhalo_class,None,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		np.testing.assert_almost_equal(image,los_image)
 
 		# Check that setting the noise flag returns a noisy image
@@ -324,8 +421,8 @@ class GenerateTests(unittest.TestCase):
 		kwargs_numerics = {'supersampling_factor':1,
 			'point_source_supersampling_factor':1}
 		los_image_noise, meta_values = generate.draw_drizzled_image(sample,
-			los_class,subhalo_class,None,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			los_class,subhalo_class,None,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		self.assertGreater(np.std(los_image_noise-image),1e-3)
 
@@ -380,8 +477,8 @@ class GenerateTests(unittest.TestCase):
 		# Draw our image. This should just be the lensed source without
 		# noise and without a psf. This will be our supersamled image.
 		image, meta_values = generate.draw_drizzled_image(sample,los_class,
-			subhalo_class,main_deflector_class,source_class,numpix,multi_plane,
-			kwargs_numerics,mag_cut,add_noise)
+			subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		image_degrade = hubble_utils.degrade_image(image,2)
 
 		# Now generate a pixel level psf that isn't supersampled.
@@ -399,8 +496,8 @@ class GenerateTests(unittest.TestCase):
 		sample['detector_parameters']['pixel_scale'] = sim_pixel_width*2
 		sample['drizzle_parameters']['output_pixel_scale'] = sim_pixel_width*2
 		image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-			los_class,subhalo_class,main_deflector_class,source_class,numpix,
-			multi_plane,kwargs_numerics,mag_cut,add_noise)
+			los_class,subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 
 		# Compare to the scipy image
 		scipy_image = fftconvolve(image_degrade,psf_pixel,mode='same')
@@ -412,8 +509,8 @@ class GenerateTests(unittest.TestCase):
 		sample['psf_parameters']['point_source_supersampling_factor'] = 2
 		sample['drizzle_parameters']['psf_supersample_factor'] = 2
 		image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-			los_class,subhalo_class,main_deflector_class,source_class,numpix,
-			multi_plane,kwargs_numerics,mag_cut,add_noise)
+			los_class,subhalo_class,main_deflector_class,source_class,None,None,
+			numpix,multi_plane,kwargs_numerics,mag_cut,add_noise)
 		scipy_image = hubble_utils.degrade_image(
 			fftconvolve(image,psf_pixel,mode='same'),2)
 		np.testing.assert_almost_equal(scipy_image,image_degrade_psf,
@@ -428,18 +525,20 @@ class GenerateTests(unittest.TestCase):
 		with self.assertRaises(ValueError):
 			sample['psf_parameters'] = {'psf_type':'PIXEL',
 				'kernel_point_source': psf_pixel}
-			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-				los_class,subhalo_class,main_deflector_class,source_class,numpix,
-				multi_plane,kwargs_numerics,mag_cut,add_noise)
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(
+				sample,los_class,subhalo_class,main_deflector_class,
+				source_class,None,None,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 
 		# Next an error if it doesn't equal the psf_supersample_factor
 		with self.assertRaises(ValueError):
 			sample['psf_parameters'] = {'psf_type':'PIXEL',
 				'kernel_point_source': psf_pixel,
 				'point_source_supersampling_factor':1}
-			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-				los_class,subhalo_class,main_deflector_class,source_class,numpix,
-				multi_plane,kwargs_numerics,mag_cut,add_noise)
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(
+				sample,los_class,subhalo_class,main_deflector_class,
+				source_class,None,None,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 
 		# Next an error if the psf_supersample_factor is larger than the scaling
 		# provided by the drizzle parameters.
@@ -448,9 +547,10 @@ class GenerateTests(unittest.TestCase):
 			sample['psf_parameters'] = {'psf_type':'PIXEL',
 				'kernel_point_source': psf_pixel,
 				'point_source_supersampling_factor':4}
-			image_degrade_psf, meta_values = generate.draw_drizzled_image(sample,
-				los_class,subhalo_class,main_deflector_class,source_class,numpix,
-				multi_plane,kwargs_numerics,mag_cut,add_noise)
+			image_degrade_psf, meta_values = generate.draw_drizzled_image(
+				sample,los_class,subhalo_class,main_deflector_class,
+				source_class,None,None,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 
 		# Cleanup
 		os.remove(cosmos_folder+'manada_catalog.npy')

@@ -13,13 +13,12 @@ To run this script, pass in the desired config as argument::
 The parameters will be pulled from config.py and the images will be saved in
 save_folder. If save_folder doesn't exist it will be created.
 """
-# TODO: Variable noise
 import numpy as np
 import argparse, os, sys, warnings, copy
 import shutil
 from importlib import import_module
 from manada.Sampling.sampler import Sampler
-from manada.Utils.cosmology_utils import get_cosmology
+from manada.Utils.cosmology_utils import get_cosmology, ddt
 from manada.Utils.hubble_utils import hubblify
 from manada.Utils.lenstronomy_utils import PSFHelper
 from manada.Sources.galaxy_catalog import GalaxyCatalog
@@ -28,6 +27,7 @@ from tqdm import tqdm
 import pandas as pd
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
+from lenstronomy.PointSource.point_source import PointSource
 from lenstronomy.ImSim.image_model import ImageModel
 from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.Data.psf import PSF
@@ -64,8 +64,8 @@ def parse_args():
 
 
 def draw_image(sample,los_class,subhalo_class,main_deflector_class,
-	source_class,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise,
-	apply_psf=True):
+	source_class,lens_light_class,point_source_class,numpix,multi_plane,
+	kwargs_numerics,mag_cut,add_noise,apply_psf=True):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system
 
@@ -82,6 +82,12 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_class (manada.Sources.SourceBase): An instance of the
 			SourceBase class that will be used to draw the source
 			image.
+		lens_light_class (manada.Sources.SourceBase): An instance of the 
+			SourceBase class that will be used to draw the lens light. If
+			None, no lens light will be added.
+		point_source_class (manada.PointSource.PointSourceBase): An instance of
+			the PointSourceBase class will be used to draw a point source for
+			the image. If None, no point source will be added.
 		numpix (int): The number of pixels in the generated image
 		multi_plane (bool): If true the multiplane approximation will
 			be used. Must be true for los.
@@ -112,6 +118,10 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	complete_lens_model_list = []
 	complete_lens_model_kwargs = []
 	complete_z_list = []
+	lens_light_model_list = []
+	lens_light_kwargs_list = []
+	point_source_model_list = []
+	point_source_kwargs_list = []
 
 	# Get the remaining observation kwargs from the sampler and
 	# initialize our observational objects.
@@ -156,6 +166,16 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		complete_lens_model_list += main_model_list
 		complete_lens_model_kwargs += main_kwargs_list
 		complete_z_list += main_z_list
+	if lens_light_class is not None:
+		lens_light_class.update_parameters(
+			cosmology_parameters=sample['cosmology_parameters'],
+			source_parameters=sample['lens_light_parameters'])
+		lens_light_model_list, lens_light_kwargs_list = (
+			lens_light_class.draw_source())
+	if point_source_class is not None:
+		point_source_class.update_parameters(sample['point_source_parameters'])
+		point_source_model_list,point_source_kwargs_list = (
+			point_source_class.draw_point_source())
 
 	complete_lens_model = LensModel(complete_lens_model_list, z_lens,
 		z_source,complete_z_list, cosmo=cosmo.toAstropy(),
@@ -178,19 +198,30 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 		source_model_list, source_kwargs_list = source_class.draw_source()
 	source_light_model = LightModel(source_model_list)
 
+	lens_light_model = LightModel(lens_light_model_list)
+
+	# point source may need lens eqn solver kwargs
+	lens_equation_params = None
+	if 'lens_equation_solver_parameters' in sample.keys():
+		lens_equation_params = sample['lens_equation_solver_parameters']
+	point_source_model = PointSource(point_source_model_list,
+		lensModel=complete_lens_model, save_cache=True, 
+		kwargs_lens_eqn_solver=lens_equation_params)
+
 	# Put it together into an image model
-	complete_image_model = ImageModel(data_api.data_class, psf_model,
-		complete_lens_model, source_light_model, None, None,
-		kwargs_numerics=kwargs_numerics)
+	complete_image_model = ImageModel(data_api.data_class,psf_model,
+		complete_lens_model,source_light_model,lens_light_model,
+		point_source_model,kwargs_numerics=kwargs_numerics)
 
 	# Generate our image
 	image = complete_image_model.image(complete_lens_model_kwargs,
-		source_kwargs_list, None, None)
+		source_kwargs_list, lens_light_kwargs_list, point_source_kwargs_list)
 
 	# Check for magnification cut and apply
 	if mag_cut is not None:
-		mag = np.sum(image)/source_light_model.total_flux(
-			source_kwargs_list)
+		# Sum in case there's more than one source_light_model
+		mag = np.sum(image)/np.sum(source_light_model.total_flux(
+			source_kwargs_list))
 		if mag < mag_cut:
 			return None,None
 
@@ -198,11 +229,67 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 	if add_noise:
 		image += single_band.noise_for_model(image)
 
+	# Calculate time delays and image positions, then add to meta_values
+	if point_source_class is not None:
+		# Calculate image positions
+		x_image, y_image = point_source_model.image_position(
+			point_source_kwargs_list,complete_lens_model_kwargs)
+		num_images = len(x_image[0])
+		pfix = 'point_source_parameters_'
+		meta_values[pfix+'num_images'] = num_images
+
+		# Calculate magnifications using complete_lens_model
+		magnifications = complete_lens_model.magnification(x_image[0],
+			y_image[0],complete_lens_model_kwargs)
+		# If mag_pert is defined, add that pertubation
+		if 'mag_pert' in sample['point_source_parameters'].keys():
+			magnifications = magnifications * (
+				sample['point_source_parameters']['mag_pert'][
+					0:len(magnifications)])
+
+		# Calculate time delays
+		if sample['point_source_parameters']['compute_time_delays']:
+			if 'kappa_ext' in sample['point_source_parameters'].keys():
+				td = complete_lens_model.arrival_time(x_image[0],y_image[0],
+					complete_lens_model_kwargs,
+					sample['point_source_parameters']['kappa_ext'])
+				# apply errors if defined in config_dict
+				if 'time_delay_errors' in (
+					sample['point_source_parameters'].keys()):
+					errors = sample['point_source_parameters'][
+						'time_delay_errors']
+					errors = errors[0:len(td)-1]
+					td = td + errors
+				td -= td[0]
+			else:
+				raise ValueError('must define kappa_ext in point_source ' +
+					'parameters to compute time delays')
+
+			# TODO: calculate time delay distance
+			meta_values[pfix+'ddt'] = ddt(sample,source_class.cosmo)
+
+		for i in range(0,4):
+			if i < num_images:
+				meta_values[pfix+'x_image_'+str(i)] = x_image[0][i]
+				meta_values[pfix+'y_image_'+str(i)] = y_image[0][i]
+				meta_values[pfix+'magnification_'+str(i)] = magnifications[i]
+			else:
+				meta_values[pfix+'x_image_'+str(i)] = np.nan
+				meta_values[pfix+'y_image_'+str(i)] = np.nan
+				meta_values[pfix+'magnification_'+str(i)] = np.nan
+				
+			if sample['point_source_parameters']['compute_time_delays']:
+				if i < len(td):
+					meta_values[pfix+'time_delay_' + str(i)] = td[i]
+				else:
+					meta_values[pfix+'time_delay_' + str(i)] = np.nan
+
 	return image,meta_values
 
 
 def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
-	source_class,numpix,multi_plane,kwargs_numerics,mag_cut,add_noise):
+	source_class,lens_light_class,point_source_class,numpix,multi_plane,
+	kwargs_numerics,mag_cut,add_noise):
 	""" Takes a sample from Sampler.sample toghether with the lenstronomy
 	models and draws an image of the strong lensing system with a
 	simulated drizzling pipeline applied.
@@ -217,9 +304,14 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 		main_deflector_class (manada.MainDeflector.MainDeflectorBase): An
 			instance of the main deflector class. If None no main deflector
 			will be added.
-		source_class (manada.Sources.SourceBase): An instance of the
-			SourceBase class that will be used to draw the source
-			image.
+		lens_light_class (manada.Sources.SourceBase): An instance of the
+			SourceBase class that will be used to draw the lens light. If
+			None, no lens light will be added.
+		lens_light_class (manada.Sources.SourceBase): An instance of the
+			SourceBase class that will be used to draw the lens light
+		point_source_class (manada.PointSource.PointSourceBase): An instance of
+			the PointSourceBase class will be used to draw a point source for
+			the image. If None, no point source will be added.
 		numpix (int): The number of pixels in the generated image
 		multi_plane (bool): If true the multiplane approximation will
 			be used. Must be true for los.
@@ -276,8 +368,8 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 	# Use the normal generation class to make our highres image without
 	# noise.
 	image_ss, meta_values = draw_image(sample,los_class,subhalo_class,
-		main_deflector_class,source_class,numpix_ss,multi_plane,kwargs_numerics,
-		mag_cut,False,apply_psf=False)
+		main_deflector_class,source_class,lens_light_class,point_source_class, 
+		numpix_ss,multi_plane,kwargs_numerics, mag_cut,False,apply_psf=False)
 	sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 
 	# Deal with an image that does not pass a cut.
@@ -293,9 +385,9 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 		psf_supersample_factor = 1
 
 	if psf_supersample_factor > ss_scaling:
-		raise ValueError(f'psf_supersample_factor {psf_supersample_factor} larger'
-			+ f' than the supersampling {ss_scaling} defined in the drizzle '
-			+'parameters.')
+		raise ValueError(f'psf_supersample_factor {psf_supersample_factor} '
+			+ f'larger than the supersampling {ss_scaling} defined in the '
+			+'drizzle parameters.')
 
 	# Make sure that if the user provided a PIXEL psf that the user specified
 	# the same supersampling factor as for the drizzle_parameters
@@ -385,6 +477,8 @@ def main():
 	los_class = None
 	subhalo_class = None
 	main_deflector_class = None
+	lens_light_class = None
+	point_source_class = None
 	do_drizzle = False
 	if 'los' in config_dict:
 		los_class = config_dict['los']['class'](sample['los_parameters'],
@@ -400,6 +494,12 @@ def main():
 			sample['main_deflector_parameters'],sample['cosmology_parameters'])
 	if 'drizzle' in config_dict:
 		do_drizzle = True
+	if 'lens_light' in config_dict:
+		lens_light_class = config_dict['lens_light']['class'](
+			sample['cosmology_parameters'], sample['lens_light_parameters'])
+	if 'point_source' in config_dict:
+		point_source_class = config_dict['point_source']['class'](
+			sample['point_source_parameters'])
 
 	source_class = config_dict['source']['class'](
 		sample['cosmology_parameters'],sample['source_parameters'])
@@ -436,12 +536,14 @@ def main():
 		# provided.
 		if do_drizzle:
 			image,meta_values = draw_drizzled_image(sample,los_class,
-				subhalo_class,main_deflector_class,source_class,numpix,
-				multi_plane,kwargs_numerics,mag_cut,add_noise)
+				subhalo_class,main_deflector_class,source_class,lens_light_class,
+				point_source_class,numpix,multi_plane,kwargs_numerics,
+				mag_cut,add_noise)
 		else:
 			image,meta_values = draw_image(sample,los_class,subhalo_class,
-				main_deflector_class,source_class,numpix,multi_plane,
-				kwargs_numerics,mag_cut,add_noise)
+				main_deflector_class,source_class,lens_light_class,
+				point_source_class,numpix,multi_plane,kwargs_numerics,mag_cut,
+				add_noise)
 
 		# Failed attempt if there is no image output
 		if image is None:
@@ -483,6 +585,7 @@ def main():
 			metadata.to_csv(metadata_path, index=None)
 			metadata = pd.DataFrame()
 		elif nt%20 == 0:
+			metadata = metadata.reindex(sorted(metadata.columns), axis=1)
 			metadata.to_csv(metadata_path, index=None, mode='a',
 				header=None)
 			metadata = pd.DataFrame()
@@ -491,6 +594,7 @@ def main():
 		pbar.update()
 
 	# Make sure anything left in the metadata DataFrame is written out
+	metadata = metadata.reindex(sorted(metadata.columns), axis=1)
 	metadata.to_csv(metadata_path, index=None, mode='a',header=None)
 	pbar.close()
 	print('Dataset generation complete. Acceptance rate: %.3f'%(args.n/tries))
