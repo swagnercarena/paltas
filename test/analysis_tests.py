@@ -970,6 +970,16 @@ class ConvModelsTests(unittest.TestCase):
 		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs)
 		image = np.ones((1,170,170,1))
 		self.assertEqual(np.sum(np.isnan(model.predict(image))),0)
+		del model
+
+		# Check that freezing the head works
+		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs,
+			train_only_head=False)
+		self.assertGreater(len(model.trainable_weights),2)
+		del model
+		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs,
+			train_only_head=True)
+		self.assertEqual(len(model.trainable_weights),2)
 
 
 class PosteriorFunctionsTests(unittest.TestCase):
