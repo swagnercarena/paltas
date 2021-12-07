@@ -135,6 +135,24 @@ class CosmologyTests(unittest.TestCase):
 		dd *= 1/h * u.Mpc.to(u.kpc)/u.radian.to(u.arcsecond)
 		np.testing.assert_almost_equal(cosmology_utils.kpc_per_arcsecond(
 			z_test,cosmo),dd,decimal=4)
+	
+	def test_ddt(self):
+		# Check that calculation agrees with lenstronomy version
+		cosmo = cosmology_utils.get_cosmology('planck18')
+		z_lens = 0.5
+		z_source = 1.5
+		from lenstronomy.Cosmo.lens_cosmo import LensCosmo
+		lc = LensCosmo(z_lens, z_source, cosmo.toAstropy())
+		sample = {
+			'main_deflector_parameters':{
+				'z_lens':z_lens
+			},
+			'source_parameters':{
+				'z_source':z_source
+			}
+		}
+		self.assertAlmostEqual(lc.ddt, cosmology_utils.ddt(sample,cosmo),
+			places=2)
 
 
 class HubbleUtilsTests(unittest.TestCase):

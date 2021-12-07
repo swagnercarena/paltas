@@ -191,8 +191,8 @@ class DiagonalCovarianceLoss(BaseLoss):
 				the components of the loss function.
 		"""
 		# Get both the mle value and the standard deviation.
-		y_pred, std_pred = tf.split(output,num_or_size_splits=2,axis=-1)
-		return y_pred, std_pred
+		y_pred, log_var_pred = tf.split(output,num_or_size_splits=2,axis=-1)
+		return y_pred, log_var_pred
 
 	def draw_samples(self,output,n_samps):
 		"""	Draw samples from the predicted posterior defined by the networks

@@ -3,6 +3,7 @@ import unittest
 from manada.Sampling.sampler import Sampler
 from manada.Sampling import distributions
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
+from scipy.stats import truncnorm
 import warnings
 
 
@@ -81,6 +82,25 @@ class SamplerTests(unittest.TestCase):
 					'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)]
 				}
 			},
+			'point_source':{
+				'class': None,
+				'parameters':{
+					'x_point_source':0.01,'y_point_source':0.01,'magnitude':24.8,
+					'output_ab_zeropoint':25.127
+				}
+			},
+			'lens_light':{
+				'class': None,
+				'parameters':{
+					'z_source':1.5,
+					'amp':truncnorm(-20.0/2.0,np.inf,loc=20.0,scale=2).rvs,
+					'R_sersic':truncnorm(-1.0/0.2,np.inf,loc=1.0,scale=0.2).rvs,
+					'n_sersic':truncnorm(-1.2/0.2,np.inf,loc=1.2,scale=0.2).rvs,
+					'e1':norm(loc=0.0,scale=0.1).rvs,
+					'e2':norm(loc=0.0,scale=0.1).rvs,
+					'center_x':0.0,'center_y':0.0
+				}
+			},
 			'cross_object':{
 				'parameters':{
 					'los:delta_los,subhalo:sigma_sub':tmn
@@ -124,7 +144,8 @@ class SamplerTests(unittest.TestCase):
 			# First check that all the expected dicts are in the object
 			expected_dicts = ['subhalo_parameters','los_parameters',
 				'main_deflector_parameters','source_parameters',
-				'cosmology_parameters','drizzle_parameters']
+				'cosmology_parameters','drizzle_parameters',
+				'lens_light_parameters','point_source_parameters']
 			for dict_name in expected_dicts:
 				self.assertTrue(dict_name in sample)
 
@@ -199,3 +220,78 @@ class DistributionsTests(unittest.TestCase):
 		self.assertTrue(np.prod(draws[:,0]<max_values[0]))
 		self.assertTrue(np.prod(draws[:,1]<max_values[1]))
 		np.testing.assert_almost_equal(np.mean(draws,axis=0),mean,decimal=2)
+
+	def testEllipticitiesTranslation(self):
+		# test mapping w/ constants
+		dist = distributions.EllipticitiesTranslation(q_dist=0.1,phi_dist=0)
+		e1,e2 = dist()
+		self.assertAlmostEqual(e1,0.9/1.1)
+		self.assertAlmostEqual(e2,0)
+		# test mapping w/ distributions
+		# cos(2phi) positive, sin(2phi) positive
+		dist = distributions.EllipticitiesTranslation(q_dist=uniform(
+			loc=0.,scale=0.1).rvs,phi_dist=uniform(loc=0,scale=np.pi/4).rvs)
+		e1,e2 = dist()
+		self.assertTrue(e1 >= 0)
+		self.assertTrue(e2 >= 0)
+			
+	def testExternalShearTranslation(self):
+		# test mapping w/ constants
+		dist = distributions.ExternalShearTranslation(gamma_dist=1.5,
+			phi_dist=np.pi/12)
+		g1,g2 = dist()
+		self.assertAlmostEqual(g1,1.5*np.sqrt(3)/2)
+		self.assertAlmostEqual(g2,1.5*0.5)
+		# test mapping w/ distributions
+		g = uniform(loc=0, scale=0.5).rvs
+		# sin(2phi) positive, cos(2phi) negative
+		p = uniform(loc=np.pi/4,scale=np.pi/4).rvs
+		dist = distributions.ExternalShearTranslation(gamma_dist=g,phi_dist=p)
+		g1,g2 = dist()
+		self.assertTrue(np.abs(g1)< 1 and np.abs(g2) < 1)
+		self.assertTrue(g1 < 0 and g2 > 0)
+
+	def testKappaTransformDistribution(self):
+		# test mapping w/ constants
+		dist = distributions.KappaTransformDistribution(n_dist=.2)
+		kappa = dist()
+		self.assertAlmostEqual(kappa,1 - 1/0.2)
+		# test mapping w/ distributions
+		dist = distributions.KappaTransformDistribution(n_dist=uniform(
+			loc=0.8,scale=0.1).rvs)
+		kappa = dist()
+		self.assertTrue(kappa < 0)
+
+	def testDuplicateXY(self):
+		# test mapping w/ constants
+		dist = distributions.DuplicateXY(x_dist=1,y_dist=2)
+		x1,y1,x2,y2 = dist()
+		self.assertTrue(x1==1 and x2==1 and y1==2 and y2==2)
+		# test mapping w/ distributions
+		dist = distributions.DuplicateXY(x_dist=uniform(loc=1,scale=1).rvs,
+			y_dist=uniform(loc=-2,scale=1).rvs)
+		x1,y1,x2,y2 = dist()
+		self.assertTrue(x1>0 and x2>0 and y1<0 and y2<0)
+		self.assertTrue(x1==x2 and y1==y2)
+
+	def testRedshiftsTruncNorm(self):
+		# z_lens has min of 0.5
+		# z_source has min of 0, centered at 0.6
+		# check that z_source > 0.5 is enforced for multiple draws
+		dist = distributions.RedshiftsTruncNorm(
+			z_lens_min=0.5,z_lens_mean=1,z_lens_std=0.05,
+			z_source_min=0,z_source_mean=0.6,z_source_std=0.6)
+		for i in range(0,5):
+			z_lens,z_source = dist()
+			self.assertTrue(z_lens > 0.5 and z_source > 0.5)
+			self.assertTrue(z_source > z_lens)
+
+	def testMultipleValues(self):
+		# Test size of return
+		dist = distributions.MultipleValues(dist=norm(loc=1.0,scale=0.5).rvs,
+			num=5)
+		sample = dist()
+		self.assertTrue(len(sample) == 5)
+		# Test that returns are distinct
+		sample2 = dist()
+		self.assertFalse(np.array_equal(sample,sample2))
