@@ -453,7 +453,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 
 		# Test that if we pass these kwargs into a lenstronomy
 		# Interpolation class we get the shifted image.
-		light_model = LightModel(lm_list)
+		light_model = LightModel([lm_list[0]])
 		image_model = ImageModel(
 			data_class=ImageData(**data_configure_simple(numPix=n_pixels,
 				deltaPix=metadata['pixel_width'])),
@@ -474,6 +474,7 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
 			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
 			'random_rotation':False, 'min_flux_radius':None,
+			'center_x':0.0,'center_y':0.0,
 			'output_ab_zeropoint':25.95, 'z_source':1.5,
 			'mag_sersic':50, 'R_sersic':0.5, 'n_sersic':2, 
 			'e1_sersic':0, 'e2_sersic':0, 'center_x_sersic':0,
