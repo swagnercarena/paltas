@@ -23,7 +23,6 @@ from manada.Utils.cosmology_utils import get_cosmology
 from manada.Utils.hubble_utils import hubblify
 from manada.Utils.lenstronomy_utils import PSFHelper
 from manada.Sources.galaxy_catalog import GalaxyCatalog
-from manada.Analysis import dataset_generation
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
@@ -499,6 +498,9 @@ def main():
 	# Generate tf record if requested. Save all the parameters and use default
 	# filename ddata.tfrecord
 	if args.tf_record:
+		# Delayed import, triggers tensorflow import
+		from manada.Analysis import dataset_generation
+
 		# The path to save the TFRecord to.
 		tf_record_path = os.path.join(args.save_folder,'data.tfrecord')
 		# Generate the list of learning parameters. Only save learning
