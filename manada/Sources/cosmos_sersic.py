@@ -29,7 +29,7 @@ class COSMOSSersic(COSMOSCatalog):
 
 	def draw_source(self, catalog_i=None, phi=None):
 		"""Creates lenstronomy kwargs for a COSMOS catalog image and a 
-			Sersic source
+		Sersic source
 
 		Args:
 			catalog_i (int): Index of image in catalog

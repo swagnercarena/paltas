@@ -208,14 +208,12 @@ class ExternalShearTranslation():
 
 class KappaTransformDistribution():
 	"""Class that samples Kext given 1 / (1-Kext) ~ n. n is sampled from a 
-		distribution given by n_dist, then Kext is computed given the 
-		transformation
+	distribution given by n_dist, then Kext is computed given the
+	transformation
 	
 	Args: 
 		n_dist (scipy.stats.rv_continuous.rvs or float): distribution for 
 			1 / (1-Kext) (can be callable or constant)
-
-	Notes:
 	"""
 
 	def __init__(self,n_dist):
@@ -256,8 +254,8 @@ class DuplicateXY():
 		"""Returns two copies of x,y sample
 
 		Returns
-			x, y, x, y (float,float,float,float): Two copies of x,y sampled from 
-				x_dist and y_dist
+			(float,float,float,float): Two copies of x,y sampled from x_dist
+				and y_dist
 		"""
 
 		if callable(self.x_dist):
@@ -283,8 +281,6 @@ class RedshiftsTruncNorm():
 		z_source_min (float): minimum allowed source redshift
 		z_source_mean (float): source redshift mean
 		z_source_std (float): source redshift standard deviation
-
-	Notes:
 	"""
 
 	def __init__(self, z_lens_min,z_lens_mean,z_lens_std,z_source_min,
@@ -323,8 +319,6 @@ class MultipleValues():
 	Args:
 		dist (scipy.stats.rv_continuous.rvs): callable distribution
 		num (int): number of samples to return in one call
-
-	Notes:
 	"""
 
 	def __init__(self, dist, num):
