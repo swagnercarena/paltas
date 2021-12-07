@@ -73,6 +73,11 @@ def main():
 		weight_terms = config_module.weight_terms
 	else:
 		weight_terms = None
+	# Whether to train the full model or only the head
+	if hasattr(config_module,'train_only_head'):
+		train_only_head = config_module.train_only_head
+	else:
+		train_only_head = False
 	# A list to the paths of the fodlers containing the npy images
 	# for training
 	npy_folders_train = config_module.npy_folders_train
@@ -189,7 +194,8 @@ def main():
 	if model_type == 'resnet50':
 		model = conv_models.build_resnet_50(img_size,num_outputs)
 	elif model_type == 'xresnet34':
-		model = conv_models.build_xresnet34(img_size,num_outputs)
+		model = conv_models.build_xresnet34(img_size,num_outputs,
+			train_only_head=train_only_head)
 	elif model_type =='alexnet':
 		model = conv_models.build_alexnet(img_size,num_outputs)
 	else:
