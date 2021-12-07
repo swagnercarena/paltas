@@ -220,7 +220,7 @@ def main():
 		model.load_weights(model_weights_init)
 		print('Loaded weights %s'%(model_weights_init))
 	except:
-		print('No weights found. Saving new weights to %s'%(model_weights_init))
+		print('No weights found. Saving new weights to %s'%(model_weights))
 
 	# Set up the callbacks for our training
 	callbacks = []
