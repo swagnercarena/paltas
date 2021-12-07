@@ -110,7 +110,8 @@ config_dict = {
 	'psf':{
 		'parameters':{
 			'psf_type':'PIXEL',
-			'kernel_point_source':kernel_cut
+			'kernel_point_source':kernel_cut,
+			'point_source_supersampling_factor':2
 		}
 	},
 	'detector':{
@@ -119,6 +120,14 @@ config_dict = {
 			'magnitude_zero_point':output_ab_zeropoint,
 			'exposure_time':5400.,'sky_brightness':22.,
 			'num_exposures':1,'background_noise':None
+		}
+	},
+	'drizzle':{
+		'parameters':{
+			'supersample_pixel_scale':0.040,'output_pixel_scale':0.060,
+			'wcs_distortion':None,
+			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)],
+			'psf_supersample_factor':2
 		}
 	},
 	'cross_object':{
