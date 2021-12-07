@@ -53,6 +53,7 @@ optimizer = 'Adam'
 # Where to save the model weights
 model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
 	'xresnet34_full_as_pm.h5')
+model_weights_init = model_weights
 # The learning rate for the model
 learning_rate = 5e-6
 # Whether or not to use random rotation of the input images

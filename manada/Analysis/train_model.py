@@ -108,7 +108,8 @@ def main():
 	model_type = config_module.model_type
 	# A string specifying which optimizer to use
 	optimizer_string = config_module.optimizer
-	# Where to save the model weights
+	# Where to save the model weights and where to load the initial weights
+	model_weights_init = config_module.model_weights_init
 	model_weights = config_module.model_weights
 	# The learning rate for the model
 	learning_rate = config_module.learning_rate
@@ -216,10 +217,10 @@ def main():
 	print('Is model built: ' + str(model.built))
 
 	try:
-		model.load_weights(model_weights)
-		print('Loaded weights %s'%(model_weights))
+		model.load_weights(model_weights_init)
+		print('Loaded weights %s'%(model_weights_init))
 	except:
-		print('No weights found. Saving new weights to %s'%(model_weights))
+		print('No weights found. Saving new weights to %s'%(model_weights_init))
 
 	# Set up the callbacks for our training
 	callbacks = []
