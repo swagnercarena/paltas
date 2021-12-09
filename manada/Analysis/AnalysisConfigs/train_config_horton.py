@@ -44,14 +44,14 @@ kwargs_detector = None
 # Whether or not to normalize the images by the standard deviation
 norm_images = True
 # A string with which loss function to use.
-loss_function = 'full'
+loss_function = 'diag'
 # A string specifying which model to use
 model_type = 'xresnet34'
 # A string specifying which optimizer to use
 optimizer = 'Adam'
 # Where to save the model weights
-model_weights = ('/scratch/users/sydney3/manada/model_weights/' +
-	'xresnet34_full_log.h5')
+model_weights = ('/scratch/users/sydney3/manada/model_weights/' + 
+	'xresnet34_diag_{epoch:02d}-{val_loss:.2f}.h5')
 model_weights_init = model_weights
 # The learning rate for the model
 learning_rate = 5e-3
