@@ -297,11 +297,11 @@ class DatasetGenerationTests(unittest.TestCase):
 			'main_deflector_parameters_center_y']
 
 		# Generate a bunch of draws from this base covariance matrix
-		cov_mat_gen = np.array([[2.0,0.3],[0.3,1.1]])
+		cov_mat_gen = np.array([[2.0,0.3,0.0],[0.3,1.1,0.0],[0.0,0.0,1.0]])
 		n_samps = int(5e5)
-		y_pred = np.random.multivariate_normal(mean=np.zeros(2),
+		y_pred = np.random.multivariate_normal(mean=np.zeros(3),
 			cov=cov_mat_gen,size=n_samps)
-		cov_mats = np.tile(cov_mat_gen,n_samps).T.reshape(n_samps,2,2)
+		cov_mats = np.tile(cov_mat_gen,n_samps).T.reshape(n_samps,3,3)
 
 		# Rotate the covariance matrix and make sure it squares with the
 		# rotated covariance matrices
