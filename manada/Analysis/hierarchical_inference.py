@@ -20,6 +20,8 @@ predict_samps_hier = None
 # performance.
 mu_pred_array = None
 prec_pred_array = None
+mu_pred_array_ensemble = None
+prec_pred_array_ensemble = None
 
 
 def log_p_xi_omega(predict_samps_hier,hyperparameters,eval_func_xi_omega):
@@ -358,6 +360,129 @@ class ProbabilityClassAnalytical:
 
 		like_ratio = self.log_integral_product(mu_pred_array,prec_pred_array,
 			self.mu_omega_i,self.prec_omega_i,mu_omega,prec_omega)
+
+		# Return the likelihood and the prior combined
+		return lprior + like_ratio
+
+
+class ProbabilityClassEnsemble(ProbabilityClassAnalytical):
+	""" An extension of the class ProbabilityClassAnalytical that allows for
+	hierarchical inference with ensemble predictions.
+
+	Args:
+		mu_omega_i (np.array): An array with the length n_params
+			specifying the mean of each parameters in the training
+			distribution.
+		cov_omega_i (np.array): A n_params x n_params array
+			specifying the covariance matrix for the training
+			distribution.
+		eval_func_omega (function): A callable function with inputs
+			(hyperparameters) that returns a float equal to the value of
+			log p(omega).
+	"""
+
+	def set_predictions(self,mu_pred_array_input,prec_pred_array_input):
+		""" Set the global lens mean and covariance prediction values.
+
+		Args:
+			mu_pred_array_input (np.array): An array of shape (n_ensembles,
+				n_lenses,n_params) that represents the mean network prediction
+				on each lens.
+			prec_pred_array_input (np.array): An array of shape (n_ensembles,
+				n_lenses,n_params,n_params) that represents the predicted
+				precision matrix on each lens.
+		"""
+		# Call up the globals and set them.
+		global mu_pred_array_ensemble
+		global prec_pred_array_ensemble
+		mu_pred_array_ensemble = mu_pred_array_input
+		prec_pred_array_ensemble = prec_pred_array_input
+
+		# Set the flag for the predictions being initialized
+		self.predictions_init = True
+		self.n_ensemble = len(mu_pred_array_ensemble)
+
+	@staticmethod
+	@numba.njit
+	def log_integral_product(mu_pred_array,prec_pred_array,mu_omega_i,
+		prec_omega_i,mu_omega,prec_omega):
+		""" For the case of Gaussian distributions, calculate the log of the
+		integral p(xi_k|omega)*p(xi_k|d_k,omega_int)/p(xi_k|omega_int) summed
+		over all of the lenses in the sample.
+
+		Args:
+			mu_pred_array (np.array): An array of the mean output by the
+				network for each lens
+			prec_pred_array (np.array): An array of the precision matrix output
+				by the network for each lens.
+			prec_pred (np.array): The precision matrix output by the network
+			mu_omega_i (np.array): The mean output of the interim prior
+			prec_omega_i (np.array): The precision matrix of the interim prior
+			mu_omega (np.array): The mean of the proposed hyperparameter
+				posterior.
+			prec_omega (np.array): The precision matrix of the proposed
+				hyperparameter posterior.
+		"""
+		# In log space, the product over lenses in the posterior becomes a sum
+		integral = 0
+		n_ensemble = len(mu_pred_array)
+		for pi in range(mu_pred_array.shape[1]):
+			# For each lens, the integral for each ensemble must be summed
+			# together.
+			ensemble_integral = -np.inf
+			for ei in range(mu_pred_array.shape[0]):
+				mu_pred = mu_pred_array[ei,pi]
+				prec_pred = prec_pred_array[ei,pi]
+				ensemble_integral = np.logaddexp(ensemble_integral,
+					gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,
+						prec_omega_i,mu_omega,prec_omega))
+			# Divide by 1/N_ensemble for each prediction.
+			integral += ensemble_integral - np.log(n_ensemble)
+		# Treat nan as probability 0.
+		if np.isnan(integral):
+			integral = -np.inf
+		return integral
+
+	def log_post_omega(self,hyperparameters):
+		""" Given the predicted means and covariances, calculate the log
+		posterior of a specific distribution.
+
+		Args:
+			hyperparameters (np.array): An array with the proposed
+				hyperparameters describing the population level lens parameter
+				distribution omega. Should be length n_params*2, the first
+				n_params being the mean and the second n_params being the log
+				of the standard deviation for each parameter.
+
+		Returns:
+			(float): The log posterior of omega given the predicted samples.
+
+		Notes:
+			For now only supports diagonal covariance matrix.
+		"""
+
+		if self.predictions_init is False:
+			raise RuntimeError('Must set predictions or behaviour is '
+				+'ill-defined.')
+
+		global mu_pred_array_ensemble
+		global prec_pred_array_ensemble
+
+		# Extract mu_omega and prec_omega from the provided hyperparameters
+		mu_omega = hyperparameters[:len(hyperparameters)//2]
+		cov_omega = np.diag(np.exp(hyperparameters[len(hyperparameters)//2:]*2))
+		prec_omega = np.linalg.inv(cov_omega)
+
+		# Start with the prior on omega
+		lprior = log_p_omega(hyperparameters,self.eval_func_omega)
+
+		# No need to evaluate the samples if the proposal is outside the prior.
+		if lprior == -np.inf:
+			return lprior
+
+		like_ratio = self.log_integral_product(mu_pred_array_ensemble,
+			prec_pred_array_ensemble,self.mu_omega_i,self.prec_omega_i,mu_omega,
+			prec_omega)
 
 		# Return the likelihood and the prior combined
 		return lprior + like_ratio
