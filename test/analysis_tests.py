@@ -290,6 +290,37 @@ class DatasetGenerationTests(unittest.TestCase):
 		self.assertLess(np.max((image_new-image[0,:,:,0])/(image_new+1e-2)),
 			0.1)
 
+	def test_rotate_covariance_batch(self):
+		# Test that rotating the parameters of a covariance matrix works
+		# as expected.
+		learning_params = ['main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
+
+		# Generate a bunch of draws from this base covariance matrix
+		cov_mat_gen = np.array([[2.0,0.3],[0.3,1.1]])
+		n_samps = int(5e5)
+		y_pred = np.random.multivariate_normal(mean=np.zeros(2),
+			cov=cov_mat_gen,size=n_samps)
+		cov_mats = np.tile(cov_mat_gen,n_samps).T.reshape(n_samps,2,2)
+
+		# Rotate the covariance matrix and make sure it squares with the
+		# rotated covariance matrices
+		rot_angle = np.pi/4
+		Analysis.dataset_generation.rotate_covariance_batch(learning_params,
+			cov_mats,rot_angle)
+		Analysis.dataset_generation.rotate_params_batch(learning_params,
+			y_pred,rot_angle)
+		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
+
+		rot_angle = -np.pi/3
+		learning_params = ['main_deflector_parameters_e1',
+			'main_deflector_parameters_e2']
+		Analysis.dataset_generation.rotate_covariance_batch(learning_params,
+			cov_mats,rot_angle)
+		Analysis.dataset_generation.rotate_params_batch(learning_params,
+			y_pred,rot_angle)
+		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
+
 	def test_generate_tf_dataset(self):
 		# Test that build_tf_dataset has the correct batching behaviour and
 		# returns the same data contained in the npy files and csv.
