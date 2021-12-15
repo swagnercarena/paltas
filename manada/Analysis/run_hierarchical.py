@@ -19,8 +19,6 @@ def parse_args():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('test_index',help='The test set to run hierarchical ' +
 		'inference on.',type=int)
-	parser.add_argument('backend_path',help='The path to save the emcee ' +
-		'samples to.')
 	parser.add_argument('--n_samps', default=10000, type=int, dest='n_samps',
 		help='Number of emcee samples to draw.')
 	parser.add_argument('--n_lenses', default=10, type=int,dest='n_lenses',
@@ -37,8 +35,9 @@ def main():
 	n_lenses = args.n_lenses
 	n_emcee_samps = args.n_samps
 	chains_folder = '/scratch/users/swagnerc/manada/chains'
-	chains_path = os.path.join(chains_folder,args.backend_path)
 	test_index = args.test_index
+	backend_path = 'test_set_%d_lenses_%d.h5'%(test_index,n_lenses)
+	chains_path = os.path.join(chains_folder,backend_path)
 	n_ensemble = 5
 
 	# Load the predictions for the mean and covariance for each one of our
