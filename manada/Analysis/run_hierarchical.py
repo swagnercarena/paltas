@@ -18,7 +18,7 @@ def parse_args():
 	# Initialize the parser and the possible inputs
 	parser = argparse.ArgumentParser()
 	parser.add_argument('test_index',help='The test set to run hierarchical ' +
-		'inference on.')
+		'inference on.',type=int)
 	parser.add_argument('backend_path',help='The path to save the emcee ' +
 		'samples to.')
 	parser.add_argument('--n_samps', default=10000, type=int, dest='n_samps',
