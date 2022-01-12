@@ -49,7 +49,9 @@ config_dict = {
 			'sigma_sub':norm(loc=2e-3,scale=1.1e-3).rvs,
 			'shmf_plaw_index':uniform(loc=-1.92,scale=0.1).rvs,
 			'm_pivot': 1e10,'m_min': 1e7,'m_max': 1e10,
-			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
+			'c_0':uniform(loc=16,scale=2),
+			'conc_zeta':uniform(loc=-0.3,scale=0.1),
+			'conc_beta':uniform(loc=0.55,scale=0.3),
 			'conc_m_ref': 1e8,'dex_scatter': 0.1,
 			'k1':0.0, 'k2':0.0
 		}
