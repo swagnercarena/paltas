@@ -52,7 +52,8 @@ config_dict = {
 			'c_0':uniform(loc=16,scale=2).rvs,
 			'conc_zeta':uniform(loc=-0.3,scale=0.1).rvs,
 			'conc_beta':uniform(loc=0.55,scale=0.3).rvs,
-			'conc_m_ref': 1e8,'dex_scatter': 0.1,
+			'conc_m_ref': 1e8,
+			'dex_scatter': uniform(loc=0.1,scale=0.06).rvs,
 			'k1':0.0, 'k2':0.0
 		}
 	},
