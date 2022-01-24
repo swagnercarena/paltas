@@ -40,21 +40,16 @@ def main():
 	chains_path = os.path.join(chains_folder,backend_path)
 	n_ensemble = 5
 
-	# Load the predictions for the mean and covariance for each one of our
+	# Load the predictions for the mean and covariance for one of our
 	# ensemble models.
-	y_pred_load_list = []
-	prec_pred_load_list = []
-	for mi in range(1,n_ensemble+1):
-		y_pred_load_list.append(np.load('/scratch/users/swagnerc/manada/chains/'
-			+ 'marg_outputs/y_pred_marg_model_%d_set_%d.npy'%(mi,
-				test_index)).astype(np.float64))
-		cov_pred = (np.load('/scratch/users/swagnerc/manada/chains/' +
-			'marg_outputs/y_cov_marg_model_%d_set_%d.npy'%(mi,
-				test_index)).astype(np.float64))
-		prec_pred_load_list.append(np.linalg.inv(cov_pred))
-
-	y_pred = np.array(y_pred_load_list)
-	prec_pred = np.array(prec_pred_load_list)
+	mi = 3
+	y_pred = (np.load('/scratch/users/swagnerc/manada/chains/'
+		+ 'marg_outputs/y_pred_marg_model_%d_set_%d.npy'%(mi,
+			test_index)).astype(np.float64))
+	cov_pred = (np.load('/scratch/users/swagnerc/manada/chains/' +
+		'marg_outputs/y_cov_marg_model_%d_set_%d.npy'%(mi,
+			test_index)).astype(np.float64))
+	prec_pred = (np.linalg.inv(cov_pred))
 
 	# Pull the target parameters straight from the config file.
 	sys.path.insert(0,'/scratch/users/swagnerc/manada/datasets/marg_ns/' +
@@ -100,7 +95,7 @@ def main():
 			return -np.inf
 		return 0
 
-	prob_class = hierarchical_inference.ProbabilityClassEnsemble(mu_omega_i,
+	prob_class = hierarchical_inference.ProbabilityClassAnalytical(mu_omega_i,
 		cov_omega_i,eval_func_omega)
 	prob_class.set_predictions(mu_pred_array_input=y_pred[:,:n_lenses],
 		prec_pred_array_input=prec_pred[:,:n_lenses])
