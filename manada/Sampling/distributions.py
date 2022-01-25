@@ -233,6 +233,31 @@ class KappaTransformDistribution():
 		return 1 - (1/n)
 
 
+class Duplicate():
+	"""Class that returns two copies of the same random draw.
+
+	Args:
+		dist (scipy.stats.rv_continuous.rvs or float): The distribution to
+			draw the sample from.
+	"""
+
+	def __init__(self,dist):
+		self.dist = dist
+
+	def __call__(self):
+		"""Returns two copies of the same sample
+
+		Returns
+			(float,float): Two copies of the sample.
+		"""
+
+		if callable(self.dist):
+			samp = self.dist()
+		else:
+			samp = self.dist
+
+		return samp,samp
+
 class DuplicateXY():
 	"""Class that returns two copies of x, y coordinates drawn from 
 		distributions

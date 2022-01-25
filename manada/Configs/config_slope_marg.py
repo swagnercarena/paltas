@@ -9,6 +9,7 @@ from manada.Substructure.subhalos_dg19 import SubhalosDG19
 from manada.MainDeflector.simple_deflectors import PEMDShear
 from manada.Sources.cosmos import COSMOSExcludeCatalog
 from lenstronomy.Util.kernel_util import degrade_kernel
+from manada.Sampling import distributions
 from astropy.io import fits
 import pandas as pd
 import manada
@@ -130,6 +131,18 @@ config_dict = {
 			'wcs_distortion':None,
 			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)],
 			'psf_supersample_factor':2
+		}
+	},
+	'cross_object':{
+		'parameters':{
+			'subhalo:c_0,los:c_0':distributions.Duplicate(
+				dist=uniform(loc=16,scale=2).rvs),
+			'subhalo:conc_zeta,los:conc_zeta':distributions.Duplicate(
+				dist=uniform(loc=-0.3,scale=0.1).rvs),
+			'subhalo:conc_beta,los:conc_beta':distributions.Duplicate(
+				dist=uniform(loc=0.55,scale=0.3).rvs),
+			'subhalo:dex_scatter,los:dex_scatter':distributions.Duplicate(
+				dist=uniform(loc=0.1,scale=0.06).rvs)
 		}
 	}
 }
