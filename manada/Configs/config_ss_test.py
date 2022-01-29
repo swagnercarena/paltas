@@ -48,8 +48,9 @@ config_dict = {
 		'parameters':{
 			'z_source':1.5,'cosmos_folder':cosmos_folder,'max_z':0.05,
 			'minimum_size_in_pixels':650,'min_apparent_mag':20,
-			'smoothing_sigma':0.08,'random_rotation':True,
-			'min_flux_radius':10.0}
+			'smoothing_sigma':0.00,'random_rotation':True,
+			'center_x':norm(loc=0.0,scale=0.16).rvs,
+			'center_y':norm(loc=0.0,scale=0.16).rvs,'min_flux_radius':10.0}
 	},
 	'cosmology':{
 		'parameters':{

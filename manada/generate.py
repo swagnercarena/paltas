@@ -567,9 +567,11 @@ def main():
 				# Make sure that lists and other objects that cannot be
 				# serialized well are not written out. Warn about this only
 				# once.
-				if (isinstance(comp_value,str) or isinstance(comp_value,int) or
+				if isinstance(comp_value,bool):
+					meta_values[component+'_'+key] = int(comp_value)
+				elif (isinstance(comp_value,str) or isinstance(comp_value,int) or
 					isinstance(comp_value,float)):
-					meta_values[component+'_'+key] = sample[component][key]
+					meta_values[component+'_'+key] = comp_value
 				elif SERIALIZATIONWARNING:
 					warnings.warn('One or more parameters in config_dict '
 						'cannot be serialized and will not be written to '

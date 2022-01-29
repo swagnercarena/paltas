@@ -73,6 +73,11 @@ def main():
 		weight_terms = config_module.weight_terms
 	else:
 		weight_terms = None
+	# Whether to train the full model or only the head
+	if hasattr(config_module,'train_only_head'):
+		train_only_head = config_module.train_only_head
+	else:
+		train_only_head = False
 	# A list to the paths of the fodlers containing the npy images
 	# for training
 	npy_folders_train = config_module.npy_folders_train
@@ -103,7 +108,8 @@ def main():
 	model_type = config_module.model_type
 	# A string specifying which optimizer to use
 	optimizer_string = config_module.optimizer
-	# Where to save the model weights
+	# Where to save the model weights and where to load the initial weights
+	model_weights_init = config_module.model_weights_init
 	model_weights = config_module.model_weights
 	# The learning rate for the model
 	learning_rate = config_module.learning_rate
@@ -111,7 +117,7 @@ def main():
 	random_rotation = config_module.random_rotation
 
 	# Set the random seed for our network
-	tf.random.set_seed(random_seed)
+	# tf.random.set_seed(random_seed)
 
 	# Check for tf records for train and validation and prepare them
 	# if needed
@@ -189,7 +195,8 @@ def main():
 	if model_type == 'resnet50':
 		model = conv_models.build_resnet_50(img_size,num_outputs)
 	elif model_type == 'xresnet34':
-		model = conv_models.build_xresnet34(img_size,num_outputs)
+		model = conv_models.build_xresnet34(img_size,num_outputs,
+			train_only_head=train_only_head)
 	elif model_type =='alexnet':
 		model = conv_models.build_alexnet(img_size,num_outputs)
 	else:
@@ -210,8 +217,8 @@ def main():
 	print('Is model built: ' + str(model.built))
 
 	try:
-		model.load_weights(model_weights)
-		print('Loaded weights %s'%(model_weights))
+		model.load_weights(model_weights_init)
+		print('Loaded weights %s'%(model_weights_init))
 	except:
 		print('No weights found. Saving new weights to %s'%(model_weights))
 
@@ -224,7 +231,7 @@ def main():
 		callbacks.append(tensorboard)
 	# Save the model weights as long as the validation loss is decreasing
 	modelcheckpoint = ModelCheckpoint(model_weights,monitor='val_loss',
-		save_best_only=True,save_freq='epoch')
+		save_best_only=False,save_freq='epoch')
 	callbacks.append(modelcheckpoint)
 
 	# TODO add validation data.

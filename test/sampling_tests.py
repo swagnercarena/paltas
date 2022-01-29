@@ -262,6 +262,17 @@ class DistributionsTests(unittest.TestCase):
 		kappa = dist()
 		self.assertTrue(kappa < 0)
 
+	def testDuplicate(self):
+		# test mapping w/ constants
+		dist = distributions.Duplicate(dist=1)
+		x1,x2 = dist()
+		self.assertTrue(x1==1 and x2==1)
+		# test mapping w/ distributions
+		dist = distributions.Duplicate(dist=uniform(loc=1,scale=1).rvs)
+		for _ in range(10):
+			x1,x2 = dist()
+			self.assertTrue(x1==x2)
+
 	def testDuplicateXY(self):
 		# test mapping w/ constants
 		dist = distributions.DuplicateXY(x_dist=1,y_dist=2)

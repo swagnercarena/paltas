@@ -44,6 +44,7 @@ class GenerateTests(unittest.TestCase):
 			'minimum_size_in_pixels':None,'min_apparent_mag':None,
 			'smoothing_sigma':0.0,'random_rotation':False,
 			'min_flux_radius':None,'output_ab_zeropoint':25.95,
+			'center_x':0.0,'center_y':0.0,
 			'source_inclusion_list':np.array([0])}
 		los_class = None
 		subhalo_class = None
@@ -306,6 +307,7 @@ class GenerateTests(unittest.TestCase):
 			'minimum_size_in_pixels':None,'min_apparent_mag':None,
 			'smoothing_sigma':0.0,'random_rotation':False,
 			'min_flux_radius':None,'output_ab_zeropoint':25.95,
+			'center_x':0.0,'center_y':0.0,
 			'source_inclusion_list':np.array([0])}
 		los_class = None
 		subhalo_class = None
@@ -440,6 +442,7 @@ class GenerateTests(unittest.TestCase):
 			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
 			'smoothing_sigma':0.0,'random_rotation':False,
 			'min_flux_radius':None,'output_ab_zeropoint':25.95,
+			'center_x':0.0,'center_y':0.0,
 			'source_inclusion_list':np.array([0])}
 		los_class = None
 		subhalo_class = None

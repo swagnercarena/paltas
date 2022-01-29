@@ -303,7 +303,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 
 def rotate_params_batch(learning_params,output,rot_angle):
 	""" Rotate a batch of lensing parameters according to a specified rotation
-		angle.
+	angle.
 
 	Args:
 		learning_params ([str,...]): A list of strings containing the
@@ -340,6 +340,58 @@ def rotate_params_batch(learning_params,output,rot_angle):
 		x,y = rotate_param(output[:,xi],output[:,yi],2*rot_angle)
 		output[:,xi] = x
 		output[:,yi] = y
+
+
+def rotate_covariance_batch(learning_params,coavriance_batch,rot_angle):
+	""" Rotate a batch of lensing parameters according to a specified rotation
+	angle.
+
+	Args:
+		learning_params ([str,...]): A list of strings containing the
+			parameters that the network is expected to learn.
+		coavriance_batch (np.array): A numpy array of dimension
+			(batch_size,n_outputs,n_outputs) containing the covariance values
+			for each image in the batch.
+		rot_angle (float): The angle to rotate the image by in radians.
+
+	Notes:
+		coavriance_batch is modified in place.
+	"""
+	# Calculate rotation matrix. Hardcoded for now.
+	def rotation_matrix(theta):
+		return np.array([[np.cos(theta),-np.sin(theta)],
+			[np.sin(theta),np.cos(theta)]])
+
+	# For each possible pair of parameters, conduct the rotation.
+	if 'main_deflector_parameters_center_x' in learning_params:
+		xi = learning_params.index('main_deflector_parameters_center_x')
+		yi = learning_params.index('main_deflector_parameters_center_y')
+		# Ensure the parameters are next to each other. Otherwise this
+		# indexing will fail.
+		assert xi == yi - 1
+		yi+=1
+		rot_mat = rotation_matrix(rot_angle)
+		coavriance_batch[:,xi:yi,xi:yi] = np.dot(rot_mat,
+			np.dot(coavriance_batch[:,xi:yi,xi:yi],rot_mat.T).T).T
+
+	if 'main_deflector_parameters_e1' in learning_params:
+		xi = learning_params.index('main_deflector_parameters_e1')
+		yi = learning_params.index('main_deflector_parameters_e2')
+		# Ensure the parameters are next to each other.
+		assert xi == yi - 1
+		yi+=1
+		rot_mat = rotation_matrix(2*rot_angle)
+		coavriance_batch[:,xi:yi,xi:yi] = np.dot(rot_mat,
+			np.dot(coavriance_batch[:,xi:yi,xi:yi],rot_mat.T).T).T
+
+	if 'main_deflector_parameters_gamma1' in learning_params:
+		xi = learning_params.index('main_deflector_parameters_gamma1')
+		yi = learning_params.index('main_deflector_parameters_gamma2')
+		assert xi == yi - 1
+		yi+=1
+		rot_mat = rotation_matrix(2*rot_angle)
+		coavriance_batch[:,xi:yi,xi:yi] = np.dot(rot_mat,
+			np.dot(coavriance_batch[:,xi:yi,xi:yi],rot_mat.T).T).T
 
 
 def rotate_image_batch(image_batch,learning_params,output,rot_angle):

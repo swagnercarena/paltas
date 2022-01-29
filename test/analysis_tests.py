@@ -290,6 +290,37 @@ class DatasetGenerationTests(unittest.TestCase):
 		self.assertLess(np.max((image_new-image[0,:,:,0])/(image_new+1e-2)),
 			0.1)
 
+	def test_rotate_covariance_batch(self):
+		# Test that rotating the parameters of a covariance matrix works
+		# as expected.
+		learning_params = ['main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
+
+		# Generate a bunch of draws from this base covariance matrix
+		cov_mat_gen = np.array([[2.0,0.3,0.0],[0.3,1.1,0.0],[0.0,0.0,1.0]])
+		n_samps = int(5e5)
+		y_pred = np.random.multivariate_normal(mean=np.zeros(3),
+			cov=cov_mat_gen,size=n_samps)
+		cov_mats = np.tile(cov_mat_gen,n_samps).T.reshape(n_samps,3,3)
+
+		# Rotate the covariance matrix and make sure it squares with the
+		# rotated covariance matrices
+		rot_angle = np.pi/4
+		Analysis.dataset_generation.rotate_covariance_batch(learning_params,
+			cov_mats,rot_angle)
+		Analysis.dataset_generation.rotate_params_batch(learning_params,
+			y_pred,rot_angle)
+		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
+
+		rot_angle = -np.pi/3
+		learning_params = ['main_deflector_parameters_e1',
+			'main_deflector_parameters_e2']
+		Analysis.dataset_generation.rotate_covariance_batch(learning_params,
+			cov_mats,rot_angle)
+		Analysis.dataset_generation.rotate_params_batch(learning_params,
+			y_pred,rot_angle)
+		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
+
 	def test_generate_tf_dataset(self):
 		# Test that build_tf_dataset has the correct batching behaviour and
 		# returns the same data contained in the npy files and csv.
@@ -970,6 +1001,16 @@ class ConvModelsTests(unittest.TestCase):
 		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs)
 		image = np.ones((1,170,170,1))
 		self.assertEqual(np.sum(np.isnan(model.predict(image))),0)
+		del model
+
+		# Check that freezing the head works
+		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs,
+			train_only_head=False)
+		self.assertGreater(len(model.trainable_weights),2)
+		del model
+		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs,
+			train_only_head=True)
+		self.assertEqual(len(model.trainable_weights),2)
 
 
 class PosteriorFunctionsTests(unittest.TestCase):
@@ -1286,7 +1327,7 @@ class ProbabilityClassAnalyticalTests(unittest.TestCase):
 		integral = prob_class.log_integral_product(mu_pred_array,
 			prec_pred_array,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
 
-		self.assertAlmostEqual(integral,hand_integral)
+		self.assertAlmostEqual(integral,hand_integral,places=20)
 
 	def test_log_post_omega(self):
 		# Test that the log_post_omega calculation includes both the integral
@@ -1308,6 +1349,128 @@ class ProbabilityClassAnalyticalTests(unittest.TestCase):
 
 		# Establish our ProbabilityClassAnalytical
 		prob_class = Analysis.hierarchical_inference.ProbabilityClassAnalytical(
+			mu_omega_i,cov_omega_i,eval_func_omega)
+		prob_class.set_predictions(mu_pred_array_input,prec_pred_array_input)
+
+		# Test a simple array of zeros
+		hyperparameters = np.zeros(20)
+		mu_omega = np.zeros(10)
+		prec_omega = np.identity(10)
+		hand_calc = prob_class.log_integral_product(mu_pred_array_input,
+			prec_pred_array_input,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		self.assertAlmostEqual(hand_calc,
+			prob_class.log_post_omega(hyperparameters))
+
+		# Check that violating the prior returns -np.inf
+		hyperparameters = -np.ones(20)
+		self.assertEqual(-np.inf,prob_class.log_post_omega(hyperparameters))
+
+		# Check a more complicated variance matrix
+		hyperparameters = np.random.rand(20)
+		mu_omega = hyperparameters[:10]
+		prec_omega = np.linalg.inv(np.diag(np.exp(hyperparameters[10:])**2))
+		hand_calc = prob_class.log_integral_product(mu_pred_array_input,
+			prec_pred_array_input,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		self.assertAlmostEqual(hand_calc,
+			prob_class.log_post_omega(hyperparameters))
+
+
+class ProbabilityClassEnsembleTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		tf.random.set_seed(2)
+
+	def test_set_predictions(self):
+		# Make sure that setting the samples with both input types works
+		n_lenses = 1000
+		n_ensemble = 5
+		mu_pred_array_input = np.random.randn(n_ensemble,n_lenses,10)
+		prec_pred_array_input = np.tile(np.expand_dims(np.expand_dims(
+			np.identity(10),axis=0),axis=0),(n_ensemble,n_lenses,1,1))
+		mu_omega_i = np.ones(10)
+		cov_omega_i = np.identity(10)
+		eval_func_omega = None
+
+		# Establish our ProbabilityClassAnalytical
+		prob_class = Analysis.hierarchical_inference.ProbabilityClassEnsemble(
+			mu_omega_i,cov_omega_i,eval_func_omega)
+
+		# Try setting the predictions
+		prob_class.set_predictions(mu_pred_array_input,prec_pred_array_input)
+		self.assertFalse(
+			Analysis.hierarchical_inference.mu_pred_array_ensemble is None)
+		self.assertFalse(
+			Analysis.hierarchical_inference.prec_pred_array_ensemble is None)
+
+	def test_log_integral_product(self):
+		# Make sure that the log integral product just sums the log of each
+		# integral
+		n_lenses = 1000
+		n_ensemble = 5
+
+		prec_pred_array = np.tile(np.expand_dims(np.expand_dims(
+			np.identity(10),axis=0),axis=0),(n_ensemble,n_lenses,1,1))
+		mu_omega_i = np.ones(10)
+		prec_omega_i = np.identity(10)
+		mu_omega = np.ones(10)
+		prec_omega = np.identity(10)*5
+
+		# First start with the case where each ensemble prediction is the same
+		mu_pred_array = np.tile(np.expand_dims(np.random.randn(n_lenses,10),
+			axis=0),(n_ensemble,1,1))
+
+		# In this case we can just compare to the non ensemble class.
+		prob_class = Analysis.hierarchical_inference.ProbabilityClassAnalytical
+		integral = prob_class.log_integral_product(mu_pred_array[0],
+			prec_pred_array[0],mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		prob_class_ens = Analysis.hierarchical_inference.ProbabilityClassEnsemble
+		ens_integral = prob_class_ens.log_integral_product(mu_pred_array,
+			prec_pred_array,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		self.assertAlmostEqual(integral,ens_integral)
+
+		# Now do a hand calculation for the more complicated case without
+		# logsumexp
+		mu_pred_array = np.random.randn(n_ensemble,n_lenses,10)*0.05
+		hand_integral = 0
+		for j in range(mu_pred_array.shape[1]):
+			ensemble_integral = 0
+			for i in range(len(mu_pred_array)):
+				mu_pred = mu_pred_array[i,j]
+				prec_pred = prec_pred_array[i,j]
+				ensemble_integral += np.exp(
+					Analysis.hierarchical_inference.gaussian_product_analytical(
+						mu_pred,prec_pred,mu_omega_i,prec_omega_i,mu_omega,
+						prec_omega))
+			hand_integral += np.log(ensemble_integral/n_ensemble)
+
+		ens_integral = prob_class_ens.log_integral_product(mu_pred_array,
+			prec_pred_array,mu_omega_i,prec_omega_i,mu_omega,prec_omega)
+		self.assertAlmostEqual(hand_integral,ens_integral)
+
+	def test_log_post_omega(self):
+		# Test that the log_post_omega calculation includes both the integral
+		# and the prior.
+		# Initialize the values we'll need for the probability class.
+		n_lenses = 1000
+		n_ensemble = 5
+		mu_pred_array_input = np.tile(np.expand_dims(
+			np.random.randn(n_lenses,10),axis=0),(n_ensemble,1,1))
+		prec_pred_array_input = np.tile(np.expand_dims(np.expand_dims(
+			np.identity(10),axis=0),axis=0),(n_ensemble,n_lenses,1,1))
+		mu_omega_i = np.ones(10)
+		cov_omega_i = np.identity(10)
+		prec_omega_i = cov_omega_i
+
+		@numba.njit()
+		def eval_func_omega(hyperparameters):
+			if np.any(hyperparameters[len(hyperparameters)//2:] < 0):
+				return -np.inf
+			return 0
+
+		# Establish our ProbabilityClassAnalytical
+		prob_class = Analysis.hierarchical_inference.ProbabilityClassEnsemble(
 			mu_omega_i,cov_omega_i,eval_func_omega)
 		prob_class.set_predictions(mu_pred_array_input,prec_pred_array_input)
 

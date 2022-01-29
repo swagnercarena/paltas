@@ -4,16 +4,16 @@ batch_size = 256
 # The number of epochs to train for
 n_epochs = 200
 # The size of the images in the training set
-img_size = (170,170,1)
+img_size = (85,85,1)
 # A random seed to us
 random_seed = 2
 # The list of learning parameters to use
+# note external shear is captured in main_deflector_gamma1,gamma2
 learning_params = ['main_deflector_parameters_theta_E',
 	'main_deflector_parameters_gamma1','main_deflector_parameters_gamma2',
 	'main_deflector_parameters_gamma','main_deflector_parameters_e1',
 	'main_deflector_parameters_e2','main_deflector_parameters_center_x',
-	'main_deflector_parameters_center_y','subhalo_parameters_shmf_plaw_index',
-	'subhalo_parameters_sigma_sub','los_parameters_delta_los']
+	'main_deflector_parameters_center_y',]
 # Which parameters to consider flipping
 flip_pairs = None
 # Which terms to reweight
@@ -21,15 +21,14 @@ weight_terms = None
 # The path to the fodler containing the npy images
 # for training
 npy_folders_train = [
-	'/scratch/users/swagnerc/manada/datasets/high_z/high_z_%d/'%(
-		i) for i in range(1,1001)]
+	'/scratch/users/sydney3/manada/datasets/train_%d/'%(
+		i) for i in range(0,20)]
 # The path to the tf_record for the training images
 tfr_train_paths = [
 	os.path.join(path,'data.tfrecord') for path in npy_folders_train]
-# The path to the fodler containing the npy images
+# The path to the folder containing the npy images
 # for validation
-npy_folder_val = ('/scratch/users/swagnerc/manada/datasets/high_z/' +
-	'high_z_val')
+npy_folder_val = ('/scratch/users/sydney3/manada/datasets/validate/')
 # The path to the tf_record for the validation images
 tfr_val_path = os.path.join(npy_folder_val,'data.tfrecord')
 # The path to the training metadata
@@ -51,8 +50,8 @@ model_type = 'xresnet34'
 # A string specifying which optimizer to use
 optimizer = 'Adam'
 # Where to save the model weights
-model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
-	'xresnet34_full_hz.h5')
+model_weights = ('/scratch/users/sydney3/manada/model_weights/' +
+	'xresnet34_full_log.h5')
 model_weights_init = model_weights
 # The learning rate for the model
 learning_rate = 5e-3
