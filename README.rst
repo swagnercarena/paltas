@@ -1,7 +1,9 @@
-.. image:: docs/logo.png
-  :width: 100
-paltas
 ==========================================================================
+|logo| paltas
+==========================================================================
+
+.. |logo| image:: docs/logo.png
+  :width: 100
 
 .. image:: https://github.com/swagnercarena/paltas/workflows/CI/badge.svg
     :target: https://github.com/swagnercarena/paltas/actions
