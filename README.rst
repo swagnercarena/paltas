@@ -5,6 +5,12 @@ paltas
 .. image:: https://github.com/swagnercarena/paltas/workflows/CI/badge.svg
     :target: https://github.com/swagnercarena/paltas/actions
 
+.. image:: https://coveralls.io/repos/github/swagnercarena/paltas/badge.svg?branch=main
+	:target: https://coveralls.io/github/swagnercarena/paltas?branch=main
+
+.. image:: docs/logo.png
+  :width: 200
+
 ''paltas'' is not yet sure what it does
 
 Installation
