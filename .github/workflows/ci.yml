@@ -29,12 +29,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --upgrade pytest
           python -m pip install flake8 pytest pytest-cov coveralls
+          pip install -r requirements.txt
+          pip install -r test_requirements.txt
           git clone https://github.com/sibirrer/fastell4py.git
           cd fastell4py
           pip install .
           cd ..
-          pip install -r requirements.txt
-          pip install -r test_requirements.txt
           python -m pip install .
       - name: Test with pytest
         run: |
