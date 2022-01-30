@@ -1,8 +1,11 @@
 ==========================================================================
-manada - Substructure Inference of Strong Gravitational Lenses
+paltas
 ==========================================================================
 
-''manada'' is not yet sure what it does
+.. image:: https://github.com/swagnercarena/paltas/workflows/CI/badge.svg
+    :target: https://github.com/swagnercarena/paltas/actions
+
+''paltas'' is not yet sure what it does
 
 Installation
 ------------
@@ -16,12 +19,12 @@ Lenstronomy requires an additional fortran package (fastell) to run lens models 
     $ python setup.py install --user
 
 
-In the future, manada will be a pypi package. For now, it can be installed by cloning the git repo.
+In the future, paltas will be a pypi package. For now, it can be installed by cloning the git repo.
 
 .. code-block:: bash
 
-	$ git clone https://github.com/swagnercarena/manada.git
-	$ cd manada/
+	$ git clone https://github.com/swagnercarena/paltas.git
+	$ cd paltas/
 	$ pip install -e . -r requirements.txt
 
-The addition of the -e option will allow you to pull manada updates and have them work automatically.
+The addition of the -e option will allow you to pull paltas updates and have them work automatically.
