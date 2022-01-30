@@ -39,7 +39,8 @@ jobs:
       #    flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Test with pytest
         run: |
-          coverage run --source paltas -m unittest -v test/*_tests.py
+          cd test
+          coverage run --source paltas -m unittest -v *_tests.py
       - name: Coveralls
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
