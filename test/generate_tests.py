@@ -9,11 +9,9 @@ from paltas.Sources.sersic import SingleSersicSource
 from paltas.PointSource.single_point_source import SinglePointSource
 from paltas.MainDeflector.simple_deflectors import PEMDShear
 from paltas.Utils import hubble_utils
-import paltas
 
 # Define the cosmos path
-root_path = paltas.__path__[0][:-7]
-cosmos_folder = root_path + '/test/test_data/cosmos/'
+cosmos_folder = 'test_data/cosmos/'
 
 
 class GenerateTests(unittest.TestCase):
