@@ -853,7 +853,7 @@ class FullCovarianceLossTests(unittest.TestCase):
 			# The decimal error can be significant due to inverting the precision
 			# matrix
 			self.assertAlmostEqual(np.sum(nlp_tensor.numpy())/scipy_nlp,1,
-				places=4)
+				places=3)
 
 	def test_loss(self):
 		# Test that the diagonal covariance loss gives the correct values
