@@ -7,7 +7,6 @@ from paltas.Substructure.los_dg19 import LOSDG19
 from paltas.Substructure.subhalos_dg19 import SubhalosDG19
 from paltas.MainDeflector.simple_deflectors import PEMDShear
 from paltas.Sources.cosmos import COSMOSCatalog
-import paltas
 
 # Define a multivariate distribution we'll use
 mean = np.ones(2)
@@ -28,8 +27,7 @@ mag_cut = 1.0
 output_ab_zeropoint = 25.127
 
 # Define the cosmos path
-root_path = paltas.__path__[0][:-7]
-cosmos_folder = root_path + '/test/test_data/cosmos/'
+cosmos_folder = './test_data/cosmos/'
 
 config_dict = {
 	'subhalo':{
