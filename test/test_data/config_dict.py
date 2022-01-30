@@ -1,13 +1,13 @@
 # A test configuration dict
 
-from manada.Sampling import distributions
+from paltas.Sampling import distributions
 import numpy as np
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
-from manada.Substructure.los_dg19 import LOSDG19
-from manada.Substructure.subhalos_dg19 import SubhalosDG19
-from manada.MainDeflector.simple_deflectors import PEMDShear
-from manada.Sources.cosmos import COSMOSCatalog
-import manada
+from paltas.Substructure.los_dg19 import LOSDG19
+from paltas.Substructure.subhalos_dg19 import SubhalosDG19
+from paltas.MainDeflector.simple_deflectors import PEMDShear
+from paltas.Sources.cosmos import COSMOSCatalog
+import paltas
 
 # Define a multivariate distribution we'll use
 mean = np.ones(2)
@@ -28,7 +28,7 @@ mag_cut = 1.0
 output_ab_zeropoint = 25.127
 
 # Define the cosmos path
-root_path = manada.__path__[0][:-7]
+root_path = paltas.__path__[0][:-7]
 cosmos_folder = root_path + '/test/test_data/cosmos/'
 
 config_dict = {

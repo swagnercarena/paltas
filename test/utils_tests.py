@@ -1,6 +1,6 @@
 import unittest
-from manada.Utils import power_law, cosmology_utils, hubble_utils
-from manada.Utils import lenstronomy_utils
+from paltas.Utils import power_law, cosmology_utils, hubble_utils
+from paltas.Utils import lenstronomy_utils
 from scipy.integrate import quad
 import numpy as np
 from colossus.cosmology import cosmology

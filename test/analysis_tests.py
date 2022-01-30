@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import glob
-from manada import Analysis
+from paltas import Analysis
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel

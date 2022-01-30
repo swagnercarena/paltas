@@ -1,7 +1,7 @@
 import numpy as np
 import unittest
-from manada.PointSource.point_source_base import PointSourceBase
-from manada.PointSource.single_point_source import SinglePointSource
+from paltas.PointSource.point_source_base import PointSourceBase
+from paltas.PointSource.single_point_source import SinglePointSource
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.PointSource.point_source import PointSource

@@ -1,12 +1,12 @@
 import unittest
-from manada.Substructure import nfw_functions
-from manada.Substructure.subhalos_base import SubhalosBase
-from manada.Substructure.subhalos_dg19 import SubhalosDG19
-from manada.Substructure.los_base import LOSBase
-from manada.Substructure.los_dg19 import LOSDG19
-from manada.Utils import cosmology_utils
+from paltas.Substructure import nfw_functions
+from paltas.Substructure.subhalos_base import SubhalosBase
+from paltas.Substructure.subhalos_dg19 import SubhalosDG19
+from paltas.Substructure.los_base import LOSBase
+from paltas.Substructure.los_dg19 import LOSDG19
+from paltas.Utils import cosmology_utils
 from colossus.lss.mass_function import modelSheth99, massFunction
-from manada.Utils import power_law
+from paltas.Utils import power_law
 import numpy as np
 from scipy.integrate import quad
 from colossus.cosmology import cosmology
@@ -168,7 +168,7 @@ class NFWFunctionsTests(unittest.TestCase):
 		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
 			c=c,z=z_lens,mdef='200c')
 
-		# manada calculation
+		# paltas calculation
 		r_200 = nfw_functions.r_200_from_m(m_200,z_lens,cosmo)
 
 		np.testing.assert_almost_equal(r_200/c,rs/h)
@@ -184,7 +184,7 @@ class NFWFunctionsTests(unittest.TestCase):
 		rhos, rs = profile_nfw.NFWProfile.fundamentalParameters(M=m_200*h,
 			c=c,z=z,mdef='200c')
 
-		# manada calculation
+		# paltas calculation
 		rho_nfw = nfw_functions.rho_nfw_from_m_c(m_200,c,cosmo,z=z)
 
 		np.testing.assert_almost_equal(rho_nfw,rhos*h**2)
