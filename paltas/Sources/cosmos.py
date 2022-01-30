@@ -69,8 +69,8 @@ class COSMOSCatalog(GalaxyCatalog):
 			# Custom fields
 			catalogs += [
 				np.zeros(len(catalogs[0]),
-					dtype=[('size_x', np.int),('size_y', np.int),('z', np.float),
-					('pixel_width', np.float)])]
+					dtype=[('size_x', np.int),('size_y', np.int),('z', float),
+					('pixel_width', float)])]
 
 			self.catalog = numpy.lib.recfunctions.merge_arrays(
 				catalogs, flatten=True)
