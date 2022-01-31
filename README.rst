@@ -9,7 +9,7 @@
 .. image:: https://github.com/swagnercarena/paltas/workflows/CI/badge.svg
     :target: https://github.com/swagnercarena/paltas/actions
 
-.. image:: https://coveralls.io/repos/github/swagnercarena/paltas/badge.svg?branch=main
+.. image:: https://coveralls.io/repos/github/swagnercarena/paltas/badge.svg?branch=main&amp
 	:target: https://coveralls.io/github/swagnercarena/paltas?branch=main
 
 .. image:: https://img.shields.io/badge/license-MIT-blue.svg?style=flat
