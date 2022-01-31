@@ -4,6 +4,7 @@
 
 .. |logo| image:: https://raw.githubusercontent.com/swagnercarena/paltas/main/docs/figures/logo.png
     :target: https://raw.githubusercontent.com/swagnercarena/paltas/main/docs/figures/logo.png
+    :width: 100
 
 .. image:: https://github.com/swagnercarena/paltas/workflows/CI/badge.svg
     :target: https://github.com/swagnercarena/paltas/actions
