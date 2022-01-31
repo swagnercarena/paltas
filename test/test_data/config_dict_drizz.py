@@ -96,9 +96,11 @@ config_dict = {
 			'num_exposures':1, 'background_noise':None
 		}
 	},
-	'cross_object':{
+	'drizzle':{
 		'parameters':{
-			'los:delta_los,subhalo:sigma_sub':tmn
+			'supersample_pixel_scale':0.040,'output_pixel_scale':0.060,
+			'wcs_distortion':None,
+			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)]
 		}
 	}
 }

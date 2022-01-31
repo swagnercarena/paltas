@@ -2,18 +2,16 @@ import numpy as np
 import pandas as pd
 import unittest
 import sys, glob, copy, os
-from manada import generate
+from paltas import generate
 from scipy.signal import fftconvolve
-from manada.Sources.cosmos import COSMOSIncludeCatalog
-from manada.Sources.sersic import SingleSersicSource
-from manada.PointSource.single_point_source import SinglePointSource
-from manada.MainDeflector.simple_deflectors import PEMDShear
-from manada.Utils import hubble_utils
-import manada
+from paltas.Sources.cosmos import COSMOSIncludeCatalog
+from paltas.Sources.sersic import SingleSersicSource
+from paltas.PointSource.single_point_source import SinglePointSource
+from paltas.MainDeflector.simple_deflectors import PEMDShear
+from paltas.Utils import hubble_utils
 
 # Define the cosmos path
-root_path = manada.__path__[0][:-7]
-cosmos_folder = root_path + '/test/test_data/cosmos/'
+cosmos_folder = 'test_data/cosmos/'
 
 
 class GenerateTests(unittest.TestCase):
@@ -291,7 +289,7 @@ class GenerateTests(unittest.TestCase):
 			self.assertTrue(meta_values[pfix+'time_delay_3'] == np.nan)
 
 		# Cleanup
-		os.remove(cosmos_folder+'manada_catalog.npy')
+		os.remove(cosmos_folder+'paltas_catalog.npy')
 		for i in range(10):
 			os.remove(cosmos_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(cosmos_folder+'npy_files')
@@ -429,7 +427,7 @@ class GenerateTests(unittest.TestCase):
 		self.assertGreater(np.std(los_image_noise-image),1e-3)
 
 		# Cleanup
-		os.remove(cosmos_folder+'manada_catalog.npy')
+		os.remove(cosmos_folder+'paltas_catalog.npy')
 		for i in range(10):
 			os.remove(cosmos_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(cosmos_folder+'npy_files')
@@ -556,7 +554,7 @@ class GenerateTests(unittest.TestCase):
 				mag_cut,add_noise)
 
 		# Cleanup
-		os.remove(cosmos_folder+'manada_catalog.npy')
+		os.remove(cosmos_folder+'paltas_catalog.npy')
 		for i in range(10):
 			os.remove(cosmos_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(cosmos_folder+'npy_files')
@@ -610,7 +608,7 @@ class GenerateTests(unittest.TestCase):
 
 		# Also clean up the test cosmos cache
 		test_cosmo_folder = 'test_data/cosmos/'
-		os.remove(test_cosmo_folder+'manada_catalog.npy')
+		os.remove(test_cosmo_folder+'paltas_catalog.npy')
 		for i in range(10):
 			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(test_cosmo_folder+'npy_files')
@@ -665,7 +663,7 @@ class GenerateTests(unittest.TestCase):
 
 		# Also clean up the test cosmos cache
 		test_cosmo_folder = 'test_data/cosmos/'
-		os.remove(test_cosmo_folder+'manada_catalog.npy')
+		os.remove(test_cosmo_folder+'paltas_catalog.npy')
 		for i in range(10):
 			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(test_cosmo_folder+'npy_files')

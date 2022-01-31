@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import glob
-from manada import Analysis
+from paltas import Analysis
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
@@ -853,7 +853,7 @@ class FullCovarianceLossTests(unittest.TestCase):
 			# The decimal error can be significant due to inverting the precision
 			# matrix
 			self.assertAlmostEqual(np.sum(nlp_tensor.numpy())/scipy_nlp,1,
-				places=4)
+				places=3)
 
 	def test_loss(self):
 		# Test that the diagonal covariance loss gives the correct values

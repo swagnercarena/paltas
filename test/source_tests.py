@@ -1,14 +1,14 @@
 import numpy as np
 import unittest
 import os
-from manada.Sources.source_base import SourceBase
-from manada.Sources.sersic import SingleSersicSource
-from manada.Sources.galaxy_catalog import GalaxyCatalog
-from manada.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
-from manada.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
-from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
-from manada.Sources.cosmos_sersic import COSMOSSersic
-from manada.Utils.cosmology_utils import get_cosmology
+from paltas.Sources.source_base import SourceBase
+from paltas.Sources.sersic import SingleSersicSource
+from paltas.Sources.galaxy_catalog import GalaxyCatalog
+from paltas.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
+from paltas.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
+from paltas.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
+from paltas.Sources.cosmos_sersic import COSMOSSersic
+from paltas.Utils.cosmology_utils import get_cosmology
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.ImSim.image_model import ImageModel
@@ -222,7 +222,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 		'use_bulgefit','viable_sersic','hlr','flux']
 
 	def tearDown(self):
-		os.remove(self.test_cosmo_folder+'manada_catalog.npy')
+		os.remove(self.test_cosmo_folder+'paltas_catalog.npy')
 		for i in range(10):
 			os.remove(self.test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(self.test_cosmo_folder+'npy_files')

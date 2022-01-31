@@ -1,7 +1,7 @@
 import numpy as np
 import unittest
-from manada.Sampling.sampler import Sampler
-from manada.Sampling import distributions
+from paltas.Sampling.sampler import Sampler
+from paltas.Sampling import distributions
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
 from scipy.stats import truncnorm
 import warnings
