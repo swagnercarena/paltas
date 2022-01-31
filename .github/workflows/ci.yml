@@ -40,7 +40,7 @@ jobs:
         run: |
           cd test
           coverage run --source paltas -m unittest -v *_tests.py
-          coverage lcov
+          coverage lcov --omit "*config*.py"
       - name: Coveralls
         uses: coverallsapp/github-action@master
         with:
