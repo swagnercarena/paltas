@@ -13,7 +13,7 @@
 	:target: https://coveralls.io/github/swagnercarena/paltas?branch=main
 
 .. image:: https://readthedocs.org/projects/paltas/badge/?version=latest
-    :target: https://paltas.readthedocs.io/en/latest/?badge=latest
+    :target: https://paltas.readthedocs.io/en/latest
     :alt: Documentation Status
 
 .. image:: https://img.shields.io/badge/license-MIT-blue.svg?style=flat
