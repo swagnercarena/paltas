@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Manipulate strong lensing images to use for tensorflow models.
+Manipulate strong lensing images to be used with tensorflow models.
 
 This module contains the functions that allow the numpy file and csv outputs
 of generate to be transformed into a format that can be consumed by
@@ -19,7 +19,7 @@ from scipy.ndimage import rotate
 
 def normalize_outputs(metadata,learning_params,input_norm_path,
 	log_learning_params=None):
-	""" Normalize the inputs to the metadata
+	""" Normalize the outputs of the network
 
 	Args:
 		metadata(pd.DataFrame): A pandas object containing the metadata
@@ -35,7 +35,7 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 
 	Returns:
 		(pd.DataFrame): A pandas dataframe with the the mean and standard
-			deviation for each parameter.
+		deviation for each parameter.
 	"""
 	# If normalization file is provided use / write it
 	if os.path.isfile(input_norm_path):
@@ -223,7 +223,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 
 	Returns:
 		(tf.Dataset): A tf.Dataset object that returns the input image and the
-			output labels.
+		output labels.
 
 	Notes:
 		Do not use kwargs_detector if noise was already added during dataset
@@ -452,7 +452,7 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 
 	Returns:
 		(generator): A generator that returns a tuple with the rotated image
-			and the parameter values.
+		and the parameter values.
 	"""
 	# Create our base tf dataset without normalization
 	base_dataset = generate_tf_dataset(tf_record_path,learning_params,

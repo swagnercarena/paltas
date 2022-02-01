@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Provides the base class for specifying the main deflector of a lensing system.
+Provide the base class for specifying the main deflector of a lensing system.
 
 This module contains the base class that all the main deflector classes will
 build from. Because the steps for rendering a main deflector can vary between

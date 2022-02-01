@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""
+Construct pdf and cdf functions in numba for hierarchical inference.
+"""
 import numba
 import numpy as np
 from math import erf
@@ -5,9 +9,17 @@ from math import erf
 
 @numba.njit
 def _norm_cdf(bound,mu,sigma):  # pragma: no cover
-	"""
-	A helper function for eval_normal_logpdf_approx
-	See `sample_normal` for parameter definitions.
+	"""A helper function for eval_normal_logpdf_approx that calculates
+	the CDF of a normal.
+
+	Args:
+		bound (float): The point at which to calculate the CDF.
+		mu (float): The mean of the normal distribution
+		sigma (float): The standard deviation of the normal
+			distribution.
+
+	Returns:
+		(float): The CDF of the normal distribution at bound.
 	"""
 	return 0.5*erf((bound-mu)/(sigma*np.sqrt(2)))
 
@@ -15,8 +27,16 @@ def _norm_cdf(bound,mu,sigma):  # pragma: no cover
 @numba.njit
 def eval_normal_logpdf_approx(eval_at, mu, sigma, lower=-np.inf,
 	upper=np.inf):  # pragma: no cover
-	"""Evaluate the normal pdf, optionally truncated without -np.inf
-	See `sample_normal` for parameter definitions.
+	"""Evaluate the log of the normal pdf, optionally truncated.
+
+	Args:
+		eval_at (np.array): The points at which to evaluate the log pdf.
+		mu (float): The mean of the normal distribution
+		sigma (float): The standard deviation of the normal distribution
+		lower (float): If not -np.inf, the lower bound of the normal
+			distribution
+		upper (float): If not np.inf, the upper bound of the normal
+			distribution.
 	"""
 	# First calculate the function without bounds
 	norm = -np.log(sigma)-np.log(2*np.pi)/2
@@ -41,9 +61,17 @@ def eval_normal_logpdf_approx(eval_at, mu, sigma, lower=-np.inf,
 
 @numba.njit
 def _lognorm_cdf(bound,mu,sigma):  # pragma: no cover
-	"""
-	A helper function for eval_lognormal_logpdf_approx
-	See `sample_normal` for parameter definitions.
+	"""A helper function for eval_lognormal_logpdf_approx that calculates
+	the CDF of a lognormal.
+
+	Args:
+		bound (float): The point at which to calculate the CDF.
+		mu (float): The mean of the log normal distribution
+		sigma (float): The standard deviation of the log normal
+			distribution.
+
+	Returns:
+		(float): The CDF of the normal distribution at bound.
 	"""
 	return 0.5*erf((np.log(bound)-mu)/(np.sqrt(2)*sigma))
 
@@ -51,8 +79,16 @@ def _lognorm_cdf(bound,mu,sigma):  # pragma: no cover
 @numba.njit
 def eval_lognormal_logpdf_approx(eval_at, mu, sigma, lower=0,
 	upper=np.inf):  # pragma: no cover
-	"""Evaluate the normal pdf, optionally truncated without -np.inf
-	See `sample_normal` for parameter definitions.
+	"""Evaluate the log of the lognormal pdf, optionally truncated
+
+	Args:
+		eval_at (np.array): The points at which to evaluate the log pdf.
+		mu (float): The mean of the lognormal distribution
+		sigma (float): The standard deviation of the lognormal distribution
+		lower (float): If not 0, the lower bound of the lognormal
+			distribution
+		upper (float): If not np.inf, the upper bound of the lognormal
+			distribution.
 	"""
 	# First calculate the distribution without the bounds
 	norm = -np.log(sigma) - np.log(eval_at) - np.log(2*np.pi)/2

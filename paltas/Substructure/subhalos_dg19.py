@@ -259,7 +259,7 @@ class SubhalosDG19(SubhalosBase):
 		"""Returns the truncation radius for a subhalo given the mass and
 		radial position in the host NFW
 
-		Paramters:
+		Args:
 			m_200 (np.array): The mass of the subhalos in units of M_sun
 			r (np.array): The radial position of the subhalos in units of kpc
 			m_pivot (float): The pivot mass for the scaling in units of M_sun
@@ -337,8 +337,8 @@ class SubhalosDG19(SubhalosBase):
 
 		Returns:
 			(tuple): A tuple of three lists: the first is the profile type for
-				each subhalo returned, the second is the lenstronomy kwargs for
-				that subhalo, and the third is the redshift for each subhalo.
+			each subhalo returned, the second is the lenstronomy kwargs for
+			that subhalo, and the third is the redshift for each subhalo.
 		Notes:
 			The redshift for each subhalo is the same as the host, so the
 			returned redshift list is not necessary unless the output is

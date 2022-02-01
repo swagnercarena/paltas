@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Functions for conudcting hierarchical inference.
+Conduct hierarchical inference on a population of lenses.
 
 This module contains the tools to conduct hierarchical inference on our
 network posteriors.
@@ -41,7 +41,7 @@ def log_p_xi_omega(predict_samps_hier,hyperparameters,eval_func_xi_omega):
 
 	Returns:
 		(np.array): A numpy array of the shape (n_samps,batch_size) containing
-			the value of log p(xi|omega) for each sample.
+		the value of log p(xi|omega) for each sample.
 
 	Notes:
 		predict_samps_hier has shape (num_params,num_samps,batch_size) to make
@@ -96,7 +96,7 @@ def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
 
 	Returns:
 		(float): The lof of the product of the three Gaussian integrated over
-			all space.
+		all space.
 	Notes:
 		The equation used here breaks down when the combination of precision
 		matrices does not yield a valid precision matrix. When this happen, the

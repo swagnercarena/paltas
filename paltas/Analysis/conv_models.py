@@ -29,7 +29,7 @@ def _xresnet_block(x,filters,kernel_size,strides,conv_shortcut,name,
 
 	Returns:
 		(KerasTensor): A Keras tensorflow tensor representing the input after
-			the block has been applied
+		the block has been applied
 	"""
 	# First axis is assumed to be the batch
 	bn_axis = -1
@@ -84,7 +84,7 @@ def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name,blocks,
 
 	Returns:
 		(KerasTensor): A Keras tensorflow tensor representing the input after
-			the stack has been applied
+		the stack has been applied
 	"""
 	# If the input dimension is not divisible by the stride then we must add
 	# padding.
@@ -121,7 +121,7 @@ def build_xresnet34(img_size,num_outputs,custom_head=False,
 
 	Returns:
 		(keras.Model): An instance of the xresnet34 model implemented in
-			Keras.
+		Keras.
 	"""
 
 	# If we train only the head, then none of the previous weights should be

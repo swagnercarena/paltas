@@ -19,7 +19,7 @@ def power_law_integrate(p_min,p_max,slope):
 
 	Returns:
 		(float): The integral of the power law x^slope from p_min
-			to p_max
+		to p_max
 	"""
 	upper_bound = 1/(slope+1)*p_max**(slope+1)
 	lower_bound = 1/(slope+1)*p_min**(slope+1)

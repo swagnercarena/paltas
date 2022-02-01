@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Provides the implementation of a few main deflector profiles that consist
+Provide the implementation of a few main deflector profiles that consist
 of two or fewer components.
 
 This module contains the classes to render main deflectors consisting of simple

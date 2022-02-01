@@ -39,8 +39,8 @@ class COSMOSSersic(COSMOSCatalog):
 
 		Returns:
 			(list,list) A list containing the models ['INTERPOL',
-				'SERSIC_ELLIPSE'] and a list of two kwarg dicts for the 
-				instances of the lenstronomy classes
+			'SERSIC_ELLIPSE'] and a list of two kwarg dicts for the
+			instances of the lenstronomy classes
 
 		Notes:
 			If catalog_i is not provided, one that meets the cuts will be

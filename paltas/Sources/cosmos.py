@@ -177,10 +177,10 @@ class COSMOSCatalog(GalaxyCatalog):
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy
 
-		Parameters:
+		Args:
 			catalog_i (int): The catalog index
 
-		Returns
+		Returns:
 			([np.array, np.void]) A numpy array containing the image
 			metadata and a numpy void type that acts as a dictionary with
 			the metadata.
@@ -236,8 +236,8 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 
 		Returns:
 			(list,list) A list containing the model ['INTERPOL'] and
-				the kwargs for an instance of the class
-				lenstronomy.LightModel.Profiles.interpolation.Interpol
+			the kwargs for an instance of the class
+			lenstronomy.LightModel.Profiles.interpolation.Interpol
 
 		Notes:
 			If not catalog_i is provided, one that meets the cuts will be
@@ -275,10 +275,10 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy
 
-		Parameters:
+		Args:
 			catalog_i (int): The catalog index
 
-		Returns
+		Returns:
 			([np.array, np.void]) A numpy array containing the image
 			metadata and a numpy void type that acts as a dictionary with
 			the metadata.

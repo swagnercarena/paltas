@@ -17,21 +17,18 @@ class SinglePointSource(PointSourceBase):
 			parameters.
 
 	Notes:
-		Required parameters: 
-			x_point_source (float),
-			y_point_source (float),
-			magnitude (float),
-			mag_zeropoint (float): absolute magnitude zeropoint of detector
-			compute_time_delays (bool): will add time delays to metadata if 
-				True. Must define kappa_ext (see below) if True.
-		Optional parameters: 
-			mag_pert (list of floats): List of fractional magnification 
-				pertubations that will be applied to each image.
-			kappa_ext (float): External convergence used to calculate time 
-				delays. If compute_time_delays = True, this parameter must be 
-				defined.
-			time_delay_error (float): error in days will be added to time delay
-				calculation (can be negative or positive error)
+		The required parameters are the x and y location of the source
+		(x_point_source [float],y_point_source [float]), the magnitude
+		(magnitude [float]), the absolute magnitude zeropoint of the detector
+		(mag_zeropoint [float]), and wether or not to add time delays to the
+		metadata (compute_time_delays [bool]). If adding time delays to metadata
+		user must define kappa_ext.
+
+		The optional parameters are a list of fractional magnification
+		pertubations that will be applied to each image (mag_pert [float,...]),
+		the external convergence used to calculate time delays(kappa_ext [float]),
+		and the negative or positive error in days to add to the time delay
+		calculation (time_delay_error [float]).
 
 	"""
 

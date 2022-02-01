@@ -49,14 +49,14 @@ class LOSDG19(LOSBase):
 	@staticmethod
 	@numba.njit
 	def nu_f_nu(nu):
-		"""Calculates :math:`\nu f(\nu)` for the Sheth Tormen 2001 model.
+		"""Calculates nu f(nu) for the Sheth Tormen 2001 model.
 
 		Args:
 			nu (np.array): An array of nu values to at which to
 				calculate nu_f_nu
 
 		Returns:
-			(np.array): The value of :math:`\nu f(\nu)`
+			(np.array): The value of nu f(nu)
 
 		"""
 		# Parameters fit to simulations (A is fixed so that the integral
@@ -81,7 +81,7 @@ class LOSDG19(LOSBase):
 
 		Returns:
 			(np.array): The values of the mass function at each mass in units
-				of physical number density in units of 1/(M_sun*kpc^3).
+			of physical number density in units of 1/(M_sun*kpc^3).
 
 		Notes:
 			It is slower to pass in multiple z values that are identical.
@@ -119,7 +119,7 @@ class LOSDG19(LOSBase):
 
 		Returns:
 			(tuple): The power law slope and the norm for the power law in
-				units of 1/M_sun/kpc**3
+			units of 1/M_sun/kpc**3
 		"""
 		m = np.logspace(np.log10(m_min),np.log10(m_max),n_dm)
 		lm = np.log(m)

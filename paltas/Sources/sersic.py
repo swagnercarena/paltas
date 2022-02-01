@@ -30,7 +30,7 @@ class SingleSersicSource(SourceBase):
 
 		Returns:
 			(list,list) A list containing the model names(s), and
-				a list containing the model kwargs dictionaries.
+			a list containing the model kwargs dictionaries.
 		"""
 		# Just extract each of the sersic parameters.
 		sersic_params ={
