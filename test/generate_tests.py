@@ -603,6 +603,7 @@ class GenerateTests(unittest.TestCase):
 
 		# Remove the metadata file
 		os.remove(os.path.join(output_folder,'metadata.csv'))
+		os.remove(os.path.join(output_folder,'config_dict.py'))
 
 		sys.argv = old_sys
 
@@ -658,6 +659,7 @@ class GenerateTests(unittest.TestCase):
 
 		# Remove the metadata file
 		os.remove(os.path.join(output_folder,'metadata.csv'))
+		os.remove(os.path.join(output_folder,'config_dict_drizz.py'))
 
 		sys.argv = old_sys
 

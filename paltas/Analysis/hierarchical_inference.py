@@ -80,7 +80,7 @@ def log_p_omega(hyperparameters,eval_func_omega):
 
 @numba.njit
 def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
-	mu_omega,prec_omega):
+	mu_omega,prec_omega):  # pragma: no cover
 	""" Calculate the log of the integral of p(xi_k|omega)*p(xi_k|d_k,omega_int)/
 	p(xi_k|omega_int) when all three pdfs are Gaussian.
 
@@ -291,7 +291,7 @@ class ProbabilityClassAnalytical:
 	@staticmethod
 	@numba.njit
 	def log_integral_product(mu_pred_array,prec_pred_array,mu_omega_i,
-		prec_omega_i,mu_omega,prec_omega):
+		prec_omega_i,mu_omega,prec_omega):  # pragma: no cover
 		""" For the case of Gaussian distributions, calculate the log of the
 		integral p(xi_k|omega)*p(xi_k|d_k,omega_int)/p(xi_k|omega_int) summed
 		over all of the lenses in the sample.
@@ -405,7 +405,7 @@ class ProbabilityClassEnsemble(ProbabilityClassAnalytical):
 	@staticmethod
 	@numba.njit
 	def log_integral_product(mu_pred_array,prec_pred_array,mu_omega_i,
-		prec_omega_i,mu_omega,prec_omega):
+		prec_omega_i,mu_omega,prec_omega):  # pragma: no cover
 		""" For the case of Gaussian distributions, calculate the log of the
 		integral p(xi_k|omega)*p(xi_k|d_k,omega_int)/p(xi_k|omega_int) summed
 		over all of the lenses in the sample.

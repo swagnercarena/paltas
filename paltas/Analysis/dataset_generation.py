@@ -246,7 +246,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		noise_function = None
 
 	# Create the feature decoder that will be used
-	def parse_image_features(example):
+	def parse_image_features(example):  # pragma: no cover
 		data_features = {
 			'image': tf.io.FixedLenFeature([],tf.string),
 			'height': tf.io.FixedLenFeature([],tf.int64),
