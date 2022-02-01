@@ -59,8 +59,8 @@ def distort_image(img_high_res,w_high_res,w_dither,offset_pattern,
 
 	Returns:
 		(np.array): A len(offset_pattern) x dither_image.shape sized numpy
-			array for each of the dithered images. dither_image shape will
-			depend on the w_dither WCS object and the psf_supersample_factor.
+		array for each of the dithered images. dither_image shape will
+		depend on the w_dither WCS object and the psf_supersample_factor.
 	"""
 	# First create the interpolator for our image in the sky. Values are assumed
 	# to be measured at the center of pixels.
@@ -119,7 +119,7 @@ def generate_downsampled_wcs(high_res_shape,high_res_pixel_scale,
 
 	Returns:
 		astropy.wcs.wcs.WCS: The wcs object corresponding to the
-			downsampled image.
+		downsampled image.
 	"""
 	# If wcs distortion was specified, use it to seed the fits file we
 	# will later use to create the wcs object. This is a little
@@ -278,9 +278,9 @@ def hubblify(img_high_res,high_res_pixel_scale,detector_pixel_scale,
 
 	Returns:
 		(np.array): The drizzled image produced from len(offset_pattern)
-			number of dithered exposures of img_high_res. Note that this
-			means that the drizzled image will have the noise statistics and
-			flux of len(offset_pattern) combined exposures.
+		number of dithered exposures of img_high_res. Note that this
+		means that the drizzled image will have the noise statistics and
+		flux of len(offset_pattern) combined exposures.
 	"""
 	# Create our three base WCS systems, one for the input high res, one for the
 	# input highres, one for the drizzled image, and one for the final dithered

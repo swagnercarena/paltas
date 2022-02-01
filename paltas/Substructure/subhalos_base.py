@@ -95,7 +95,7 @@ class SubhalosBase():
 
 		Returns:
 			(tuple): A tuple of three lists: the first is the profile type for
-				each subhalo returned, the second is the lenstronomy kwargs for
-				that subhalo, and the third is the redshift for each subhalo.
+			each subhalo returned, the second is the lenstronomy kwargs for
+			that subhalo, and the third is the redshift for each subhalo.
 		"""
 		raise NotImplementedError

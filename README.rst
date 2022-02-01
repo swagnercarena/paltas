@@ -9,8 +9,12 @@
 .. image:: https://github.com/swagnercarena/paltas/workflows/CI/badge.svg
     :target: https://github.com/swagnercarena/paltas/actions
 
-.. image:: https://coveralls.io/repos/github/swagnercarena/paltas/badge.svg?branch=main&amp
+.. image:: https://coveralls.io/repos/github/swagnercarena/paltas/badge.svg?branch=main
 	:target: https://coveralls.io/github/swagnercarena/paltas?branch=main
+
+.. image:: https://readthedocs.org/projects/paltas/badge/?version=latest
+    :target: https://paltas.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 .. image:: https://img.shields.io/badge/license-MIT-blue.svg?style=flat
     :target: https://github.com/swagnercarena/paltas/main/LICENSE

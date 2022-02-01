@@ -68,6 +68,6 @@ class SourceBase:
 
 		Returns:
 			(list,list) A list containing the model name(s), and
-				a list containing the model kwargs dictionaries.
+			a list containing the model kwargs dictionaries.
 		"""
 		raise NotImplementedError

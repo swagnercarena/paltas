@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Construct the loss functions for use in NN training
+Construct the loss functions for use in NN training.
 
 This module contains classes that can be used to initialize tensorflow loss
 functions for NN training on the strong lensing problem.
@@ -65,7 +65,7 @@ class BaseLoss():
 
 		Returns:
 			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
-				the components of the loss function.
+			the components of the loss function.
 		"""
 
 		raise NotImplementedError('convert_output has not been defined.')
@@ -80,8 +80,8 @@ class BaseLoss():
 
 		Returns:
 			(np.array): An array with shape (n_samps,batch_size,n_params)
-				containing draws from the posterior of each lens defined in
-				the output.
+			containing draws from the posterior of each lens defined in
+			the output.
 		"""
 
 		raise NotImplementedError('convert_output has not been defined.')
@@ -114,7 +114,7 @@ class MSELoss(BaseLoss):
 
 		Returns:
 			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
-				the components of the loss function.
+			the components of the loss function.
 		"""
 		# Get the mle value from the output.
 		y_pred, _ = tf.split(output,num_or_size_splits=(self.num_params,-1),
@@ -131,8 +131,8 @@ class MSELoss(BaseLoss):
 
 		Returns:
 			(np.array): An array with shape (n_samps,batch_size,n_params)
-				containing draws from the posterior of each lens defined in
-				the output.
+			containing draws from the posterior of each lens defined in
+			the output.
 		"""
 		# The posterior is just a delta function.
 		y_pred = self.convert_output(output).numpy()
@@ -174,9 +174,11 @@ class DiagonalCovarianceLoss(BaseLoss):
 			the index of parameters that when flipped together return an
 			equivalent lens model.
 
-		Notes: If multiple lists are provided, all possible combinations of
-		flips will be considered. For example, if flip_pairs is [[0,1],[2,3]]
-		then flipping 0,1,2,3 all at the same time will also be considered.
+		Notes:
+			If multiple lists are provided, all possible combinations of
+			flips will be considered. For example, if flip_pairs is
+			[[0,1],[2,3]] then flipping 0,1,2,3 all at the same time will
+			also be considered.
 	"""
 
 	def convert_output(self,output):
@@ -188,7 +190,7 @@ class DiagonalCovarianceLoss(BaseLoss):
 
 		Returns:
 			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
-				the components of the loss function.
+			the components of the loss function.
 		"""
 		# Get both the mle value and the standard deviation.
 		y_pred, log_var_pred = tf.split(output,num_or_size_splits=2,axis=-1)
@@ -204,8 +206,8 @@ class DiagonalCovarianceLoss(BaseLoss):
 
 		Returns:
 			(np.array): An array with shape (n_samps,batch_size,n_params)
-				containing draws from the posterior of each lens defined in
-				the output.
+			containing draws from the posterior of each lens defined in
+			the output.
 		"""
 		# The posterior is the mean with random noise.
 		y_pred, log_var_pred = self.convert_output(output)
@@ -272,9 +274,11 @@ class FullCovarianceLoss(BaseLoss):
 			the index of parameters that when flipped together return an
 			equivalent lens model.
 
-		Notes: If multiple lists are provided, all possible combinations of
-		flips will be considered. For example, if flip_pairs is [[0,1],[2,3]]
-		then flipping 0,1,2,3 all at the same time will also be considered.
+		Notes:
+			If multiple lists are provided, all possible combinations of
+			flips will be considered. For example, if flip_pairs is
+			[[0,1],[2,3]] then flipping 0,1,2,3 all at the same time will
+			also be considered.
 	"""
 	def __init__(self, num_params, flip_pairs=None, weight_terms=None):
 		super().__init__(num_params,flip_pairs=flip_pairs,
@@ -294,7 +298,7 @@ class FullCovarianceLoss(BaseLoss):
 
 		Returns:
 			([tf.Tensor,...]): The list of tf.Tensor objects that correspond to
-				the components of the loss function.
+			the components of the loss function.
 		"""
 		# Start by dividing the output into the L_elements and the prediction
 		# values.
@@ -318,8 +322,8 @@ class FullCovarianceLoss(BaseLoss):
 
 		Returns:
 			(np.array): An array with shape (n_samps,batch_size,n_params)
-				containing draws from the posterior of each lens defined in
-				the output.
+			containing draws from the posterior of each lens defined in
+			the output.
 		"""
 		# The posterior is the mean with random noise.
 		y_pred, prec_mat, _ = self.convert_output(output)
