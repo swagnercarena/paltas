@@ -13,7 +13,7 @@ from lenstronomy.Data.psf import PSF
 import os
 from shutil import copyfile
 from matplotlib import pyplot as plt
-import numba
+import numba, copy, sys
 from scipy import special
 from scipy.stats import truncnorm, lognorm, multivariate_normal
 from scipy.integrate import dblquad
@@ -915,21 +915,6 @@ class ConvModelsTests(unittest.TestCase):
 		np.random.seed(2)
 		tf.random.set_seed(2)
 
-	def test_build_resnet_50(self):
-		# Just test that the model dimensions behave as we would expect
-		image_size = (100,100,1)
-		num_outputs = 8
-
-		model = Analysis.conv_models.build_resnet_50(image_size,num_outputs)
-
-		# Check shapes
-		self.assertTupleEqual((None,100,100,1),model.input_shape)
-		self.assertTupleEqual((None,num_outputs),model.output_shape)
-		self.assertEqual(123,len(model.layers))
-
-		# Check that the model compiles
-		model.compile(loss='mean_squared_error')
-
 	def test__xresnet_stack(self):
 		# Test that building the xresnet stack works with different input
 		# shapes.
@@ -1102,10 +1087,16 @@ class HierarchicalInferenceTests(unittest.TestCase):
 		# Test that it works with numba
 		@numba.njit()
 		def eval_func_omega(hyperparameters):
-			return hyperparameters[0]*hyperparameters[1]
+			if hyperparameters[0] < 0:
+				return np.nan
+			else:
+				return hyperparameters[0]*hyperparameters[1]
 
 		self.assertEqual(Analysis.hierarchical_inference.log_p_omega(
 			hyperparameters,eval_func_omega),0.2)
+		hyperparameters = np.array([-1,0.2])
+		self.assertEqual(Analysis.hierarchical_inference.log_p_omega(
+			hyperparameters,eval_func_omega),-np.inf)
 
 	def test_gaussian_product_analytical(self):
 		# Test for a few combinations of covariance matrices that the results
@@ -1596,3 +1587,65 @@ class PdfFunctionsTests(unittest.TestCase):
 			eval_at,mu,sigma,lower=-np.inf)
 		lpdf = eval_lognormal_logpdf(eval_at,mu,sigma)
 		np.testing.assert_almost_equal(lpdf_approx, lpdf, precision)
+
+
+class TrainModelTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set the random seed so we don't run into trouble
+		np.random.seed(20)
+
+	def test_parse_args(self):
+		# Check that the argument parser works as intended
+		# We have to modify the sys.argv input which is bad practice
+		# outside of a test
+		old_sys = copy.deepcopy(sys.argv)
+		sys.argv = ['test','train_config.py','--tensorboard_dir',
+			'tensorboard_dir']
+		args = Analysis.train_model.parse_args()
+		self.assertEqual(args.training_config,'train_config.py')
+		self.assertEqual(args.tensorboard_dir,'tensorboard_dir')
+		sys.argv = old_sys
+
+	def test_main(self):
+		# Test that the main function runs and produces the expecteced
+		# files.
+		old_sys = copy.deepcopy(sys.argv)
+		tensorboard_dir = 'test_data'
+		sys.argv = ['test','test_data/train_config.py','--tensorboard_dir',
+			tensorboard_dir]
+
+		# Run a training with the first config file
+		Analysis.train_model.main()
+
+		# Cleanup the files we don't want
+		os.remove('test_data/fake_model.h5')
+		os.remove('test_data/fake_train/norms.csv')
+		tensorboard_train = glob.glob('test_data/train/*')
+		for f in tensorboard_train:
+			os.remove(f)
+		os.rmdir('test_data/train')
+		tensorboard_val = glob.glob('test_data/validation/*')
+		for f in tensorboard_val:
+			os.remove(f)
+		os.rmdir('test_data/validation')
+
+		# Use a second config file that's a little different.
+		sys.argv = ['test','test_data/train_config2.py','--tensorboard_dir',
+			tensorboard_dir]
+		Analysis.train_model.main()
+
+		# Cleanup the files we don't want
+		os.remove('test_data/fake_model.h5')
+		os.remove('test_data/fake_train/norms.csv')
+		os.remove('test_data/fake_train/data.tfrecord')
+		tensorboard_train = glob.glob('test_data/train/*')
+		for f in tensorboard_train:
+			os.remove(f)
+		os.rmdir('test_data/train')
+		tensorboard_val = glob.glob('test_data/validation/*')
+		for f in tensorboard_val:
+			os.remove(f)
+		os.rmdir('test_data/validation')
+
+		sys.argv = old_sys

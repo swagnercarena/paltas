@@ -49,8 +49,6 @@ def main():
 	n_epochs = config_module.n_epochs
 	# The size of the images in the training set
 	img_size = config_module.img_size
-	# A random seed to us
-	random_seed = config_module.random_seed
 	# A list of the paths to the TFRecords for the training images
 	tfr_train_paths = config_module.tfr_train_paths
 	# The path to the TFRecord for the validation images
