@@ -35,9 +35,9 @@ class COSMOSCatalog(GalaxyCatalog):
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources.
 	"""
-	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'output_ab_zeropoint','z_source','center_x','center_y')
+	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
+		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
+		'min_flux_radius','output_ab_zeropoint','z_source','center_x','center_y')
 	# Average AB magnitude zeropoint for the COSMOS run.
 	ab_zeropoint = 25.95
 
@@ -104,14 +104,14 @@ class COSMOSCatalog(GalaxyCatalog):
 		"""
 		is_ok = np.ones(len(self), dtype=np.bool_)
 		# Grab the parameter to cut on.
-		min_apparent_mag = self.source_parameters['min_apparent_mag']
+		faintest_apparent_mag = self.source_parameters['faintest_apparent_mag']
 		minimum_size_in_pixels = self.source_parameters['minimum_size_in_pixels']
 		max_z = self.source_parameters['max_z']
 		min_flux_radius = self.source_parameters['min_flux_radius']
 
 		# Get the images that match the cuts.
-		if min_apparent_mag is not None:
-			is_ok &= self.catalog['mag_auto'] < min_apparent_mag
+		if faintest_apparent_mag is not None:
+			is_ok &= self.catalog['mag_auto'] < faintest_apparent_mag
 		if minimum_size_in_pixels is not None:
 			min_size = np.minimum(self.catalog['size_x'],
 				self.catalog['size_y'])
@@ -321,9 +321,10 @@ class COSMOSExcludeCatalog(COSMOSCatalog):
 			needed to draw sources.
 	"""
 
-	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'source_exclusion_list','output_ab_zeropoint','center_x','center_y')
+	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
+		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
+		'min_flux_radius','source_exclusion_list','output_ab_zeropoint',
+		'center_x','center_y')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
@@ -359,9 +360,10 @@ class COSMOSIncludeCatalog(COSMOSCatalog):
 			needed to draw sources.
 	"""
 
-	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'source_inclusion_list','output_ab_zeropoint','center_x','center_y')
+	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
+		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
+		'min_flux_radius','source_inclusion_list','output_ab_zeropoint',
+		'center_x','center_y')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)

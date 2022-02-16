@@ -39,7 +39,7 @@ class GenerateTests(unittest.TestCase):
 		# the source
 		source_parameters = {'z_source':0.19499999,
 			'cosmos_folder':cosmos_folder,'max_z':None,
-			'minimum_size_in_pixels':None,'min_apparent_mag':None,
+			'minimum_size_in_pixels':None,'faintest_apparent_mag':None,
 			'smoothing_sigma':0.0,'random_rotation':False,
 			'min_flux_radius':None,'output_ab_zeropoint':25.95,
 			'center_x':0.0,'center_y':0.0,
@@ -302,7 +302,7 @@ class GenerateTests(unittest.TestCase):
 		# the source
 		source_parameters = {'z_source':0.19499999,
 			'cosmos_folder':cosmos_folder,'max_z':None,
-			'minimum_size_in_pixels':None,'min_apparent_mag':None,
+			'minimum_size_in_pixels':None,'faintest_apparent_mag':None,
 			'smoothing_sigma':0.0,'random_rotation':False,
 			'min_flux_radius':None,'output_ab_zeropoint':25.95,
 			'center_x':0.0,'center_y':0.0,
@@ -437,10 +437,10 @@ class GenerateTests(unittest.TestCase):
 		# Setup a fairly basic situation with a source at redshift 1.0 an a
 		# massive main deflector at redshift 0.5.
 		source_parameters = {'z_source':1.0,'cosmos_folder':cosmos_folder,
-			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
-			'smoothing_sigma':0.0,'random_rotation':False,
-			'min_flux_radius':None,'output_ab_zeropoint':25.95,
-			'center_x':0.0,'center_y':0.0,
+			'max_z':None,'minimum_size_in_pixels':None,
+			'faintest_apparent_mag':None,'smoothing_sigma':0.0,
+			'random_rotation':False,'min_flux_radius':None,
+			'output_ab_zeropoint':25.95,'center_x':0.0,'center_y':0.0,
 			'source_inclusion_list':np.array([0])}
 		los_class = None
 		subhalo_class = None

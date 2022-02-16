@@ -71,7 +71,8 @@ config_dict = {
 		'class': COSMOSCatalog,
 		'parameters':{
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
-			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
+			'max_z':None,'minimum_size_in_pixels':None,
+			'faintest_apparent_mag':None,
 			'smoothing_sigma':0.0,'random_rotation':True,
 			'center_x':norm(loc=0.0,scale=0.16).rvs,
 			'center_y':norm(loc=0.0,scale=0.16).rvs,

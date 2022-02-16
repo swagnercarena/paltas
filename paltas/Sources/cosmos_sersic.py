@@ -22,10 +22,11 @@ class COSMOSSersic(COSMOSCatalog):
 
 	"""
 
-	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'output_ab_zeropoint','z_source', 'mag_sersic', 'R_sersic', 'n_sersic',
-		'e1_sersic', 'e2_sersic', 'center_x_sersic', 'center_y_sersic')
+	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
+		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
+		'min_flux_radius','output_ab_zeropoint','z_source', 'mag_sersic',
+		'R_sersic', 'n_sersic','e1_sersic', 'e2_sersic', 'center_x_sersic',
+		'center_y_sersic')
 
 	def draw_source(self, catalog_i=None, phi=None):
 		"""Creates lenstronomy kwargs for a COSMOS catalog image and a 
