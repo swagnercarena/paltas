@@ -355,7 +355,7 @@ class SubhalosCatalog(SubhalosBase):
 				kwargs_new.append({'Rs': rr_host.values[0], 'alpha_Rs': alpha_Rs_host.values[0],  'center_x': 0, 'center_y':0})
 		lens_analytic = LensModel(lens_model_list=profiles, lens_redshift_list=z_lens, z_source=z_source, cosmo=cosmo, multi_plane=False)
 
-		return lens_analytic, kwargs_new
+		return [lens_analytic]*len(kwargs_new), kwargs_new
 
 
 	def draw_subhalos(self):
