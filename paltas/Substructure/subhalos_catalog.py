@@ -7,6 +7,7 @@ from. Because the steps for rendering subhalos can vary between different
 models, the required functions are very sparse.
 """
 from .subhalos_base import SubhalosBase
+from .subhalos_dg19 import SubhalosDG19 
 from . import nfw_functions
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.Cosmo.lens_cosmo import LensCosmo
@@ -125,7 +126,8 @@ class SubhalosCatalog(SubhalosBase):
 		subhalos = halos[halos['upid']==host['id']]
 
 		#only return subhalos with mass greater than m_min 
-		mask = subhalos['m200c'] > self.subhalo_parameters['m_min']
+		h = cosmo.h
+		mask = subhalos['m200c']/h > self.subhalo_parameters['m_min']
 		subhalos = subhalos[mask]
 
 		concentration = []
@@ -194,11 +196,11 @@ class SubhalosCatalog(SubhalosBase):
 		center_x = host['x']
 		center_y = host['y']
 		center_z = host['z']
-		print(center_x)
-		print(center_y)
-		print(center_z)
+#		print(center_x)
+#		print(center_y)
+#		print(center_z)
 
-		sub['m200'] = subhalos['m200c']/h
+		sub['m200'] = subhalos['m200c']
 		sub['x'] = (subhalos['x'] - center_x)*1000*scale_factor/h
 		sub['y'] = (subhalos['y'] - center_y)*1000*scale_factor/h
 		sub['z'] = (subhalos['z'] - center_z)*1000*scale_factor/h
@@ -271,6 +273,7 @@ class SubhalosCatalog(SubhalosBase):
 		yy = lens_cosmo.phys2arcsec_lens(sub_y/1000.).values
 		rr = lens_cosmo.phys2arcsec_lens(sub['rs']/1000).values
 
+		ellipticity_max = 0.1 
 		if(include_host==True):
 			host_x, host_y = self.rotate_project(host['x'], host['y'], host['z'], 0, 0, 0)
 
@@ -293,8 +296,8 @@ class SubhalosCatalog(SubhalosBase):
 					theta = np.array([-ellipse_y.values[0], -ellipse_x.values[0]])
 					phi = np.arccos(np.dot(z,theta)/(np.linalg.norm(theta)*np.linalg.norm(z)))
 				host_e1, host_e2 = param_util.phi_q2_ellipticity(phi=phi, q=q.values[0])
-				host_e1 = min(np.abs(host_e1), 0.2)*np.sign(host_e1)
-				host_e2 = min(np.abs(host_e2), 0.2)*np.sign(host_e2)
+				host_e1 = min(np.abs(host_e1),ellipticity_max)*np.sign(host_e1)
+				host_e2 = min(np.abs(host_e2),ellipticity_max)*np.sign(host_e2)
 			if(host_profile=='TNFW'):	
 				rtrunc_host = lens_cosmo.phys2arcsec_lens(host['rvir']/1000) 
 
@@ -319,16 +322,20 @@ class SubhalosCatalog(SubhalosBase):
 			e2 = []
 			for i in range(len(phi)):
 			    ee1, ee2 = param_util.phi_q2_ellipticity(phi=phi[i], q=q[i])
-			    e1.append(min(np.abs(ee1), 0.2)*np.sign(ee1))
-			    e2.append(min(np.abs(ee2), 0.2)*np.sign(ee2))
+			    e1.append(min(np.abs(ee1),ellipticity_max)*np.sign(ee1))
+			    e2.append(min(np.abs(ee2),ellipticity_max)*np.sign(ee2))
 
 		if(subhalo_profile=='NFW'): 
 			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
 		elif(subhalo_profile=='TNFW'):
-			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i],'r_trunc': 5*rr[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
+			radii = np.sqrt(sub['x']**2 + sub['y']**2 + sub['z']**2)
+			m200 = sub['m200']
+			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i],'r_trunc': SubhalosDG19.get_truncation_radius(m200[i], radii[i]), 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
 		elif(subhalo_profile=='NFW_ELLIPSE'):
 			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i],  'e1': e1[i], 'e2': e2[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
 		elif(subhalo_profile=='TNFW_ELLIPSE'):
+			radii = np.sqrt(sub['x']**2 + sub['y']**2 + sub['z']**2)
+			m200 = sub['m200']
 			kwargs_new = [{'Rs': rr[i], 'alpha_Rs': alpha_Rs[i], 'r_trunc': 5*rr[i],  'e1': e1[i], 'e2': e2[i], 'center_x': yy[i], 'center_y':xx[i]} for i in range(len(rr))]
 		else:
 			print('Subhalo profile not implemented. Defaulting to NFW')
