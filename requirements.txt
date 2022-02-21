@@ -1,5 +1,9 @@
-astropy
+astropy>=4.2.1
 colossus
-lenstronomy
-numpy
-tqdm
+drizzle>=1.13.3
+lenstronomy>=1.6.0
+numpy>=1.13
+tqdm>=4.42.1
+pandas>=1.0.1
+numba>=0.52.0
+matplotlib>=3.3.3
