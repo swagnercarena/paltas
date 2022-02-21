@@ -375,5 +375,5 @@ class SubhalosCatalog(SubhalosBase):
 		sub, host = self.load_host_and_subs(rockstar_dir, hlist_fname, scale_factor, self.cosmo, self.subhalo_parameters['return_at_infall'])
 
 		lens, kwargs = self.generate_analytic(sub, host, self.cosmo, self.source_parameters['z_source'], redshift, self.subhalo_parameters['get_main'], self.subhalo_parameters['subhalo_profile'], self.main_deflector_parameters['host_profile'])
-		return (lens, kwargs)
-
+		subhalo_z_list = [redshift]*len(lens)
+		return (lens, kwargs,subhalo_z_list)
