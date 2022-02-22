@@ -7,7 +7,7 @@ import pandas as pd
 # config_dict and root path in the import *.
 # update the sources
 config_dict['source']['parameters']['source_inclusion_list'] = pd.read_csv(
-        os.path.join(root_path,'manada/Sources/val_galaxies.csv'),
+        os.path.join(root_path,'paltas/Sources/val_galaxies.csv'),
         names=['catalog_i'])['catalog_i'].to_numpy()
 config_dict['source']['class'] = COSMOSIncludeCatalog
 del config_dict['source']['parameters']['source_exclusion_list']
@@ -33,3 +33,4 @@ config_dict['subhalo']['class'] = SubhalosCatalog
 config_dict['subhalo']['parameters'] = {'rockstar_path':return_rockstar_path,
         'm_min':5e8,'get_main':False,'return_at_infall':False,
         'subhalo_profile':'TNFW_ELLIPSE'}
+config_dict['main_deflector']['parameters']['host_profile'] = 'NFW_ELLIPSE'

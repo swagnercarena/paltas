@@ -127,7 +127,11 @@ class SubhalosCatalog(SubhalosBase):
 
 		#only return subhalos with mass greater than m_min 
 		h = cosmo.h
-		mask = subhalos['m200c']/h > self.subhalo_parameters['m_min']
+		subhalos['m200c'] = subhalos['m200c']/h
+
+		mask = subhalos['m200c'] > self.subhalo_parameters['m_min']
+		mask1 = subhalos['m200c'] < 1e10 
+		mask = mask&mask1
 		subhalos = subhalos[mask]
 
 		concentration = []
