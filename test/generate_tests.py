@@ -153,7 +153,7 @@ class GenerateTests(unittest.TestCase):
 				return
 
 			def draw_los(self,*args,**kwargs):
-				model_list = ['PEMD','SHEAR']
+				model_list = ['EPL','SHEAR']
 				kwargs_list = [{'gamma': 2.0,'theta_E': 1.0,'e1':0.1,'e2':0.1,
 					'center_x':0.02,'center_y':-0.03},
 					{'gamma1':0.01,'gamma2':-0.02,'ra_0':0.0, 'dec_0':0.0}]
@@ -178,7 +178,7 @@ class GenerateTests(unittest.TestCase):
 				return
 
 			def draw_subhalos(self,*args,**kwargs):
-				model_list = ['PEMD','SHEAR']
+				model_list = ['EPL','SHEAR']
 				kwargs_list = [{'gamma': 2.0,'theta_E': 1.0,'e1':0.1,'e2':0.1,
 					'center_x':0.02,'center_y':-0.03},
 					{'gamma1':0.01,'gamma2':-0.02,'ra_0':0.0, 'dec_0':0.0}]
@@ -397,7 +397,7 @@ class GenerateTests(unittest.TestCase):
 				return
 
 			def draw_los(self,*args,**kwargs):
-				model_list = ['PEMD','SHEAR']
+				model_list = ['EPL','SHEAR']
 				kwargs_list = [{'gamma': 2.0,'theta_E': 1.0,'e1':0.1,'e2':0.1,
 					'center_x':0.02,'center_y':-0.03},
 					{'gamma1':0.01,'gamma2':-0.02,'ra_0':0.0, 'dec_0':0.0}]
