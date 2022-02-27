@@ -24,21 +24,18 @@
 Installation
 ------------
 
-Lenstronomy requires an additional fortran package (fastell) to run lens models with elliptical mass distributions. Thankfully, installing the package is fairly easy (although a fortran compiler is required).
+``paltas`` is installable via pip:
 
 .. code-block:: bash
 
-    $ git clone https://github.com/sibirrer/fastell4py.git <desired location>
-    $ cd <desired location>
-    $ python setup.py install --user
+    $ pip install paltas
 
-
-In the future, paltas will be a pypi package. For now, it can be installed by cloning the git repo.
+The default ``paltas`` requirements do not include ``tensorflow``, but if you are interested in using the modules contained in the analysis folder, you will have to install ``tensorflow``:
 
 .. code-block:: bash
 
-	$ git clone https://github.com/swagnercarena/paltas.git
-	$ cd paltas/
-	$ pip install -e . -r requirements.txt
+    $ pip install tensorflow
 
-The addition of the -e option will allow you to pull paltas updates and have them work automatically.
+Attribution
+-----------
+If you use ovejero or its datasets for your own research, please cite the ``paltas`` package (`Wagner-Carena et al. 2022 <https://arxiv.org/abs/xxxx.yyyy>`_) as well as the``lenstronomy`` package (`Birrer & Amara 2018 <https://arxiv.org/abs/1803.09746v1>`_,`Birrer et al. 2021 <https://joss.theoj.org/papers/10.21105/joss.03283>`_).

@@ -21,6 +21,9 @@ class PEMD(MainDeflectorBase):
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
+	Notes:
+		Uses the lenstronomy EPL class, which is equivalent to PEMD but is pure
+		python.
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ('gamma','theta_E','e1','e2','center_x',
@@ -43,7 +46,7 @@ class PEMD(MainDeflectorBase):
 		"""
 		# The lists of model parameters, kwargs, and redshifts can all be
 		# pulled fairly directly from the main_deflecctor_parameters
-		md_model_list = ['PEMD']
+		md_model_list = ['EPL']
 		md_kwargs_list = []
 		md_z_list = [self.main_deflector_parameters['z_lens']] * len(
 			md_model_list)
@@ -72,6 +75,9 @@ class PEMDShear(MainDeflectorBase):
 			of colossus cosmology, a dict with 'cosmology name': name of
 			colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
+	Notes:
+		Uses the lenstronomy EPL class, which is equivalent to PEMD but is pure
+		python.
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ('gamma','theta_E','e1','e2','center_x',
@@ -94,7 +100,7 @@ class PEMDShear(MainDeflectorBase):
 		"""
 		# The lists of model parameters, kwargs, and redshifts can all be
 		# pulled fairly directly from the main_deflecctor_parameters
-		md_model_list = ['PEMD','SHEAR']
+		md_model_list = ['EPL','SHEAR']
 		md_kwargs_list = []
 		md_z_list = [self.main_deflector_parameters['z_lens']] * len(
 			md_model_list)

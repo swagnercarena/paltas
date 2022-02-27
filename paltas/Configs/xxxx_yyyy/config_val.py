@@ -1,4 +1,4 @@
-from paltas.Configs.config_amp_and_slope import *
+from paltas.Configs.xxxx_yyyy.config_train import *
 from paltas.Sources.cosmos import COSMOSIncludeCatalog
 import os
 import pandas as pd

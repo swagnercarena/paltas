@@ -1,5 +1,5 @@
 # Configuration to reproduce H0RTON dataset with COSMOS
-from paltas.Configs.config_horton import *
+from paltas.Configs.Horton.config_horton import *
 from paltas.Sources.cosmos import COSMOSCatalog
 
 # Define the cosmos path
