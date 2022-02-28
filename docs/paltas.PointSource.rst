@@ -5,6 +5,8 @@
 :mod:`PointSource` -- Point Source Rendering Modules
 ====================================================
 
+.. include:: ../paltas/PointSource/README.rst
+
 paltas.PointSource.point_source_base module
 -------------------------------------------
 

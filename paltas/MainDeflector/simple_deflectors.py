@@ -16,14 +16,23 @@ class PEMD(MainDeflectorBase):
 	Args:
 		main_deflector_parameters (dict): A dictionary containing the type of
 			main deflector and the value for each of its parameters.
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	Notes:
-		Uses the lenstronomy EPL class, which is equivalent to PEMD but is pure
-		python.
+		Uses the lenstronomy EPL_NUMBA class, which is equivalent to PEMD but is
+		pure python.
+
+	Required Parameters
+
+	- gamma - power law slope
+	- theta_E - Einstein radius of the profile in units of arcseconds
+	- e1 - x-direction ellipticity eccentricity
+	- e2 - xy-direction ellipticity eccentricity
+	- center_x - x-coordinate lens center in units of arcseconds
+	- center_y - y-coordinate lens center in units of arcseconds
+	- z_lens - main deflector redshift
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ('gamma','theta_E','e1','e2','center_x',
@@ -70,14 +79,27 @@ class PEMDShear(MainDeflectorBase):
 	Args:
 		main_deflector_parameters (dict): A dictionary containing the type of
 			main deflector and the value for each of its parameters.
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	Notes:
 		Uses the lenstronomy EPL class, which is equivalent to PEMD but is pure
 		python.
+
+	Required Parameters
+
+	- gamma - power law slope
+	- theta_E - Einstein radius of the profile in units of arcseconds
+	- e1 - x-direction ellipticity eccentricity
+	- e2 - xy-direction ellipticity eccentricity
+	- center_x - x-coordinate lens center in units of arcseconds
+	- center_y - y-coordinate lens center in units of arcseconds
+	- gamma1 - x-direction shear
+	- gamma2 - xy-direction shear
+	- ra_0 - ra origin of shear in units of arcseconds
+	- dec_0 - dec origin of shear in units of arcseconds
+	- z_lens - main deflector redshift
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ('gamma','theta_E','e1','e2','center_x',

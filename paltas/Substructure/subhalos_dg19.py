@@ -25,11 +25,27 @@ class SubhalosDG19(SubhalosBase):
 			main deflector and the value for each of its parameters.
 		source_parameters (dict): A dictionary containing the type of the
 			source and the value for each of its parameters.
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
+
+	Notes:
+
+	Required Parameters
+
+	- sigma_sub - SHMF normalization in units of kpc^(-2)
+	- shmf_plaw_index - SHMF mass function power-law slope
+	- m_pivot - SHMF power-law pivot mass in unit of M_sun
+	- m_min - SHMF minimum rendered mass in units of M_sun
+	- m_max - SHMF maximum rendered mass in units of M_sun
+	- c_0 - concentration normalization
+	- conc_zeta - concentration redshift power law slope
+	- conc_beta - concentration peak height power law slope
+	- conc_m_ref - concentration peak height pivot mass
+	- dex_scatter - scatter in concentration in units of dex
+	- k1 - slope of SHMF host mass dependence
+	- k2 - slope of SHMF host redshift dependence
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ('sigma_sub','shmf_plaw_index','m_pivot','m_min',

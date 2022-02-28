@@ -17,19 +17,24 @@ class SinglePointSource(PointSourceBase):
 			parameters.
 
 	Notes:
-		The required parameters are the x and y location of the source
-		(x_point_source [float],y_point_source [float]), the magnitude
-		(magnitude [float]), the absolute magnitude zeropoint of the detector
-		(mag_zeropoint [float]), and wether or not to add time delays to the
-		metadata (compute_time_delays [bool]). If adding time delays to metadata
-		user must define kappa_ext.
 
-		The optional parameters are a list of fractional magnification
-		pertubations that will be applied to each image (mag_pert [float,...]),
-		the external convergence used to calculate time delays(kappa_ext [float]),
-		and the negative or positive error in days to add to the time delay
-		calculation (time_delay_error [float]).
+	Required Parameters
 
+	- 	magnitude - AB absolute magnitude of the point source
+	-	x_point_source - x-coordinate lens center in units of arcseconds
+	-	y_point_source - y-coordinate lens center in units of arcseconds
+	- 	z_lens - main deflector redshift
+	-	output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- 	compute_time_delay - bool determining if time delays will be computed
+		and added to the returned kwargs
+
+	Optional Parameters
+
+	- 	mag_pert - list of 4 fractional magnification perturbations that will be
+		applied to each point source image
+	-	kappa_ext - external convergence used to calculate time delays
+	-	time_delay_error - list of errors on the time delay measurements in units
+		of days.
 	"""
 
 	required_parameters = ('x_point_source', 'y_point_source', 'magnitude',

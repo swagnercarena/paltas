@@ -15,10 +15,9 @@ class SourceBase:
 	Base class for producing lenstronomy LightModel arguments
 
 	Args:
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 		source_parameters (dict): dictionary with source-specific parameters
 	"""
@@ -49,11 +48,10 @@ class SourceBase:
 		"""Updated the class parameters
 
 		Args:
-			cosmology_parameters (str,dict, or
-				colossus.cosmology.cosmology.Cosmology): Either a name
-				of colossus cosmology, a dict with 'cosmology name': name of
-				colossus cosmology, an instance of colussus cosmology, or a
-				dict with H0 and Om0 ( other parameters will be set to
+			cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+				Either a name of colossus cosmology, a dict with 'cosmology name':
+				name of colossus cosmology, an instance of colussus cosmology, or
+				a dict with H0 and Om0 ( other parameters will be set to
 				defaults).
 			source_parameters (dict): A dictionary containing all the parameters
 				needed to draw sources.
