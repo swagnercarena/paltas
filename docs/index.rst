@@ -6,6 +6,7 @@ Documentation
 .. toctree::
    :maxdepth: 2
 
+   paltas.generate
    paltas.Analysis
    paltas.MainDeflector
    paltas.PointSource

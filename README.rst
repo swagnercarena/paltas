@@ -45,14 +45,23 @@ The main functionality of ``paltas`` is to generate realistic datasets of strong
 
     $ python generate.py path/to/config/file path/to/output/folder --n 100
 
-Running the line of code above would generate 100 lenses and output them in the specified folder. ``paltas``  comes preloaded with a number of configuration files which are described in Configs/README.rst. To use one just run:
+Running the line of code above would generate 100 lenses and output them in the specified folder. ``paltas``  comes preloaded with a number of configuration files which are described in ``Configs/README.rst``. For example, to create a dataset with HST observational effects, subhalos, and line-of-sight halos run:
 
 .. code-block:: bash
 
     $ python generate.py Configs/config_all.py example --n 100
 
-We provide a tutorial notebook that describes how to 1generate your own config file <https://https://github.com/swagnercarena/paltas/tree/main/notebooks/ConfigTutorial.ipynb>`_.
+We provide a tutorial notebook that describes how to `generate your own config file <https://github.com/swagnercarena/paltas/tree/main/notebooks/Config_Tutorial.ipynb>`_.
+
+Demos
+-----
+
+``paltas`` comes with a few tutorial notebooks for users interested in modifying the simulation classes or training a neural posterior estimator of lens parameters.
+
+* `Implement your own source, line-of-sight, subhalo, or main deflector model <https://github.com/swagnercarena/paltas/tree/main/notebooks/Understanding_Pipeline.ipynb>`_.
+* `Training a neural posterior estimator of simulation parameters <https://github.com/swagnercarena/paltas/tree/main/notebooks/Network_Training.ipynb>`_
+* `Running hierarchical inference on a population of strong lenses <https://github.com/swagnercarena/paltas/tree/main/notebooks/Population_Analysis.ipynb>`_
 
 Attribution
 -----------
-If you use ``paltas`` or its datasets for your own research, please cite the ``paltas`` package (`Wagner-Carena et al. 2022 <https://arxiv.org/abs/xxxx.yyyy>`_) as well as the``lenstronomy`` package (`Birrer & Amara 2018 <https://arxiv.org/abs/1803.09746v1>`_,`Birrer et al. 2021 <https://joss.theoj.org/papers/10.21105/joss.03283>`_).
+If you use ``paltas`` or its datasets for your own research, please cite the ``paltas`` package (`Wagner-Carena et al. 2022 <https://arxiv.org/abs/xxxx.yyyy>`_) as well as the ``lenstronomy`` package (`Birrer & Amara 2018 <https://arxiv.org/abs/1803.09746v1>`_, `Birrer et al. 2021 <https://joss.theoj.org/papers/10.21105/joss.03283>`_).
