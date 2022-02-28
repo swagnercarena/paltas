@@ -46,7 +46,7 @@ class PEMD(MainDeflectorBase):
 		"""
 		# The lists of model parameters, kwargs, and redshifts can all be
 		# pulled fairly directly from the main_deflecctor_parameters
-		md_model_list = ['EPL']
+		md_model_list = ['EPL_NUMBA']
 		md_kwargs_list = []
 		md_z_list = [self.main_deflector_parameters['z_lens']] * len(
 			md_model_list)
@@ -100,7 +100,7 @@ class PEMDShear(MainDeflectorBase):
 		"""
 		# The lists of model parameters, kwargs, and redshifts can all be
 		# pulled fairly directly from the main_deflecctor_parameters
-		md_model_list = ['EPL','SHEAR']
+		md_model_list = ['EPL_NUMBA','SHEAR']
 		md_kwargs_list = []
 		md_z_list = [self.main_deflector_parameters['z_lens']] * len(
 			md_model_list)

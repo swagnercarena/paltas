@@ -60,7 +60,7 @@ class PEMDTests(unittest.TestCase):
 		# are what we expect and work with lenstronomy.
 		md_model_list, md_kwargs_list, md_z_list = self.c.draw_main_deflector()
 
-		self.assertListEqual(md_model_list,['EPL'])
+		self.assertListEqual(md_model_list,['EPL_NUMBA'])
 		self.assertListEqual(md_z_list,[0.5])
 
 		# Check that the kwargs are what lenstronomy needs
@@ -109,7 +109,7 @@ class PEMDTShearests(unittest.TestCase):
 		# are what we expect and work with lenstronomy.
 		md_model_list, md_kwargs_list, md_z_list = self.c.draw_main_deflector()
 
-		self.assertListEqual(md_model_list,['EPL','SHEAR'])
+		self.assertListEqual(md_model_list,['EPL_NUMBA','SHEAR'])
 		self.assertListEqual(md_z_list,[0.5,0.5])
 
 		# Check that the kwargs are what lenstronomy needs
