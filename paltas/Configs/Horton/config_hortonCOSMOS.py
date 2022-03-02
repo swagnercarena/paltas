@@ -1,5 +1,5 @@
 # Configuration to reproduce H0RTON dataset with COSMOS
-from paltas.Configs.config_horton import *
+from paltas.Configs.Horton.config_horton import *
 from paltas.Sources.cosmos import COSMOSCatalog
 
 # Define the cosmos path
@@ -11,7 +11,7 @@ config_dict['source'] = {
 	'parameters':{
 		'z_source':None,
 		'cosmos_folder':cosmos_folder,
-		'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
+		'max_z':1.0,'minimum_size_in_pixels':64,'faintest_apparent_mag':20,
 		'smoothing_sigma':0.00,'random_rotation':True,
 		'output_ab_zeropoint':output_ab_zeropoint,
 		'min_flux_radius':10.0,

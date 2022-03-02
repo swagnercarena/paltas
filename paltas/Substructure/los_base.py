@@ -20,10 +20,9 @@ class LOSBase():
 			main deflector and the value for each of its parameters.
 		source_parameters (dict): A dictionary containing the type of the
 			source and the value for each of its parameters.
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 	"""
 
@@ -70,11 +69,10 @@ class LOSBase():
 				of main deflector and the value for each of its parameters.
 			source_parameters (dict): A dictionary containing the type of the
 				source and the value for each of its parameters.
-			cosmology_parameters (str,dict, or
-				colossus.cosmology.cosmology.Cosmology): Either a name
-				of colossus cosmology, a dict with 'cosmology name': name of
-				colossus cosmology, an instance of colussus cosmology, or a
-				dict with H0 and Om0 ( other parameters will be set to
+			cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+				Either a name of colossus cosmology, a dict with 'cosmology name':
+				name of colossus cosmology, an instance of colussus cosmology, or
+				a dict with H0 and Om0 ( other parameters will be set to
 				defaults).
 		"""
 		if los_parameters is not None:

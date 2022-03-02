@@ -202,7 +202,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 			os.path.abspath(__file__))+'/test_data/cosmos/')
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
-			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
+			'faintest_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
 			'random_rotation':False, 'min_flux_radius':None,
 			'center_x':0.0,'center_y':0.0,
 			'output_ab_zeropoint':25.95, 'z_source':1.5
@@ -320,14 +320,14 @@ class COSMOSCatalogTests(SourceBaseTests):
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
 		new_sp = copy.deepcopy(self.source_parameters)
-		new_sp['min_apparent_mag'] = 22
+		new_sp['faintest_apparent_mag'] = 22
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		new_sp['min_apparent_mag'] = 22.5
+		new_sp['faintest_apparent_mag'] = 22.5
 		new_sp['minimum_size_in_pixels'] = 90
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
@@ -472,7 +472,7 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		super().setUp()
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
-			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
+			'faintest_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
 			'random_rotation':False, 'min_flux_radius':None,
 			'center_x':0.0,'center_y':0.0,
 			'output_ab_zeropoint':25.95, 'z_source':1.5,
@@ -651,14 +651,14 @@ class COSMOSExcludeCatalogTests(COSMOSCatalogTests):
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
 		new_sp = copy.deepcopy(self.source_parameters)
-		new_sp['min_apparent_mag'] = 22
+		new_sp['faintest_apparent_mag'] = 22
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		new_sp['min_apparent_mag'] = 22.5
+		new_sp['faintest_apparent_mag'] = 22.5
 		new_sp['minimum_size_in_pixels'] = 90
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
@@ -696,14 +696,14 @@ class COSMOSIncludeCatalogTests(COSMOSCatalogTests):
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
 		new_sp = copy.deepcopy(self.source_parameters)
-		new_sp['min_apparent_mag'] = 22
+		new_sp['faintest_apparent_mag'] = 22
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		new_sp['min_apparent_mag'] = 22.5
+		new_sp['faintest_apparent_mag'] = 22.5
 		new_sp['minimum_size_in_pixels'] = 90
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)

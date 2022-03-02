@@ -1,14 +1,16 @@
-# Configuration for a tight spread on main deflector with PEMD + SHEAR, sources
-# drawn from COSMOS, and only varying the d_los and sigma_sub of the DG_19
-# subhalo and los classes
+# Includes line-of-sight halos, subhalos, a PEMD deflector with external shear,
+# COSMOS sources, and HST observaitonal effects for Wide Field Camera 3 (WFC3)
+# UVIS channel with the F814W filter that includes drizzling. Assumes a planck
+# 2018 cosmology.
 
 import numpy as np
-from scipy.stats import norm, truncnorm
+from scipy.stats import norm, truncnorm, uniform
 from paltas.Substructure.los_dg19 import LOSDG19
 from paltas.Substructure.subhalos_dg19 import SubhalosDG19
 from paltas.MainDeflector.simple_deflectors import PEMDShear
 from paltas.Sources.cosmos import COSMOSExcludeCatalog
 from lenstronomy.Util.kernel_util import degrade_kernel
+from paltas.Sampling import distributions
 from astropy.io import fits
 import pandas as pd
 import paltas
@@ -47,10 +49,13 @@ config_dict = {
 		'class': SubhalosDG19,
 		'parameters':{
 			'sigma_sub':norm(loc=2e-3,scale=1.1e-3).rvs,
-			'shmf_plaw_index':-1.83,
+			'shmf_plaw_index':uniform(loc=-1.92,scale=0.1).rvs,
 			'm_pivot': 1e10,'m_min': 1e7,'m_max': 1e10,
-			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
-			'conc_m_ref': 1e8,'dex_scatter': 0.1,
+			'c_0':uniform(loc=16,scale=2).rvs,
+			'conc_zeta':uniform(loc=-0.3,scale=0.1).rvs,
+			'conc_beta':uniform(loc=0.55,scale=0.3).rvs,
+			'conc_m_ref': 1e8,
+			'dex_scatter': uniform(loc=0.1,scale=0.06).rvs,
 			'k1':0.0, 'k2':0.0
 		}
 	},
@@ -60,8 +65,12 @@ config_dict = {
 			'delta_los':norm(loc=1,scale=0.6).rvs,
 			'm_min':1e7,'m_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
-			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
-			'dex_scatter': 0.1,'alpha_dz_factor':5.0
+			'c_0':uniform(loc=16,scale=2).rvs,
+			'conc_zeta':uniform(loc=-0.3,scale=0.1).rvs,
+			'conc_beta':uniform(loc=0.55,scale=0.3).rvs,
+			'conc_m_ref': 1e8,
+			'dex_scatter': uniform(loc=0.1,scale=0.06).rvs,
+			'alpha_dz_factor':5.0
 		}
 	},
 	'main_deflector':{
@@ -84,7 +93,7 @@ config_dict = {
 		'class': COSMOSExcludeCatalog,
 		'parameters':{
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
-			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
+			'max_z':1.0,'minimum_size_in_pixels':64,'faintest_apparent_mag':20,
 			'smoothing_sigma':0.00,'random_rotation':True,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'center_x':norm(loc=0.0,scale=0.16).rvs,
@@ -123,6 +132,18 @@ config_dict = {
 			'wcs_distortion':None,
 			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)],
 			'psf_supersample_factor':2
+		}
+	},
+	'cross_object':{
+		'parameters':{
+			'subhalo:c_0,los:c_0':distributions.Duplicate(
+				dist=uniform(loc=16,scale=2).rvs),
+			'subhalo:conc_zeta,los:conc_zeta':distributions.Duplicate(
+				dist=uniform(loc=-0.3,scale=0.1).rvs),
+			'subhalo:conc_beta,los:conc_beta':distributions.Duplicate(
+				dist=uniform(loc=0.55,scale=0.3).rvs),
+			'subhalo:dex_scatter,los:dex_scatter':distributions.Duplicate(
+				dist=uniform(loc=0.1,scale=0.06).rvs)
 		}
 	}
 }

@@ -1,6 +1,7 @@
-# Configuration for a tight spread on main deflector with PEMD + SHEAR, sources
-# drawn from COSMOS, and only varying the d_los and sigma_sub of the DG_19
-# subhalo and los classes
+# Includes line-of-sight halos, subhalos, a PEMD deflector with external shear, 
+# and COSMOS sources. Includes a simple observational effect model that roughly 
+# matches HST effects Wide Field Camera 3 (WFC3) UVIS channel with the F814W 
+# filter.
 
 import numpy as np
 from scipy.stats import norm, truncnorm, uniform
@@ -8,19 +9,14 @@ from paltas.Substructure.los_dg19 import LOSDG19
 from paltas.Substructure.subhalos_dg19 import SubhalosDG19
 from paltas.MainDeflector.simple_deflectors import PEMDShear
 from paltas.Sources.cosmos import COSMOSExcludeCatalog
-from lenstronomy.Util.kernel_util import degrade_kernel
 from paltas.Sampling import distributions
-from astropy.io import fits
 import pandas as pd
 import paltas
 import os
 
 # Define the numerics kwargs.
-kwargs_numerics = {'supersampling_factor':2,'supersampling_convolution':True}
-# We do not use point_source_supersampling_factor but it must be passed in to
-# surpress a warning.
-kwargs_numerics['point_source_supersampling_factor'] = (
-	kwargs_numerics['supersampling_factor'])
+kwargs_numerics = {'supersampling_factor':1}
+
 # This is always the number of pixels for the CCD. If drizzle is used, the
 # final image will be larger.
 numpix = 128
@@ -35,13 +31,6 @@ output_ab_zeropoint = 25.127
 # Define the cosmos path
 root_path = paltas.__path__[0][:-7]
 cosmos_folder = root_path + r'/datasets/cosmos/COSMOS_23.5_training_sample/'
-
-# Load the empirical psf. Grab a psf from the middle of the first chip.
-# Degrade to account for the 4x supersample
-hdul = fits.open(os.path.join(root_path,
-	'datasets/hst_psf/emp_psf_f814w.fits'))
-# Don't leave any 0 values in the psf.
-psf_pix_map = degrade_kernel(hdul[0].data[17]-np.min(hdul[0].data[17]),2)
 
 config_dict = {
 	'subhalo':{
@@ -92,7 +81,7 @@ config_dict = {
 		'class': COSMOSExcludeCatalog,
 		'parameters':{
 			'z_source':1.5,'cosmos_folder':cosmos_folder,
-			'max_z':1.0,'minimum_size_in_pixels':64,'min_apparent_mag':20,
+			'max_z':1.0,'minimum_size_in_pixels':64,'faintest_apparent_mag':20,
 			'smoothing_sigma':0.00,'random_rotation':True,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'center_x':norm(loc=0.0,scale=0.16).rvs,
@@ -112,9 +101,8 @@ config_dict = {
 	},
 	'psf':{
 		'parameters':{
-			'psf_type':'PIXEL',
-			'kernel_point_source': psf_pix_map,
-			'point_source_supersampling_factor':2
+			'psf_type':'GAUSSIAN',
+			'fwhm': 0.03
 		}
 	},
 	'detector':{
@@ -122,15 +110,7 @@ config_dict = {
 			'pixel_scale':0.040,'ccd_gain':1.58,'read_noise':3.0,
 			'magnitude_zero_point':output_ab_zeropoint,
 			'exposure_time':1380,'sky_brightness':21.83,
-			'num_exposures':1,'background_noise':None
-		}
-	},
-	'drizzle':{
-		'parameters':{
-			'supersample_pixel_scale':0.020,'output_pixel_scale':0.030,
-			'wcs_distortion':None,
-			'offset_pattern':[(0,0),(0.5,0),(0.0,0.5),(-0.5,-0.5)],
-			'psf_supersample_factor':2
+			'num_exposures':4,'background_noise':None
 		}
 	},
 	'cross_object':{

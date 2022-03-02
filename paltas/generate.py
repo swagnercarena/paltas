@@ -4,6 +4,7 @@ Generate simulated strong lensing images using the classes and parameters of
 an input configuration dictionary.
 
 This script generates strong lensing images from paltas config dictionaries.
+
 Example
 -------
 To run this script, pass in the desired config as argument::
@@ -46,7 +47,7 @@ def parse_args():
 
 	Returns:
 		(argparse.Namespace): An instance of the Namespace object with the
-			users provided values.
+		users provided values.
 
 	"""
 	# Initialize the parser and the possible inputs
@@ -102,8 +103,8 @@ def draw_image(sample,los_class,subhalo_class,main_deflector_class,
 
 	Returns
 		(np.array,dict): A numpy array containing the generated image
-			and a metavalue dictionary with the corresponding sampled
-			values.
+		and a metavalue dictionary with the corresponding sampled
+		values.
 
 	"""
 	# Save the parameter values
@@ -326,8 +327,8 @@ def draw_drizzled_image(sample,los_class,subhalo_class,main_deflector_class,
 
 	Returns
 		(np.array,dict): A numpy array containing the generated image
-			and a metavalue dictionary with the corresponding sampled
-			values.
+		and a metavalue dictionary with the corresponding sampled
+		values.
 	"""
 	# Grab our warning flags
 	global KWARGSNUMERICWARNING1

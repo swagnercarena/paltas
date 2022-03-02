@@ -1,7 +1,7 @@
 # Configuration to reproduce h0rton Sersic training set, but changing magnitude,
 # R_sersic, and n_sersic to match distributions of COSMOS images that pass cuts
 
-from paltas.Configs.config_horton import *
+from paltas.Configs.Horton.config_horton import *
 from scipy.stats import lognorm
 
 config_dict['source']['parameters']['magnitude'] = truncnorm(-3.31,6.37,
