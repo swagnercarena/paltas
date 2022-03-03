@@ -603,7 +603,7 @@ def main():
 	print('Dataset generation complete. Acceptance rate: %.3f'%(args.n/tries))
 
 	# Generate tf record if requested. Save all the parameters and use default
-	# filename ddata.tfrecord
+	# filename data.tfrecord
 	if args.tf_record:
 		# Delayed import, triggers tensorflow import
 		from paltas.Analysis import dataset_generation
