@@ -21,14 +21,14 @@ weight_terms = None
 # The path to the fodler containing the npy images
 # for training
 npy_folders_train = [
-	'/scratch/users/swagnerc/manada/datasets/marg_mc2/marg_mc2_%d/'%(
+	'/scratch/users/swagnerc/paltas/datasets/marg_mc2/marg_mc2_%d/'%(
 		i) for i in range(1,501)]
 # The path to the tf_record for the training images
 tfr_train_paths = [
 	os.path.join(path,'data.tfrecord') for path in npy_folders_train]
 # The path to the folder containing the npy images
 # for validation
-npy_folder_val = ('/scratch/users/swagnerc/manada/datasets/marg_mc2/' +
+npy_folder_val = ('/scratch/users/swagnerc/paltas/datasets/marg_mc2/' +
 	'marg_mc2_val')
 # The path to the tf_record for the validation images
 tfr_val_path = os.path.join(npy_folder_val,'data.tfrecord')
@@ -51,9 +51,9 @@ model_type = 'xresnet34'
 # A string specifying which optimizer to use
 optimizer = 'Adam'
 # Where to save the model weights
-model_weights = ('/scratch/users/swagnerc/manada/model_weights/' +
+model_weights = ('/scratch/users/swagnerc/paltas/model_weights/' +
 	'xresnet34_diag_marg_{epoch:02d}-{val_loss:.2f}.h5')
-model_weights_init = ('/scratch/users/swagnerc/manada/model_weights/' +
+model_weights_init = ('/scratch/users/swagnerc/paltas/model_weights/' +
 	'xresnet34_diag_marg_init.h5')
 # The learning rate for the model
 learning_rate = 5e-3
