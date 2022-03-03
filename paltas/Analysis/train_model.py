@@ -192,13 +192,9 @@ def main():
 			loss_function))
 
 	# Load the model
-	if model_type == 'resnet50':
-		model = conv_models.build_resnet_50(img_size,num_outputs)
-	elif model_type == 'xresnet34':
+	if model_type == 'xresnet34':
 		model = conv_models.build_xresnet34(img_size,num_outputs,
 			train_only_head=train_only_head)
-	elif model_type =='alexnet':
-		model = conv_models.build_alexnet(img_size,num_outputs)
 	else:
 		raise ValueError('%s model not in the list of supported models'%(
 			model_type))
