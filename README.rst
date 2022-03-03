@@ -62,8 +62,8 @@ Demos
 ``paltas`` comes with a tutorial notebook for users interested in modifying the simulation classes.
 
 * `Implement your own source, line-of-sight, subhalo, or main deflector model <https://github.com/swagnercarena/paltas/tree/main/notebooks/Understanding_Pipeline.ipynb>`_.
-* `Training a neural posterior estimator of simulation parameters <https://github.com/swagnercarena/paltas/tree/main/notebooks/Network_Training.ipynb>`_
-* `Running hierarchical inference on a population of strong lenses <https://github.com/swagnercarena/paltas/tree/main/notebooks/Population_Analysis.ipynb>`_
+* `Training a neural posterior estimator of simulation parameters <https://github.com/swagnercarena/paltas/tree/main/notebooks/Network_Training.ipynb>`_.
+* `Running hierarchical inference on a population of strong lenses <https://github.com/swagnercarena/paltas/tree/main/notebooks/Population_Analysis.ipynb>`_.
 
 Figures
 -------
