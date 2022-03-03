@@ -18,6 +18,9 @@
 .. image:: https://readthedocs.org/projects/paltas/badge/?version=latest
     :target: https://paltas.readthedocs.io/en/latest
     :alt: Documentation Status
+    
+.. image:: https://img.shields.io/badge/arXiv-2203.00690%20-yellowgreen.svg
+    :target: https://arxiv.org/abs/2203.00690
 
 .. image:: https://img.shields.io/badge/license-MIT-blue.svg?style=flat
     :target: https://github.com/swagnercarena/paltas/main/LICENSE
