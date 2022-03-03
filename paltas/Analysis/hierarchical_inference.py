@@ -346,17 +346,17 @@ class ProbabilityClassAnalytical:
 		global mu_pred_array
 		global prec_pred_array
 
-		# Extract mu_omega and prec_omega from the provided hyperparameters
-		mu_omega = hyperparameters[:len(hyperparameters)//2]
-		cov_omega = np.diag(np.exp(hyperparameters[len(hyperparameters)//2:]*2))
-		prec_omega = np.linalg.inv(cov_omega)
-
 		# Start with the prior on omega
 		lprior = log_p_omega(hyperparameters,self.eval_func_omega)
 
 		# No need to evaluate the samples if the proposal is outside the prior.
 		if lprior == -np.inf:
 			return lprior
+
+		# Extract mu_omega and prec_omega from the provided hyperparameters
+		mu_omega = hyperparameters[:len(hyperparameters)//2]
+		cov_omega = np.diag(np.exp(hyperparameters[len(hyperparameters)//2:]*2))
+		prec_omega = np.linalg.inv(cov_omega)
 
 		like_ratio = self.log_integral_product(mu_pred_array,prec_pred_array,
 			self.mu_omega_i,self.prec_omega_i,mu_omega,prec_omega)
