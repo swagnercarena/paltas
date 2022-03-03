@@ -72,4 +72,4 @@ Code for generating the plots included in some of the publications using ``palta
 
 Attribution
 -----------
-If you use ``paltas`` or its datasets for your own research, please cite the ``paltas`` package (`Wagner-Carena et al. 2022 <https://arxiv.org/abs/xxxx.yyyy>`_) as well as the ``lenstronomy`` package (`Birrer & Amara 2018 <https://arxiv.org/abs/1803.09746v1>`_, `Birrer et al. 2021 <https://joss.theoj.org/papers/10.21105/joss.03283>`_).
+If you use ``paltas`` or its datasets for your own research, please cite the ``paltas`` package (`Wagner-Carena et al. 2022 <https://arxiv.org/abs/2203.00690>`_) as well as the ``lenstronomy`` package (`Birrer & Amara 2018 <https://arxiv.org/abs/1803.09746v1>`_, `Birrer et al. 2021 <https://joss.theoj.org/papers/10.21105/joss.03283>`_).
