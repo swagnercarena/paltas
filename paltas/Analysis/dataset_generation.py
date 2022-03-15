@@ -23,7 +23,7 @@ DEFAULTVALUEWARNING = True
 
 def normalize_outputs(metadata,learning_params,input_norm_path,
 	log_learning_params=None):
-	""" Normalize the outputs of the network
+	"""Normalize the outputs of the network
 
 	Args:
 		metadata(pd.DataFrame): A pandas object containing the metadata
@@ -81,7 +81,7 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 
 def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 	cov_mat=None):
-	""" Given NN outputs, undo the normalization step and return the parameters
+	"""Given NN outputs, undo the normalization step and return the parameters
 	in the original space
 
 	Args:
@@ -123,7 +123,7 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 
 
 def kwargs_detector_to_tf_noise(image,kwargs_detector):
-	""" Add noise to the tf tensor provided in agreement with kwargs_detector
+	"""Add noise to the tf tensor provided in agreement with kwargs_detector
 
 	Args:
 		image (tf.Tensor): A tensorflow tensor containing the image
@@ -152,7 +152,7 @@ def kwargs_detector_to_tf_noise(image,kwargs_detector):
 
 def generate_tf_record(npy_folder,learning_params,metadata_path,
 	tf_record_path):
-	""" Generate a TFRecord file from a directory of numpy files.
+	"""Generate a TFRecord file from a directory of numpy files.
 
 	Args:
 		root_path (str): The path to the folder containing the numpy files.
@@ -216,7 +216,7 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
 	log_learning_params=None):
-	"""	Generate a TFDataset that a model can be trained with.
+	"""Generate a TFDataset that a model can be trained with.
 
 	Args:
 		tf_record_paths (str, or [str,...]) A string specifying the paths to
@@ -319,7 +319,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 
 
 def rotate_params_batch(learning_params,output,rot_angle):
-	""" Rotate a batch of lensing parameters according to a specified rotation
+	"""Rotate a batch of lensing parameters according to a specified rotation
 	angle.
 
 	Args:
@@ -360,7 +360,7 @@ def rotate_params_batch(learning_params,output,rot_angle):
 
 
 def rotate_covariance_batch(learning_params,coavriance_batch,rot_angle):
-	""" Rotate a batch of lensing parameters according to a specified rotation
+	"""Rotate a batch of covariance matrices according to a specified rotation
 	angle.
 
 	Args:
@@ -412,7 +412,7 @@ def rotate_covariance_batch(learning_params,coavriance_batch,rot_angle):
 
 
 def rotate_image_batch(image_batch,learning_params,output,rot_angle):
-	""" Rotate a batch of strong lensing images and the corresponding lensing
+	"""Rotate a batch of strong lensing images and the corresponding lensing
 	parameters
 
 	Args:
@@ -444,7 +444,7 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
 	log_learning_params=None):
-	"""	Returns a generator that builds off of a TFDataset by adding random
+	"""Returns a generator that builds off of a TFDataset by adding random
 	rotations to the images and parameters.
 
 	Args:

@@ -1013,6 +1013,42 @@ class ConvModelsTests(unittest.TestCase):
 		self.assertEqual(len(model.trainable_weights),2)
 
 
+class TransformerModelsTests(unittest.TestCase):
+
+	def test_build_population_transformer(self):
+		# Test that the build transformer behaves as expected.
+		num_outputs = 10
+		img_size = ((128,128,1))
+		max_n_images = 16
+		num_layers = 2
+		embedding_dim = 128
+		num_heads = 2
+		dff = 128
+		droput_rate = 0.1
+		batch_size = 4
+		conv_trainable = False
+
+		# Test that you can build the transformer and pass some inputs
+		# through it.
+		transformer = Analysis.transformer_models.build_population_transformer(
+			num_outputs,img_size,max_n_images,num_layers,embedding_dim,
+			num_heads,dff,droput_rate,conv_trainable=conv_trainable)
+		image_mask = np.ones((batch_size,max_n_images),dtype=bool)
+		image_mask[1,5:] = 0
+		image_mask[2,10:] = 0
+		image_mask = tf.convert_to_tensor(image_mask)
+		fake_input = tf.random.uniform((batch_size,max_n_images) + img_size)
+
+		out = transformer.predict([fake_input,image_mask])
+		self.assertTupleEqual(out.shape,(batch_size,num_outputs))
+		np.testing.assert_array_less(np.zeros(out.shape),np.abs(out))
+
+		# Check that masking all the inputs returns a zero output.
+		image_mask = tf.cast(tf.zeros((batch_size,max_n_images)),dtype=tf.bool)
+		out = transformer.predict([fake_input,image_mask])
+		np.testing.assert_array_equal(out,np.zeros(out.shape))
+
+
 class PosteriorFunctionsTests(unittest.TestCase):
 
 	def setUp(self):
