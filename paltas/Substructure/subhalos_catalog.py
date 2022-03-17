@@ -27,9 +27,9 @@ from astropy.cosmology import FlatLambdaCDM
 #get_main (bool): if True, return parameters for main deflector as well as subhalos 
 #return_at_infall (bool): if True, calculate subhalo concentration and scale radius at infall 
 #subhalo_profile: profile for subhalos (currently implemented: NFW, TNFW, NFW_ELLIPSE)
+#get_subhalos: if True, return only subhalos of host, if False, return subhalos within +/-10 Mpc along the line-of-sight 
 
-draw_simulation_catalog_parameters = ['rockstar_path','m_min', 'get_main', 'return_at_infall','subhalo_profile']
-
+draw_simulation_catalog_parameters = ['rockstar_path','m_min', 'get_main', 'return_at_infall','subhalo_profile', 'get_subhalos']
 
 class SubhalosCatalog(SubhalosBase):
 	"""Class for rendering the subhalos of a main halos from a Rockstar
@@ -89,7 +89,7 @@ class SubhalosCatalog(SubhalosBase):
 		nfile = np.argmin(np.abs((1./scale_factors-1)-redshift))
 		return scale_factors[nfile], hlist_file_names[nfile]
 
-	def load_host_and_subs(self,rockstar_dir, hlist_fname, scale_factor, cosmo, return_at_infall=False):
+	def load_host_and_subs(self,rockstar_dir, hlist_fname, scale_factor, cosmo, return_at_infall=False, get_subhalos=False):
 		"""Returns host and subhalo parameters at redshift z_lens
 		for subhalos concentration and scale_radius are returned at 
 		snapshot where 'vmax' is maximized 
@@ -109,6 +109,9 @@ class SubhalosCatalog(SubhalosBase):
 				for subhalos with mass greater than m_min 
 			main (dir): a directory containing main halo parameters 
                 """
+		#get h 
+		h = cosmo.h
+
 		# fields we want from hlist halo catalog
 		fields = ['treeRootId', 'upid', 'x', 'y', 'z', 'rvir','rs', 'm200c', 'id', 'mvir', 'scale', 'b_to_a', 'c_to_a', 'A[x]', 'A[y]','A[z]']
 
@@ -123,10 +126,18 @@ class SubhalosCatalog(SubhalosBase):
 		host = halos[halos['treeRootId']==host0['treeRootId']][0]
 
 		# get subhalos
-		subhalos = halos[halos['upid']==host['id']]
+		#if get_subhalos is TRUE return subhalos of host
+		if(get_subhalos==True):
+			subhalos = halos[halos['upid']==host['id']]
 
+		#else return subhalos within +/- 10 Mpc in z- and 
+		else:
+			mask1 = np.abs(halos['z'] - host['z'])*scale_factor/h < 10 
+			mask2 = np.sqrt((halos['x']-host['x'])**2 + (halos['y']-host['y'])**2)*scale_factor/h < 0.5
+			mask = mask1&mask2
+			subhalos = halos[mask] 	
+	
 		#only return subhalos with mass greater than m_min 
-		h = cosmo.h
 		subhalos['m200c'] = subhalos['m200c']/h
 
 		mask = subhalos['m200c'] > self.subhalo_parameters['m_min']
@@ -376,8 +387,10 @@ class SubhalosCatalog(SubhalosBase):
 	
 		scale_factor, hlist_fname = self.get_scale_factor(rockstar_dir, redshift) #is this correct?
 
-		sub, host = self.load_host_and_subs(rockstar_dir, hlist_fname, scale_factor, self.cosmo, self.subhalo_parameters['return_at_infall'])
+		sub, host = self.load_host_and_subs(rockstar_dir, hlist_fname, scale_factor, self.cosmo, self.subhalo_parameters['return_at_infall'], 
+															self.subhalo_parameters['get_subhalos'])
 
-		lens, kwargs = self.generate_analytic(sub, host, self.cosmo, self.source_parameters['z_source'], redshift, self.subhalo_parameters['get_main'], self.subhalo_parameters['subhalo_profile'], self.main_deflector_parameters['host_profile'])
+		lens, kwargs = self.generate_analytic(sub, host, self.cosmo, self.source_parameters['z_source'], redshift, 
+					self.subhalo_parameters['get_main'], self.subhalo_parameters['subhalo_profile'], self.main_deflector_parameters['host_profile'])
 		subhalo_z_list = [redshift]*len(lens)
 		return (lens, kwargs,subhalo_z_list)
