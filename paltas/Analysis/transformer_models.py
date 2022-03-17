@@ -169,7 +169,8 @@ def build_population_transformer(num_outputs,img_size,max_n_images,num_layers,
 	conv_inputs = tf.reshape(inputs,shape=(-1,) + img_size)
 
 	# The output of the convolution should be the embedding size.
-	conv_output = _xresnet34(conv_inputs,embedding_dim,trainable=conv_trainable)
+	conv_output = _xresnet34(conv_inputs,embedding_dim,trainable=conv_trainable,
+		output_trainable=conv_trainable)
 
 	# Reshape back to the original batch size
 	conv_output = tf.reshape(conv_output,shape=(-1,max_n_images,embedding_dim))
