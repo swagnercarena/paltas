@@ -28,11 +28,27 @@ class LOSDG19(LOSBase):
 			main deflector and the value for each of its parameters.
 		source_parameters (dict): A dictionary containing the type of the
 			source and the value for each of its parameters.
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
+
+	Notes:
+
+	Required Parameters
+
+	- delta_los - mass function normalization
+	- m_min - minimum rendered mass in units of M_sun
+	- m_max - maximum rendered mass in units of M_sun
+	- z_min - minimum redshift at which to render los halos
+	- dz - redshift bin width
+	- cone_angle - cone opening angle for rendering los halos
+	- c_0 - concentration normalization
+	- conc_zeta - concentration redshift power law slope
+	- conc_beta - concentration peak height power law slope
+	- conc_m_ref - concentration peak height pivot mass
+	- dex_scatter - scatter in concentration in units of dex
+	- alpha_dz_factor- deflection angle correction redshift bin width
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = ('m_min','m_max','z_min','dz','cone_angle',

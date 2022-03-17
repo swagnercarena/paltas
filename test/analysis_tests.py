@@ -236,6 +236,21 @@ class DatasetGenerationTests(unittest.TestCase):
 		# Clean up the file now that we're done
 		os.remove(tf_record_path)
 
+		# Use a learning parameter that isn't present in the metadata
+		learning_params = ['subhalo_parameters_sigma_sub_not']
+		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
+			learning_params,metadata_path,tf_record_path)
+		raw_dataset = tf.data.TFRecordDataset(tf_record_path)
+		dataset = raw_dataset.map(parse_image).batch(batch_size)
+		self.assertTrue(os.path.exists(tf_record_path))
+		fake_metadata = {
+			'subhalo_parameters_sigma_sub_not':np.zeros(num_npy)}
+		self.dataset_comparison(fake_metadata,learning_params,dataset,
+			batch_size,num_npy)
+
+		# Clean up the file now that we're done
+		os.remove(tf_record_path)
+
 	def test_rotate_image_batch(self):
 		# Test that rotating an image and resimulating it with the new
 		# parameters both give good values

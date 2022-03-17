@@ -12,11 +12,11 @@ def get_cosmology(cosmology_parameters):
 	"""Returns colossus cosmology
 
 	Args:
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
-			dict with H0 and Om0 ( other parameters will be set to defaults).
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or
+			a dict with H0 and Om0 ( other parameters will be set to
+			defaults).
 
 	Returns:
 		(colossus.cosmology.cosmology.Cosmology): A corresponding instance
@@ -33,7 +33,10 @@ def get_cosmology(cosmology_parameters):
 			# Leave some parameters to their default values so the user only
 			# has to specify H0 and Om0.
 			col_params = dict(flat=True, H0=cosmology_parameters['H0'],
-				Om0=cosmology_parameters['Om0'],Ob0=0.049,sigma8=0.81,ns=0.95)
+				Om0=cosmology_parameters['Om0'],
+				Ob0=cosmology_parameters['Ob0'],
+				sigma8=cosmology_parameters['sigma8'],
+				ns=cosmology_parameters['ns'])
 			return cosmology.setCosmology('temp_cosmo', col_params)
 
 

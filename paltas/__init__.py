@@ -1,14 +1,8 @@
 __author__ = 'Sebastian Wagner-Carena'
 __email__ = 'sebaswagner@outlook.com'
-__version__ = '0.0.1'
+__version__ = '0.0.4'
 
-try:
-    import tensorflow as tf
-    del tf
-except ImportError:
-    print("paltas.Analysis disabled since tensorflow is missing")
-else:
-    from . import Analysis
+# Analysis is not imported by default because it required tensorflow.
 
 from . import Configs
 from . import Sampling

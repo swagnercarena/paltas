@@ -5,6 +5,8 @@
 :mod:`Substructure` -- Subhalos and Line-of-Sight Halos Rendering Modules
 =========================================================================
 
+.. include:: ../paltas/Substructure/README.rst
+
 paltas.Substructure.los_base module
 -----------------------------------
 

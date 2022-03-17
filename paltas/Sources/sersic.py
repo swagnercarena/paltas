@@ -14,12 +14,25 @@ class SingleSersicSource(SourceBase):
 	"""Class to generate single Sersic profile light models
 
 	Args:
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 		source_parameters: dictionary with source-specific parameters.
+
+	Notes:
+
+	Required Parameters
+
+	- magnitude - AB absolute magnitude of the source
+	- output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- R_sersic - Sersic radius in units of arcseconds
+	- n_sersic - Sersic index
+	- e1 - x-direction ellipticity eccentricity
+	- e2 - xy-direction ellipticity eccentricity
+	- center_x - x-coordinate lens center in units of arcseconds
+	- center_y - y-coordinate lens center in units of arcseconds
+	- z_source - source redshift
 	"""
 
 	required_parameters = ('magnitude', 'output_ab_zeropoint', 'R_sersic', 

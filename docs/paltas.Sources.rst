@@ -5,6 +5,8 @@
 :mod:`Sources` -- Source Light Rendering Modules
 ================================================
 
+.. include:: ../paltas/Sources/README.rst
+
 paltas.Sources.cosmos module
 ----------------------------
 

@@ -16,6 +16,10 @@ from lenstronomy.SimulationAPI.observation_api import SingleBand
 import warnings
 from scipy.ndimage import rotate
 
+# Global filters on the python warnings. Using this since filter
+# behaviour is a bit weird.
+DEFAULTVALUEWARNING = True
+
 
 def normalize_outputs(metadata,learning_params,input_norm_path,
 	log_learning_params=None):
@@ -163,6 +167,16 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 	# Open label csv
 	metadata = pd.read_csv(metadata_path, index_col=None)
 
+	# Warn the user a default value of 0 will be used for parameters not
+	# present in the metadata file.
+	global DEFAULTVALUEWARNING
+	for param in learning_params:
+		if param not in metadata and DEFAULTVALUEWARNING:
+			warnings.warn('One or more parameters in learning_params is not '+
+				' present in the metadata. A default value of 0 will be used.',
+				category=RuntimeWarning)
+			DEFAULTVALUEWARNING = False
+
 	# Initialize the writer object and write the lens data
 	with tf.io.TFRecordWriter(tf_record_path) as writer:
 		for npy_file in tqdm(npy_file_list):
@@ -185,7 +199,10 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 			}
 			# Add all of the lens parameters to the feature dictionary
 			for param in learning_params:
-				value = metadata[param][index]
+				if param in metadata:
+					value = metadata[param][index]
+				else:
+					value = 0
 				# Write the feature
 				feature[param] = tf.train.Feature(
 					float_list=tf.train.FloatList(value=[value]))

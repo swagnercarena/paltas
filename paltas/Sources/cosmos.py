@@ -20,24 +20,42 @@ HUBBLE_ACS_PIXEL_WIDTH = 0.03   # Arcsec
 
 
 class COSMOSCatalog(GalaxyCatalog):
-	"""	Interface to the COSMOS/GREAT3 23.5 magnitude catalog
+	"""Class to interface to the COSMOS/GREAT3 23.5 magnitude catalog
 
 	This is the catalog used for real galaxies in galsim, see
 	https://github.com/GalSim-developers/GalSim/wiki/RealGalaxy%20Data.
 	The catalog must be downloaded and unzipped.
 
 	Args:
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources.
+
+	Notes:
+
+	Required Parameters
+
+	- 	minimum_size_in_pixels - smallest cutout size for COSMOS sources in pixels
+	- 	faintest_apparent_mag - faintest apparent AB magnitude for COSMOS source
+	- 	max_z - highest redshift for COSMOS source
+	- 	smoothing_sigma - smoothing kernel to apply to COSMOS source in pixels
+	- 	cosmos_folder - path to COSMOS images
+	- 	random_rotation - boolean dictating if COSMOS sources will be rotated
+		randomly when drawn
+	- 	min_flux_radius - minimum half-light radius for COSMOS source in pixels
+	- 	center_x - x-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	center_y- y-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- 	z_source - source redshift
 	"""
-	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'output_ab_zeropoint','z_source','center_x','center_y')
+	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
+		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
+		'min_flux_radius','output_ab_zeropoint','z_source','center_x','center_y')
 	# Average AB magnitude zeropoint for the COSMOS run.
 	ab_zeropoint = 25.95
 
@@ -104,14 +122,14 @@ class COSMOSCatalog(GalaxyCatalog):
 		"""
 		is_ok = np.ones(len(self), dtype=np.bool_)
 		# Grab the parameter to cut on.
-		min_apparent_mag = self.source_parameters['min_apparent_mag']
+		faintest_apparent_mag = self.source_parameters['faintest_apparent_mag']
 		minimum_size_in_pixels = self.source_parameters['minimum_size_in_pixels']
 		max_z = self.source_parameters['max_z']
 		min_flux_radius = self.source_parameters['min_flux_radius']
 
 		# Get the images that match the cuts.
-		if min_apparent_mag is not None:
-			is_ok &= self.catalog['mag_auto'] < min_apparent_mag
+		if faintest_apparent_mag is not None:
+			is_ok &= self.catalog['mag_auto'] < faintest_apparent_mag
 		if minimum_size_in_pixels is not None:
 			min_size = np.minimum(self.catalog['size_x'],
 				self.catalog['size_y'])
@@ -199,17 +217,35 @@ class COSMOSCatalog(GalaxyCatalog):
 
 
 class COSMOSSersicCatalog(COSMOSCatalog):
-	"""As COSMOSCatalog, but produces the best-fit single elliptic Sersic
-	profiles instead of real galaxy images
+	"""Class identical to COSMOSCatalog, but produces the best-fit single
+	elliptic Sersic profiles instead of real galaxy images
 
 	Args:
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources.
+
+	Notes:
+
+	Required Parameters
+
+	- 	minimum_size_in_pixels - smallest cutout size for COSMOS sources in pixels
+	- 	faintest_apparent_mag - faintest apparent AB magnitude for COSMOS source
+	- 	max_z - highest redshift for COSMOS source
+	- 	smoothing_sigma - smoothing kernel to apply to COSMOS source in pixels
+	- 	cosmos_folder - path to COSMOS images
+	- 	random_rotation - boolean dictating if COSMOS sources will be rotated
+		randomly when drawn
+	- 	min_flux_radius - minimum half-light radius for COSMOS source in pixels
+	- 	center_x - x-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	center_y- y-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- 	z_source - source redshift
 	"""
 
 	def __init__(self, *args, **kwargs):
@@ -225,7 +261,7 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 
 	def draw_source(self, catalog_i=None, phi=None):
 		"""Creates lenstronomy interpolation lightmodel kwargs from
-			a catalog image.
+		a catalog image.
 
 		Args:
 			catalog_i (int): Index of image in catalog
@@ -308,22 +344,43 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 
 
 class COSMOSExcludeCatalog(COSMOSCatalog):
-	"""	Identical to COSMOSCatalog, but allows for specific source indexes
+	"""	Class identical to COSMOSCatalog, but allows for specific source indexes
 	to be excluded from the analysis.
 
 	Args:
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources.
+
+	Notes:
+
+	Required Parameters
+
+	- 	minimum_size_in_pixels - smallest cutout size for COSMOS sources in pixels
+	- 	faintest_apparent_mag - faintest apparent AB magnitude for COSMOS source
+	- 	max_z - highest redshift for COSMOS source
+	- 	smoothing_sigma - smoothing kernel to apply to COSMOS source in pixels
+	- 	cosmos_folder - path to COSMOS images
+	- 	random_rotation - boolean dictating if COSMOS sources will be rotated
+		randomly when drawn
+	- 	min_flux_radius - minimum half-light radius for COSMOS source in pixels
+	- 	center_x - x-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	center_y- y-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- 	z_source - source redshift
+	-	source_exclusion_list - A list of COSMOS source indices to exclude,
+		even if they pass the other cuts.
 	"""
 
-	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'source_exclusion_list','output_ab_zeropoint','center_x','center_y')
+	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
+		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
+		'min_flux_radius','source_exclusion_list','output_ab_zeropoint',
+		'center_x','center_y','z_source')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)
@@ -346,22 +403,43 @@ class COSMOSExcludeCatalog(COSMOSCatalog):
 
 
 class COSMOSIncludeCatalog(COSMOSCatalog):
-	"""	Identical to COSMOSExcludeCatalog, but only allows for specific source
-	indexes to be included for the analysis.
+	"""Class identical to COSMOSExcludeCatalog, but only allows for specific
+	source indeces to be included for the analysis.
 
 	Args:
-		cosmology_parameters (str,dict, or
-			colossus.cosmology.cosmology.Cosmology): Either a name
-			of colossus cosmology, a dict with 'cosmology name': name of
-			colossus cosmology, an instance of colussus cosmology, or a
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources.
+
+		Notes:
+
+	Required Parameters
+
+	- 	minimum_size_in_pixels - smallest cutout size for COSMOS sources in pixels
+	- 	faintest_apparent_mag - faintest apparent AB magnitude for COSMOS source
+	- 	max_z - highest redshift for COSMOS source
+	- 	smoothing_sigma - smoothing kernel to apply to COSMOS source in pixels
+	- 	cosmos_folder - path to COSMOS images
+	- 	random_rotation - boolean dictating if COSMOS sources will be rotated
+		randomly when drawn
+	- 	min_flux_radius - minimum half-light radius for COSMOS source in pixels
+	- 	center_x - x-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	center_y- y-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- 	z_source - source redshift
+	-	source_inclusion_list - A list of COSMOS source indices to include,
+		cutting any source not in this list.
 	"""
 
-	required_parameters = ('minimum_size_in_pixels','min_apparent_mag','max_z',
-		'smoothing_sigma','cosmos_folder','random_rotation','min_flux_radius',
-		'source_inclusion_list','output_ab_zeropoint','center_x','center_y')
+	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
+		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
+		'min_flux_radius','source_inclusion_list','output_ab_zeropoint',
+		'center_x','center_y','z_source')
 
 	def __init__(self, cosmology_parameters, source_parameters):
 		super().__init__(cosmology_parameters,source_parameters)

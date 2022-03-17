@@ -5,6 +5,8 @@
 :mod:`MainDeflector` -- Main Deflector Rendering Modules
 ========================================================
 
+.. include:: ../paltas/MainDeflector/README.rst
+
 paltas.MainDeflector.main_deflector_base module
 -----------------------------------------------
 
