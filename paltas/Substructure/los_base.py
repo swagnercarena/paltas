@@ -98,9 +98,13 @@ class LOSBase():
 		raise NotImplementedError
 
 	def calculate_average_alpha(self,n_draws=100):
-		""" Calculates the average convergence from the los at each redshift
-		specified by the los parameters and returns corresponding lenstronomy
-		objects.
+		"""Calculates the average deflection maps from the los at each
+		redshift specified by the los parameters and returns corresponding
+		lenstronomy objects.
+
+		Args:
+			num_pix (int): The number of pixels to sample for our
+				interpolation maps.
 
 		Returns:
 			(tuple): A tuple of two lists: the first is the interpolation
