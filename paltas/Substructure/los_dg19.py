@@ -445,7 +445,7 @@ class LOSDG19(LOSBase):
 		# want to stop at z_source-dz.
 		z_range = np.arange(z_min,z_source-dz,dz)
 		# Round the z_range to improve caching hits.
-		z_range = list(np.round(z_range,2))
+		z_range = list(np.round(z_range,3))
 
 		# Iterate through each z and add the halos.
 		for z in z_range:

@@ -1,5 +1,5 @@
 import unittest
-from paltas.Substructure.subhalos_catalog import SubhalosCatalog
+from paltas.Substructure.low_mass_catalog import SubhalosCatalog
 from paltas.Substructure import nfw_functions
 from paltas.Substructure.subhalos_base import SubhalosBase
 from paltas.Substructure.subhalos_dg19 import SubhalosDG19
