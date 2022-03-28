@@ -546,11 +546,11 @@ class LowMassFromSims(LOSBase):
 				self.los_outer_analy_params[param[4:]] = (
 					self.los_parameters[param])
 
-		# For the region where we pull subhalos from the simulation
-		# override the maximum mass to the minimum catalog mass.
-		self.sub_analy_params['m_max'] = max(self.sub_analy_params['m_max'],
+		# For the region where we pull los halos /subhalos from the simulation
+		# cap the maximum mass to the minimum catalog mass.
+		self.sub_analy_params['m_max'] = min(self.sub_analy_params['m_max'],
 			self.catalog_parameters['m_min'])
-		self.los_inner_analy_params['m_max'] = max(
+		self.los_inner_analy_params['m_max'] = min(
 			self.los_inner_analy_params['m_max'],
 			self.catalog_parameters['m_min'])
 
