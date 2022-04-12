@@ -486,6 +486,7 @@ class LowMassFromSims(LOSBase):
 			source_parameters,cosmology_parameters)
 
 		# Initialize the parameters for each of our four classes.
+		self.cosmology_parameters = cosmology_parameters
 		self.catalog_parameters = {}
 		self.sub_analy_params = {}
 		self.los_inner_analy_params = {}

@@ -624,12 +624,14 @@ class SubhalosDG19Tests(unittest.TestCase):
 
 
 class SubhalosCatalogTests(unittest.TestCase):
+
 	def setUp(self):
 		# This gets done before each test is run
 		np.random.seed(10)
 
-		self.subhalo_parameters = {'rockstar_path':'/scratch/users/enadler/group_zoomins/Halo501/output/rockstar/', 
-			'm_min':1e8, 'get_main':True}
+		self.subhalo_parameters = {
+			'rockstar_path':('/scratch/users/enadler/group_zoomins/Halo501/' +
+				'output/rockstar/'),'m_min':1e8, 'get_main':True}
 		self.main_deflector_parameters = {'M200': 1e13, 'z_lens': 0.5,
 			'theta_E':0.38, 'center_x':0.0, 'center_y': 0.0}
 		self.source_parameters = {'z_source':1.5}
@@ -640,22 +642,26 @@ class SubhalosCatalogTests(unittest.TestCase):
 		self.cosmo = self.sc.cosmo
 
 	def test_get_scale_factor(self):
-		# Make sure it gets the scale factor and the filename for the hlist file in test_data
-		self.assertEqual(self.sc.get_scale_factor(self.subhalo_parameters['rockstar_path'], 
+		# Make sure it gets the scale factor and the filename for the hlist
+		# file in test_data
+		self.assertEqual(self.sc.get_scale_factor(
+			self.subhalo_parameters['rockstar_path'],
 			self.main_deflector_parameters['z_lens'])[0], 0.05064)
-		self.assertEqual(self.sc.get_scale_factor(self.subhalo_parameters['rockstar_path'], 
+		self.assertEqual(self.sc.get_scale_factor(
+			self.subhalo_parameters['rockstar_path'],
 			self.main_deflector_parameters['z_lens'])[1], 'hlist_0.05064.list')
 
-
 	def test_get_numbers_from_filename(self):
-                # Make sure it gets the number from my filename
-		test_filename = self.subhalo_parameters['rockstar_path'] + 'hlist_0.52867.list'
-		self.assertEqual(self.sc.get_scale_factor_from_filename(test_filename), 0.52867)
-
+		# Make sure it gets the number from my filename
+		test_filename = (self.subhalo_parameters['rockstar_path'] +
+			'hlist_0.52867.list')
+		self.assertEqual(self.sc.get_scale_factor_from_filename(test_filename),
+			0.52867)
 
 	def test_full_draw(self):
 		(lens, kwargs) = self.sc.draw_subhalos()
 		print(kwargs[0])
+
 
 class LOSBaseTests(unittest.TestCase):
 
