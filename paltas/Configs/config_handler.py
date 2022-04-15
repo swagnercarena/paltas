@@ -34,7 +34,6 @@ class ConfigHandler():
 
 	Args:
 		config_path (str): A path to the config file to parse.
-
 	"""
 
 	def __init__(self,config_path):
@@ -245,10 +244,22 @@ class ConfigHandler():
 		return lenstronomy_dict
 
 	def get_metadata(self):
-		"""Returns the metadata for the current sample
+		"""Returns the values drawn from the configuration file to generate
+		the current sample.
 
 		Returns:
-			(dict): A dictionary containing the metadata.
+			(dict): A dictionary containing the values drawn from the
+			configuration file to generate the current sample. This includes
+			the parameters of the lensing system (some of which may be
+			population level parameters), the parameters of the observation,
+			the cosmology, and any other parameters specified within the
+			config_dict of the input configuration file.
+
+		Notes:
+			The metadata naming scheme is object_parameters_name_of_parameters.
+			For example for the Einstein radius of the main deflector the
+			key is main_deflector_parameters_theta_E. For the redshift of
+			the source it would be source_parameters_z_source.
 		"""
 		# Setup the warning filter
 		global SERIALIZATIONWARNING
