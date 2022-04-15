@@ -605,7 +605,7 @@ class SubhalosDG19Tests(unittest.TestCase):
 		self.assertListEqual(subhalo_z_list,[0.5]*len(subhalo_model_list))
 
 		# Check that things still work in the limit of no substructure
-		self.sd.subhalo_parameters['sigma_sub'] = 1e-9
+		self.sd.subhalo_parameters['sigma_sub'] = 1e-12
 		subhalo_model_list, subhalo_kwargs_list, subhalo_z_list = (
 			self.sd.draw_subhalos())
 		self.assertEqual(len(subhalo_model_list),0)
