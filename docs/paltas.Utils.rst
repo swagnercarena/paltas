@@ -5,14 +5,6 @@
 :mod:`Utils` -- Utility Modules
 ===============================
 
-paltas.Utils.config_utils module
------------------------------------
-
-.. automodule:: paltas.Utils.config_utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 paltas.Utils.cosmology_utils module
 -----------------------------------
 

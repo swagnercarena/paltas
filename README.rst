@@ -51,11 +51,11 @@ The main functionality of ``paltas`` is to generate realistic datasets of strong
 
     $ python generate.py path/to/config/file path/to/output/folder --n 100
 
-Running the line of code above would generate 100 lenses and output them in the specified folder. ``paltas``  comes preloaded with a number of configuration files which are described in ``Configs/README.rst``. For example, to create a dataset with HST observational effects, subhalos, and line-of-sight halos run:
+Running the line of code above would generate 100 lenses and output them in the specified folder. ``paltas``  comes preloaded with a number of configuration files which are described in ``Configs/Examples/README.rst``. For example, to create a dataset with HST observational effects, subhalos, and line-of-sight halos run:
 
 .. code-block:: bash
 
-    $ python generate.py Configs/config_all.py example --n 100
+    $ python generate.py Configs/Examples/config_all.py example --n 100
 
 We provide a tutorial notebook that describes how to `generate your own config file <https://github.com/swagnercarena/paltas/tree/main/notebooks/Config_Tutorial.ipynb>`_.
 
