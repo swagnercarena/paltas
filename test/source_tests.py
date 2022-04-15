@@ -227,6 +227,14 @@ class COSMOSCatalogTests(SourceBaseTests):
 			os.remove(self.test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(self.test_cosmo_folder+'npy_files')
 
+	def test_no_cosmos_folder(self):
+		# Check that if the cosmos folder is not there, a helpful ValueError
+		# is raised
+		self.source_parameters['cosmos_folder'] = 'not_here'
+		with self.assertRaises(ValueError):
+			self.c = COSMOSCatalog(cosmology_parameters='planck18',
+				source_parameters=self.source_parameters)
+
 	def test_check_parameterization(self):
 		# Check that trying to initialize a class without the correct
 		# parameters raises a value error.

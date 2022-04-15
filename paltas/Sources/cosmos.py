@@ -65,6 +65,13 @@ class COSMOSCatalog(GalaxyCatalog):
 		# Store the path as a Path object.
 		self.folder = Path(source_parameters['cosmos_folder'])
 
+		if not self.folder.exists():
+			raise ValueError('The COSMOS path your provided (%s) does not '%(
+				source_parameters['cosmos_folder']) +
+				'appear to exist. Please download and unzip the catalog that ' +
+				'can be found at https://github.com/GalSim-developers/GalSim/' +
+				'wiki/RealGalaxy%20Data.')
+
 		# Check if we've already populated the catalog
 		self.catalog_path = self.folder/'paltas_catalog.npy'
 		self.npy_files_path = self.folder/'npy_files'
