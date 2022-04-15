@@ -10,7 +10,7 @@ import copy
 from ..Utils.cosmology_utils import get_cosmology
 
 
-class SourceBase:
+class SourceBase():
 	"""
 	Base class for producing lenstronomy LightModel arguments
 
