@@ -558,5 +558,6 @@ class ConfigUtilsTests(unittest.TestCase):
 		# thourgh.
 		self.c.sample['main_deflector_parameters']['theta_E'] = 0.1
 		self.c.mag_cut = None
-		image_small,_ = self.c.draw_image(new_sample=False)
+		image_small,metadata = self.c.draw_image(new_sample=False)
+		self.assertEqual(metadata['main_deflector_parameters_theta_E'],0.1)
 		self.assertLess(np.sum(image_small),np.sum(image))
