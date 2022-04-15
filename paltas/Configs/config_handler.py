@@ -131,12 +131,11 @@ class ConfigHandler():
 				default.
 
 		Returns:
-			(dict): A dict of lists containing the list of lens
-			models, the list of lens model kwargs, the list of lens model
-			redshifts, the list of source light models, the list of source light
-			kwargs, the list of source redshifts, the list of lens light models,
-			the list of lens light model kwargs, the list of point source models,
-			and the list of point source kwargs.
+			(dict,dict): Two dicts, the first containing the list of lens
+			models, lens model redshifts, source light models, source redshifts,
+			lens light models, and point source models. The second contains the
+			lens kwargs, the source kwargs, the point source kwargs, and the
+			lens light kwargs.
 
 		Notes:
 			Even if new_sample is False, this function is not guaranteed to be
@@ -228,20 +227,21 @@ class ConfigHandler():
 		source_redshift_list = [sample['source_parameters']['z_source']]*len(
 			source_model_list)
 
-		# Package all of the lists into a dict
-		lenstronomy_dict = {}
-		lenstronomy_dict['lens_model_list'] = complete_lens_model_list
-		lenstronomy_dict['lens_kwargs_list'] = complete_lens_model_kwargs
-		lenstronomy_dict['lens_redshift_list'] = complete_z_list
-		lenstronomy_dict['lens_light_model_list'] = lens_light_model_list
-		lenstronomy_dict['lens_light_kwargs_list'] = lens_light_kwargs_list
-		lenstronomy_dict['point_source_model_list'] = point_source_model_list
-		lenstronomy_dict['point_source_kwargs_list'] = point_source_kwargs_list
-		lenstronomy_dict['source_model_list'] = source_model_list
-		lenstronomy_dict['source_kwargs_list'] = source_kwargs_list
-		lenstronomy_dict['source_redshift_list'] = source_redshift_list
+		# Package all of the lists into a model and parameters dictionary.
+		kwargs_model = {}
+		kwargs_params = {}
+		kwargs_model['lens_model_list'] = complete_lens_model_list
+		kwargs_params['kwargs_lens'] = complete_lens_model_kwargs
+		kwargs_model['lens_redshift_list'] = complete_z_list
+		kwargs_model['lens_light_model_list'] = lens_light_model_list
+		kwargs_params['kwargs_lens_light'] = lens_light_kwargs_list
+		kwargs_model['point_source_model_list'] = point_source_model_list
+		kwargs_params['kwargs_ps'] = point_source_kwargs_list
+		kwargs_model['source_light_model_list'] = source_model_list
+		kwargs_params['kwargs_source'] = source_kwargs_list
+		kwargs_model['source_redshift_list'] = source_redshift_list
 
-		return lenstronomy_dict
+		return kwargs_model, kwargs_params
 
 	def get_metadata(self):
 		"""Returns the values drawn from the configuration file to generate
@@ -287,7 +287,7 @@ class ConfigHandler():
 
 		return metadata
 
-	def _calculate_ps_metadata(self,metadata,lenstronomy_dict,point_source_model,
+	def _calculate_ps_metadata(self,metadata,kwargs_params,point_source_model,
 		lens_model):
 		"""Calculate time delays and image positions and appends them to
 		metadata
@@ -295,9 +295,8 @@ class ConfigHandler():
 		Args:
 			metadata (dict): A dictionary containing the metadata that
 				will be modified in place.
-			lenstronomy_dict (dict):  A dictionary containing the list of models,
-				kwargs, and redshifts required by lenstronomy. See
-				get_lenstronomy_model_kwargs.
+			lenstronomy_dict (dict):  A dictionary containing the list of model
+				kwargs. See get_lenstronomy_model_kwargs.
 			point_source_model (lenstronomy.PointSource.point_source.PointSource):
 				An instance of the lenstronomy point source model that will be
 				used to calculate lensing quantitities.
@@ -311,8 +310,8 @@ class ConfigHandler():
 
 		# Calculate image positions
 		x_image, y_image = point_source_model.image_position(
-			lenstronomy_dict['point_source_kwargs_list'],
-			lenstronomy_dict['lens_kwargs_list'])
+			kwargs_params['kwargs_ps'],
+			kwargs_params['kwargs_lens'])
 		num_images = len(x_image[0])
 
 		# Append to the metadata using the same prefix as the rest of the
@@ -322,7 +321,7 @@ class ConfigHandler():
 
 		# Calculate magnifications using complete_lens_model
 		magnifications = lens_model.magnification(x_image[0],y_image[0],
-			lenstronomy_dict['lens_kwargs_list'])
+			kwargs_params['kwargs_lens'])
 		# If mag_pert is defined, add that pertubation
 		if 'mag_pert' in sample['point_source_parameters'].keys():
 			magnifications = magnifications * (
@@ -333,7 +332,7 @@ class ConfigHandler():
 		if sample['point_source_parameters']['compute_time_delays']:
 			if 'kappa_ext' in sample['point_source_parameters'].keys():
 				td = lens_model.arrival_time(x_image[0],y_image[0],
-					lenstronomy_dict['lens_kwargs_list'],
+					kwargs_params['kwargs_lens'],
 					sample['point_source_parameters']['kappa_ext'])
 				# Apply errors if defined in config_dict
 				if 'time_delay_errors' in (
@@ -385,7 +384,8 @@ class ConfigHandler():
 		"""
 		# Get the lenstronomy parameters and the sample
 		sample = self.get_current_sample()
-		lenstronomy_dict = self.get_lenstronomy_models_kwargs(new_sample=False)
+		kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
+			new_sample=False)
 
 		# Get the psf and detector parameters from the sample
 		kwargs_psf = sample['psf_parameters']
@@ -402,23 +402,24 @@ class ConfigHandler():
 		single_band = SingleBand(**kwargs_detector)
 
 		# Pull the cosmology and source redshift
-		z_source = lenstronomy_dict['source_redshift_list'][0]
+		z_source = kwargs_model['source_redshift_list'][0]
 		cosmo = get_cosmology(sample['cosmology_parameters'])
 
 		# Build our lens and source models.
-		lens_model = LensModel(lenstronomy_dict['lens_model_list'],
+		lens_model = LensModel(kwargs_model['lens_model_list'],
 			z_source=z_source,
-			lens_redshift_list=lenstronomy_dict['lens_redshift_list'],
+			lens_redshift_list=kwargs_model['lens_redshift_list'],
 			cosmo=cosmo.toAstropy(),multi_plane=self.multi_plane)
-		source_light_model = LightModel(lenstronomy_dict['source_model_list'])
-		lens_light_model = LightModel(lenstronomy_dict['lens_light_model_list'])
+		source_light_model = LightModel(kwargs_model['source_light_model_list'],
+			source_redshift_list=kwargs_model['source_redshift_list'])
+		lens_light_model = LightModel(kwargs_model['lens_light_model_list'])
 
 		# Point source may need lens eqn solver kwargs
 		lens_equation_params = None
 		if 'lens_equation_solver_parameters' in sample.keys():
 			lens_equation_params = sample['lens_equation_solver_parameters']
 		point_source_model = PointSource(
-			lenstronomy_dict['point_source_model_list'],lensModel=lens_model,
+			kwargs_model['point_source_model_list'],lensModel=lens_model,
 			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params)
 
 		# Put it together into an image model
@@ -427,15 +428,15 @@ class ConfigHandler():
 			point_source_model,kwargs_numerics=self.kwargs_numerics)
 
 		# Generate our image
-		image = image_model.image(lenstronomy_dict['lens_kwargs_list'],
-			lenstronomy_dict['source_kwargs_list'],
-			lenstronomy_dict['lens_light_kwargs_list'],
-			lenstronomy_dict['point_source_kwargs_list'])
+		image = image_model.image(kwargs_params['kwargs_lens'],
+			kwargs_params['kwargs_source'],
+			kwargs_params['kwargs_lens_light'],
+			kwargs_params['kwargs_ps'])
 
 		# Check for the magnification cut and apply it.
 		if self.mag_cut is not None:
 			mag = np.sum(image)/np.sum(source_light_model.total_flux(
-				lenstronomy_dict['source_kwargs_list']))
+				kwargs_params['kwargs_source']))
 			if mag < self.mag_cut:
 				return None,None
 
@@ -449,7 +450,7 @@ class ConfigHandler():
 		# If a point source was specified, calculate the time delays
 		# and image positions.
 		if self.point_source_class is not None:
-			self._calculate_ps_metadata(metadata,lenstronomy_dict,
+			self._calculate_ps_metadata(metadata,kwargs_params,
 				point_source_model,lens_model)
 
 		return image, metadata

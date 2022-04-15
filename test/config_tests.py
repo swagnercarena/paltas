@@ -58,53 +58,55 @@ class ConfigUtilsTests(unittest.TestCase):
 	def test_get_lenstronomy_models_kwargs(self):
 		# Test that the kwargs returned are consistent with what was provided
 		# in the configuration file.
-		lenstronomy_dict = self.c.get_lenstronomy_models_kwargs(new_sample=False)
+		kwargs_model, kwargs_params = self.c.get_lenstronomy_models_kwargs(
+			new_sample=False)
 
 		# First check the lens lists.
-		self.assertGreater(lenstronomy_dict['lens_model_list'].count('TNFW'),0)
-		self.assertGreater(lenstronomy_dict['lens_model_list'].count('NFW'),0)
-		self.assertEqual(lenstronomy_dict['lens_model_list'].count('INTERPOL'),7)
-		self.assertEqual(lenstronomy_dict['lens_model_list'].count('EPL_NUMBA'),1)
-		self.assertEqual(lenstronomy_dict['lens_model_list'].count('SHEAR'),1)
-		self.assertEqual(len(lenstronomy_dict['lens_model_list']),
-			len(lenstronomy_dict['lens_kwargs_list']))
-		self.assertEqual(len(lenstronomy_dict['lens_model_list']),
-			len(lenstronomy_dict['lens_redshift_list']))
+		self.assertGreater(kwargs_model['lens_model_list'].count('TNFW'),0)
+		self.assertGreater(kwargs_model['lens_model_list'].count('NFW'),0)
+		self.assertEqual(kwargs_model['lens_model_list'].count('INTERPOL'),7)
+		self.assertEqual(kwargs_model['lens_model_list'].count('EPL_NUMBA'),1)
+		self.assertEqual(kwargs_model['lens_model_list'].count('SHEAR'),1)
+		self.assertEqual(len(kwargs_model['lens_model_list']),
+			len(kwargs_params['kwargs_lens']))
+		self.assertEqual(len(kwargs_model['lens_model_list']),
+			len(kwargs_model['lens_redshift_list']))
 
 		# Now check the source lists
-		self.assertListEqual(lenstronomy_dict['source_model_list'],['INTERPOL'])
+		self.assertListEqual(kwargs_model['source_light_model_list'],['INTERPOL'])
 		self.assertTrue(isinstance(
-			lenstronomy_dict['source_kwargs_list'][0]['image'],np.ndarray))
-		self.assertListEqual(lenstronomy_dict['source_redshift_list'],[1.5])
+			kwargs_params['kwargs_source'][0]['image'],np.ndarray))
+		self.assertListEqual(kwargs_model['source_redshift_list'],[1.5])
 
 		# Now check that there is no lens light or point source for this
 		# config.
-		self.assertEqual(len(lenstronomy_dict['lens_light_model_list']),0)
-		self.assertEqual(len(lenstronomy_dict['lens_light_kwargs_list']),0)
-		self.assertEqual(len(lenstronomy_dict['point_source_model_list']),0)
-		self.assertEqual(len(lenstronomy_dict['point_source_kwargs_list']),0)
+		self.assertEqual(len(kwargs_model['lens_light_model_list']),0)
+		self.assertEqual(len(kwargs_params['kwargs_lens_light']),0)
+		self.assertEqual(len(kwargs_model['point_source_model_list']),0)
+		self.assertEqual(len(kwargs_params['kwargs_ps']),0)
 
 		# Check that if new sample is specified, that the underlying sample
 		# changes.
-		lenstronomy_dict_new = self.c.get_lenstronomy_models_kwargs(
-			new_sample=True)
-		self.assertFalse(lenstronomy_dict['lens_kwargs_list'][-2]['theta_E'] ==
-			lenstronomy_dict_new['lens_kwargs_list'][-2]['theta_E'])
+		kwargs_model_new, kwargs_params_new = (
+			self.c.get_lenstronomy_models_kwargs(new_sample=True))
+		self.assertFalse(kwargs_params['kwargs_lens'][-2]['theta_E'] ==
+			kwargs_params_new['kwargs_lens'][-2]['theta_E'])
 
 		# Finally check that the config with a point source fills in those
 		# lists.
-		lenstronomy_dict = self.c_all.get_lenstronomy_models_kwargs(
+		kwargs_model, kwargs_params = self.c_all.get_lenstronomy_models_kwargs(
 			new_sample=False)
-		self.assertListEqual(lenstronomy_dict['lens_light_model_list'],
+		self.assertListEqual(kwargs_model['lens_light_model_list'],
 			['SERSIC_ELLIPSE'])
-		self.assertEqual(len(lenstronomy_dict['lens_light_kwargs_list']),1)
-		self.assertListEqual(lenstronomy_dict['point_source_model_list'],
+		self.assertEqual(len(kwargs_params['kwargs_lens_light']),1)
+		self.assertListEqual(kwargs_model['point_source_model_list'],
 			['SOURCE_POSITION'])
-		self.assertEqual(len(lenstronomy_dict['point_source_kwargs_list']),1)
+		self.assertEqual(len(kwargs_params['kwargs_ps']),1)
 
 	def test_get_metadata(self):
 		# Test that the metadata matches the sample
-		lenstronomy_dict = self.c.get_lenstronomy_models_kwargs(new_sample=False)
+		kwargs_model, kwargs_params = self.c.get_lenstronomy_models_kwargs(
+			new_sample=False)
 		metadata = self.c.get_metadata()
 
 		# Check that the draw caused the phi and catalog_i to be written into
@@ -114,9 +116,9 @@ class ConfigUtilsTests(unittest.TestCase):
 
 		# Check the value of a few parameters
 		self.assertEqual(metadata['main_deflector_parameters_theta_E'],
-			lenstronomy_dict['lens_kwargs_list'][-2]['theta_E'])
+			kwargs_params['kwargs_lens'][-2]['theta_E'])
 		self.assertEqual(metadata['main_deflector_parameters_gamma1'],
-			lenstronomy_dict['lens_kwargs_list'][-1]['gamma1'])
+			kwargs_params['kwargs_lens'][-1]['gamma1'])
 		self.assertEqual(metadata['cosmology_parameters_cosmology_name'],
 			'planck18')
 		self.assertEqual(metadata['subhalo_parameters_c_0'],18)
@@ -125,23 +127,23 @@ class ConfigUtilsTests(unittest.TestCase):
 	def test__calculate_ps_metadata(self):
 		# Check that the metadata is added as expected.
 		# Get all of the lenstronomy parameters and models that we need
-		lenstronomy_dict = self.c_all.get_lenstronomy_models_kwargs(
+		kwargs_model, kwargs_params = self.c_all.get_lenstronomy_models_kwargs(
 			new_sample=False)
 		sample = self.c_all.get_current_sample()
-		z_source = lenstronomy_dict['source_redshift_list'][0]
+		z_source = kwargs_model['source_redshift_list'][0]
 		cosmo = cosmology_utils.get_cosmology(sample['cosmology_parameters'])
 		lens_equation_params = sample['lens_equation_solver_parameters']
-		lens_model = LensModel(lenstronomy_dict['lens_model_list'],
+		lens_model = LensModel(kwargs_model['lens_model_list'],
 			z_source=z_source,
-			lens_redshift_list=lenstronomy_dict['lens_redshift_list'],
+			lens_redshift_list=kwargs_model['lens_redshift_list'],
 			cosmo=cosmo.toAstropy(),multi_plane=self.c_all.multi_plane)
 		point_source_model = PointSource(
-			lenstronomy_dict['point_source_model_list'],lensModel=lens_model,
+			kwargs_model['point_source_model_list'],lensModel=lens_model,
 			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params)
 
 		# Initialize empty metadata and populate it.
 		metadata = {}
-		self.c_all._calculate_ps_metadata(metadata,lenstronomy_dict,
+		self.c_all._calculate_ps_metadata(metadata,kwargs_params,
 			point_source_model,lens_model)
 
 		# Check that all the new metadata is there.
@@ -169,7 +171,7 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Check that if kappa_ext is not defined, we get a ValueError
 		del sample['point_source_parameters']['kappa_ext']
 		with self.assertRaises(ValueError):
-			self.c_all._calculate_ps_metadata(metadata,lenstronomy_dict,
+			self.c_all._calculate_ps_metadata(metadata,kwargs_params,
 				point_source_model,lens_model)
 
 	def test__draw_image_standard(self):
