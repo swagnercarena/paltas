@@ -23,6 +23,14 @@ paltas.Substructure.los_dg19 module
     :undoc-members:
     :show-inheritance:
 
+paltas.Substructure.los_wdm module
+----------------------------------
+
+.. automodule:: paltas.Substructure.los_wdm
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 paltas.Substructure.nfw_functions module
 ----------------------------------------
 
@@ -43,6 +51,14 @@ paltas.Substructure.subhalos_dg19 module
 ----------------------------------------
 
 .. automodule:: paltas.Substructure.subhalos_dg19
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+paltas.Substructure.subhalos_wdm module
+---------------------------------------
+
+.. automodule:: paltas.Substructure.subhalos_wdm
     :members:
     :undoc-members:
     :show-inheritance:

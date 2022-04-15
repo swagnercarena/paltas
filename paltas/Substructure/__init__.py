@@ -3,3 +3,5 @@ from . import subhalos_dg19
 from . import subhalos_base
 from . import los_base
 from . import los_dg19
+from . import los_wdm
+from . import subhalos_wdm

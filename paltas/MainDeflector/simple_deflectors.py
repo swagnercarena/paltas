@@ -142,6 +142,7 @@ class PEMDShear(MainDeflectorBase):
 class PEMDShearFourMultipole(PEMDShear):
 	"""Class for rendering a main deflector the includes a PEMD profile,
 	external shear, and order 2, 3, and 4 multipole.
+
 	Args:
 		main_deflector_parameters (dict): A dictionary containing the type of
 			main deflector and the value for each of its parameters.
@@ -152,7 +153,9 @@ class PEMDShearFourMultipole(PEMDShear):
 	Notes:
 		Uses the lenstronomy EPL class, which is equivalent to PEMD but is pure
 		python.
+
 	Required Parameters
+
 	- gamma - power law slope
 	- theta_E - Einstein radius of the profile in units of arcseconds
 	- e1 - x-direction ellipticity eccentricity
@@ -166,22 +169,16 @@ class PEMDShearFourMultipole(PEMDShear):
 	- z_lens - main deflector redshift
 	- mult2_a - multipole strength for order 2 multpole
 	- mult2_phi - multipole order 2 orientation in radians
-	- mult2_center_x - x-coordinate multipole order 2 center in units of
-	arcseconds
-	- mult2_center_y - y-coordinate multipole order 2 center in units of
-	arcseconds
+	- mult2_center_x - x-coordinate multipole order 2 center in arcseconds
+	- mult2_center_y - y-coordinate multipole order 2 center in arcseconds
 	- mult3_a - multipole strength for order 2 multpole
 	- mult3_phi - multipole order 2 orientation in radians
-	- mult3_center_x - x-coordinate multipole order 2 center in units of
-	arcseconds
-	- mult3_center_y - y-coordinate multipole order 2 center in units of
-	arcseconds
+	- mult3_center_x - x-coordinate multipole order 2 center in arcseconds
+	- mult3_center_y - y-coordinate multipole order 2 center in arcseconds
 	- mult4_a - multipole strength for order 2 multpole
 	- mult4_phi - multipole order 2 orientation in radians
-	- mult4_center_x - x-coordinate multipole order 2 center in units of
-	arcseconds
-	- mult4_center_y - y-coordinate multipole order 2 center in units of
-	arcseconds
+	- mult4_center_x - x-coordinate multipole order 2 center arcseconds
+	- mult4_center_y - y-coordinate multipole order 2 center in arcseconds
 	"""
 	# Define the parameters we expect to find for the DG_19 model
 	required_parameters = PEMDShear.required_parameters + ('mult2_a',
@@ -197,6 +194,7 @@ class PEMDShearFourMultipole(PEMDShear):
 	def draw_main_deflector(self):
 		"""Draws the lenstronomy profile names and kwargs for the components
 		of the main deflector.
+
 		Returns:
 			(tuple): A tuple of three lists: the first is the profile type for
 			each component of the main deflector, the second is the
