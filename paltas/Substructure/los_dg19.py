@@ -545,15 +545,18 @@ class LOSDG19(LOSBase):
 				nfw_functions.convert_to_lenstronomy_NFW(r_scale_avg,z,
 				rho_nfw_avg,z_source,self.cosmo))
 
-			# Get our deflection angle for this NFW profile
+			# Get our deflection angle and potential for this NFW profile
 			ax,ay = NFW().derivatives(x_grid,y_grid,r_scale_ang_avg,
 				alpha_Rs_avg)
+			a = NFW().function(x_grid,y_grid,r_scale_ang_avg,alpha_Rs_avg)
 			ax = util.array2image(ax)
 			ay = util.array2image(ay)
+			a = util.array2image(a)
 
-			# Convolve our deflection angles with the disk
+			# Convolve our deflection angles and potential with the disk
 			ax_conv = fftconvolve(ax,disk_bool,mode='same')
 			ay_conv = fftconvolve(ay,disk_bool,mode='same')
+			a_conv = fftconvolve(a,disk_bool,mode='same')
 
 			# Finally, we just need to calculate how many of our
 			# m_average NFW we expect per pixel. So far our convolution
@@ -578,13 +581,14 @@ class LOSDG19(LOSBase):
 
 			ax_conv *= n_total
 			ay_conv *= n_total
+			a_conv *= n_total
 
 			# And now we can return the parameters of our interpol
 			# profile
 			interp_model_list.append('INTERPOL')
 			interp_kwargs_list.append({'grid_interp_x':x_axes,
 				'grid_interp_y':y_axes, 'f_x':-ax_conv,
-				'f_y':-ay_conv})
+				'f_y':-ay_conv,'f_':-a_conv})
 			interp_z_list.append(z)
 
 		return (interp_model_list,interp_kwargs_list,interp_z_list)

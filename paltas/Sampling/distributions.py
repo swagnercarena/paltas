@@ -258,6 +258,7 @@ class Duplicate():
 
 		return samp,samp
 
+
 class DuplicateXY():
 	"""Class that returns two copies of x, y coordinates drawn from 
 		distributions
@@ -267,8 +268,6 @@ class DuplicateXY():
 			(can be callable or constant)
 		y_dist (scipy.stats.rv_continuous.rvs or float): distribution for y 
 			(can be callable or constant)
-	
-	Notes:
 	"""
 
 	def __init__(self,x_dist,y_dist):
