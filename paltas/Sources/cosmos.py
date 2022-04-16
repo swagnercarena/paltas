@@ -278,9 +278,10 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 				depending on source_parameters['random_rotation']
 
 		Returns:
-			(list,list) A list containing the model ['INTERPOL'] and
+			(list,list,list): A list containing the model ['INTERPOL'],
 			the kwargs for an instance of the class
-			lenstronomy.LightModel.Profiles.interpolation.Interpol
+			lenstronomy.LightModel.Profiles.interpolation.Interpol,
+			and the redshift of the model.
 
 		Notes:
 			If not catalog_i is provided, one that meets the cuts will be
@@ -313,7 +314,8 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 				e1=e1,
 				e2=e2,
 				R_sersic=sercic_info['r_half'] * z_scaling,
-				n_sersic=sercic_info['n'])])
+				n_sersic=sercic_info['n'])],
+			[z_new])
 
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy

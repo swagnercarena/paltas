@@ -47,7 +47,7 @@ config_dict = {
 	'los':{
 		'class': LOSDG19,
 		'parameters':{
-			'm_min':1e9,'m_max':1e10,'z_min':0.01,
+			'm_min':1e8,'m_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,'conc_m_ref': 1e8,
 			'dex_scatter': 0.1,'delta_los':uniform(loc=0,scale=5e-3).rvs,
