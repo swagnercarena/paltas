@@ -290,6 +290,26 @@ class ConfigHandler():
 
 		return metadata
 
+	def get_sample_cosmology(self,as_astropy=False):
+		"""Return the cosmology object for the current sample.
+
+		Args:
+			as_astropy (bool): If True, will return an astropy cosmology
+				object instead of a colossus cosmology object. Defaults
+				to False.
+		Returns:
+			(colossus.cosmology.cosmology.Cosmology): An instance of
+			the colossus cosmology class. If as_astropy is True, this
+			will be an astropy object instead.
+		"""
+		# Grab the cosmology from the sample
+		sample = self.get_current_sample()
+		cosmo = get_cosmology(sample['cosmology_parameters'])
+		if as_astropy is True:
+			return cosmo.toAstropy()
+		else:
+			return cosmo
+
 	def _calculate_ps_metadata(self,metadata,kwargs_params,point_source_model,
 		lens_model):
 		"""Calculate time delays and image positions and appends them to
@@ -309,7 +329,7 @@ class ConfigHandler():
 		"""
 		# Extract the sample
 		sample = self.get_current_sample()
-		cosmo = get_cosmology(sample['cosmology_parameters'])
+		cosmo = self.get_sample_cosmology()
 
 		# Calculate image positions
 		x_image, y_image = point_source_model.image_position(

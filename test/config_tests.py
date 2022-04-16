@@ -130,6 +130,16 @@ class ConfigUtilsTests(unittest.TestCase):
 		self.assertEqual(metadata['subhalo_parameters_c_0'],18)
 		self.assertEqual(metadata['los_parameters_c_0'],18)
 
+	def test_get_sample_cosmology(self):
+		# Just test that this gives the correct cosmology
+		cosmo = self.c.get_sample_cosmology()
+		cosmo_comp = cosmology_utils.get_cosmology('planck18')
+		self.assertEqual(cosmo.H0,cosmo_comp.H0)
+
+		# Check that the astropy version works
+		cosmo = self.c.get_sample_cosmology(as_astropy=True)
+		self.assertEqual(cosmo.H0,cosmo_comp.toAstropy().H0)
+
 	def test__calculate_ps_metadata(self):
 		# Check that the metadata is added as expected.
 		# Get all of the lenstronomy parameters and models that we need
