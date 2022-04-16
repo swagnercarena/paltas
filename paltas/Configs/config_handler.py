@@ -240,9 +240,12 @@ class ConfigHandler():
 		kwargs_model['source_light_model_list'] = source_model_list
 		kwargs_params['kwargs_source'] = source_kwargs_list
 		kwargs_model['source_redshift_list'] = source_redshift_list
-		kwargs_model['z_source'] = np.max(source_redshift_list)
-		kwargs_model['z_source_convention'] = np.max(source_redshift_list)
 		kwargs_model['multi_plane'] = multi_plane
+
+		# The source convention is definied by the source parameters. This is
+		# also what the lens model classes use when setting their parameters.
+		kwargs_model['z_source'] = sample['source_parameters']['z_source']
+		kwargs_model['z_source_convention'] = kwargs_model['z_source']
 
 		return kwargs_model, kwargs_params
 
