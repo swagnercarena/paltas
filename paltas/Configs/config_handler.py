@@ -198,7 +198,8 @@ class ConfigHandler():
 			lens_light_model_list, lens_light_kwargs_list, _ = (
 				self.lens_light_class.draw_source())
 		if self.point_source_class is not None:
-			self.point_source_class.update_parameters(sample['point_source_parameters'])
+			self.point_source_class.update_parameters(
+				sample['point_source_parameters'])
 			point_source_model_list,point_source_kwargs_list = (
 				self.point_source_class.draw_point_source())
 
