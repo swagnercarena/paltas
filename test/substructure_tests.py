@@ -1026,6 +1026,38 @@ class LOSDG19Tests(unittest.TestCase):
 		self.assertEqual(len(los_kwargs_list),0)
 		self.assertEqual(len(los_z_list),0)
 
+	def test__calculate_mass_density(self):
+		# Test the the mass density matches expectations for a few combinations
+		# of parameter values.
+		z = 0.1
+		dz = 0.01
+		m_min = self.ld.los_parameters['m_min']
+		m_max = self.ld.los_parameters['m_max']
+		pl_slope, pl_norm = self.ld.power_law_dn_dm(z+dz/2,m_min,m_max)
+
+		m = power_law.power_law_integrate(m_min,m_max,pl_slope+1)*pl_norm
+		m *= self.ld.los_parameters['delta_los']
+
+		self.assertAlmostEqual(m,self.ld._calculate_mass_density(z,dz))
+
+	def test__calculate_average_NFW(self):
+		# Test the the mass density matches expectations for a few combinations
+		# of parameter values.
+		z = 0.1
+		dz = 0.01
+		m_min = self.ld.los_parameters['m_min']
+		m_max = self.ld.los_parameters['m_max']
+		pl_slope, pl_norm = self.ld.power_law_dn_dm(z+dz/2,m_min,m_max)
+
+		m_avg = power_law.power_law_integrate(m_min,m_max,pl_slope+1)
+		m_avg /= power_law.power_law_integrate(m_min,m_max,pl_slope)
+		c_avg = self.ld.mass_concentration(z,m_avg,scatter_mult=0.0)
+
+		m_avg_func, c_avg_func = self.ld._calculate_average_NFW(z,dz)
+
+		self.assertAlmostEqual(m_avg,m_avg_func)
+		self.assertAlmostEqual(c_avg,c_avg_func)
+
 	def test_calculate_average_alpha(self):
 		# Test that the interpolation class on average ensures
 		# that each sightline has a deflection and potential of 0.

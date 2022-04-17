@@ -469,6 +469,53 @@ class LOSDG19(LOSBase):
 
 		return (los_model_list, los_kwargs_list, los_z_list)
 
+	def _calculate_mass_density(self,z,dz):
+		"""Calculate the mass per unit kpc^3 implied by our model.
+
+		Args:
+			z (float): The redshift of the nfw halos
+			dz (float): The thickness of the redshift slice to consider
+		Returns:
+			(float,float): The average mass in units of M_sun and the average
+			concentration.
+		"""
+		# Grab the parameters we need
+		m_min = self.los_parameters['m_min']
+		m_max = self.los_parameters['m_max']
+		delta_los = self.los_parameters['delta_los']
+
+		# We can calculate the mass directly from the power law.
+		pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
+		m_total = power_law.power_law_integrate(m_min,m_max,pl_slope+1)
+		m_total *= pl_norm * delta_los
+
+		return m_total
+
+	def _calculate_average_NFW(self,z,dz):
+		"""Calculate the average mass and concentartion of the NFW halos
+		in our line of sight.
+
+		Args:
+			z (float): The redshift of the nfw halos
+			dz (float): The thickness of the redshift slice to consider
+			m_min (float): The lower bound of the mass M_sun
+			m_max (float): The upper bound of the mass M_sun
+		Returns:
+			(float,float): The average mass in units of M_sun and the average
+			concentration.
+		"""
+		# Grab the parameters we need
+		m_min = self.los_parameters['m_min']
+		m_max = self.los_parameters['m_max']
+
+		# We can calculate the average values directly from the power law.
+		pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
+		m_average = (power_law.power_law_integrate(m_min,m_max,pl_slope+1)/
+			power_law.power_law_integrate(m_min,m_max,pl_slope))
+		c_average = self.mass_concentration(z,m_average,scatter_mult=0.0)
+
+		return m_average, c_average
+
 	def calculate_average_alpha(self,num_pix):
 		""" Calculates the average deflection maps from the los at each
 		redshift specified by the los parameters and returns corresponding
@@ -531,10 +578,7 @@ class LOSDG19(LOSBase):
 
 			# Next we calculate the NFW parameters for our NFW of average
 			# mass.
-			pl_slope, pl_norm = self.power_law_dn_dm(z+dz/2,m_min,m_max)
-			m_average = (power_law.power_law_integrate(m_min,m_max,pl_slope+1)/
-				power_law.power_law_integrate(m_min,m_max,pl_slope))
-			c_average = self.mass_concentration(z,m_average,scatter_mult=0.0)
+			m_average, c_average = self._calculate_average_NFW(z,dz)
 
 			# Convert our parameters to the lenstronomy definition
 			r_200_avg = nfw_functions.r_200_from_m(m_average,z,self.cosmo)
@@ -562,8 +606,7 @@ class LOSDG19(LOSBase):
 			# m_average NFW we expect per pixel. So far our convolution
 			# is the deflection angle assuming 1 NFW / pixel.
 			# First we calculate the number of m_avg nfw per kpc^3
-			m_total = power_law.power_law_integrate(m_min,m_max,pl_slope+1)
-			m_total *= pl_norm * delta_los
+			m_total = self._calculate_mass_density(z,dz)
 			n_total = m_total/m_average
 
 			# Now we multiply by the length of our redshift slice to get per
