@@ -65,7 +65,9 @@ class SourceBase():
 		"""Return lenstronomy LightModel names and kwargs
 
 		Returns:
-			(list,list) A list containing the model name(s), and
-			a list containing the model kwargs dictionaries.
+			(list,list,list) A list containing the model name(s),
+			a list containing the model kwargs dictionaries, and a list
+			containing the redshifts of each model. Redshifts list can
+			be None.
 		"""
 		raise NotImplementedError

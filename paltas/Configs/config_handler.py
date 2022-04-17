@@ -62,7 +62,6 @@ class ConfigHandler():
 		self.numpix = self.config_module.numpix
 
 		# Set up the paltas objects we'll use
-		self.multi_plane = False
 		self.los_class = None
 		self.subhalo_class = None
 		self.main_deflector_class = None
@@ -73,7 +72,6 @@ class ConfigHandler():
 			self.los_class = self.config_dict['los']['class'](
 				sample['los_parameters'],sample['main_deflector_parameters'],
 				sample['source_parameters'],sample['cosmology_parameters'])
-			self.multi_plane = True
 		if 'subhalo' in self.config_dict:
 			self.subhalo_class = self.config_dict['subhalo']['class'](
 				sample['subhalo_parameters'],sample['main_deflector_parameters'],
@@ -197,10 +195,11 @@ class ConfigHandler():
 			self.lens_light_class.update_parameters(
 				cosmology_parameters=sample['cosmology_parameters'],
 				source_parameters=sample['lens_light_parameters'])
-			lens_light_model_list, lens_light_kwargs_list = (
+			lens_light_model_list, lens_light_kwargs_list, _ = (
 				self.lens_light_class.draw_source())
 		if self.point_source_class is not None:
-			self.point_source_class.update_parameters(sample['point_source_parameters'])
+			self.point_source_class.update_parameters(
+				sample['point_source_parameters'])
 			point_source_model_list,point_source_kwargs_list = (
 				self.point_source_class.draw_point_source())
 
@@ -215,17 +214,19 @@ class ConfigHandler():
 		# therefore push these back into the sample object.
 		if isinstance(self.source_class,GalaxyCatalog):
 			catalog_i, phi = self.source_class.fill_catalog_i_phi_defaults()
-			source_model_list, source_kwargs_list = self.source_class.draw_source(
-				catalog_i=catalog_i, phi=phi)
+			source_model_list, source_kwargs_list, source_redshift_list = (
+				self.source_class.draw_source(catalog_i=catalog_i, phi=phi))
 			sample['source_parameters']['catalog_i'] = catalog_i
 			sample['source_parameters']['phi'] = phi
 		else:
-			source_model_list, source_kwargs_list = (
+			source_model_list, source_kwargs_list, source_redshift_list = (
 				self.source_class.draw_source())
 
-		# Populate the source redshift as a list for concistency
-		source_redshift_list = [sample['source_parameters']['z_source']]*len(
-			source_model_list)
+		# Check to see if we need multiplane
+		multi_plane = False
+		if (len(np.unique(source_redshift_list))>1 or
+			len(np.unique(complete_z_list))>1):
+			multi_plane = True
 
 		# Package all of the lists into a model and parameters dictionary.
 		kwargs_model = {}
@@ -240,6 +241,12 @@ class ConfigHandler():
 		kwargs_model['source_light_model_list'] = source_model_list
 		kwargs_params['kwargs_source'] = source_kwargs_list
 		kwargs_model['source_redshift_list'] = source_redshift_list
+		kwargs_model['multi_plane'] = multi_plane
+
+		# The source convention is definied by the source parameters. This is
+		# also what the lens model classes use when setting their parameters.
+		kwargs_model['z_source'] = sample['source_parameters']['z_source']
+		kwargs_model['z_source_convention'] = kwargs_model['z_source']
 
 		return kwargs_model, kwargs_params
 
@@ -287,6 +294,26 @@ class ConfigHandler():
 
 		return metadata
 
+	def get_sample_cosmology(self,as_astropy=False):
+		"""Return the cosmology object for the current sample.
+
+		Args:
+			as_astropy (bool): If True, will return an astropy cosmology
+				object instead of a colossus cosmology object. Defaults
+				to False.
+		Returns:
+			(colossus.cosmology.cosmology.Cosmology): An instance of
+			the colossus cosmology class. If as_astropy is True, this
+			will be an astropy object instead.
+		"""
+		# Grab the cosmology from the sample
+		sample = self.get_current_sample()
+		cosmo = get_cosmology(sample['cosmology_parameters'])
+		if as_astropy is True:
+			return cosmo.toAstropy()
+		else:
+			return cosmo
+
 	def _calculate_ps_metadata(self,metadata,kwargs_params,point_source_model,
 		lens_model):
 		"""Calculate time delays and image positions and appends them to
@@ -306,7 +333,7 @@ class ConfigHandler():
 		"""
 		# Extract the sample
 		sample = self.get_current_sample()
-		cosmo = get_cosmology(sample['cosmology_parameters'])
+		cosmo = self.get_sample_cosmology()
 
 		# Calculate image positions
 		x_image, y_image = point_source_model.image_position(
@@ -402,14 +429,14 @@ class ConfigHandler():
 		single_band = SingleBand(**kwargs_detector)
 
 		# Pull the cosmology and source redshift
-		z_source = kwargs_model['source_redshift_list'][0]
 		cosmo = get_cosmology(sample['cosmology_parameters'])
 
 		# Build our lens and source models.
 		lens_model = LensModel(kwargs_model['lens_model_list'],
-			z_source=z_source,
+			z_source=kwargs_model['z_source'],
+			z_source_convention=kwargs_model['z_source_convention'],
 			lens_redshift_list=kwargs_model['lens_redshift_list'],
-			cosmo=cosmo.toAstropy(),multi_plane=self.multi_plane)
+			cosmo=cosmo.toAstropy(),multi_plane=kwargs_model['multi_plane'])
 		source_light_model = LightModel(kwargs_model['source_light_model_list'],
 			source_redshift_list=kwargs_model['source_redshift_list'])
 		lens_light_model = LightModel(kwargs_model['lens_light_model_list'])

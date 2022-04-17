@@ -74,7 +74,7 @@ class GalaxyCatalog(SourceBase):
 			lenstronomy model lists and kwargs.
 		"""
 		for catalog_i in self.sample_indices(n_galaxies,**selection_kwargs):
-			yield self.draw_source(catalog_i)
+			yield self.draw_source(catalog_i)[:2]
 
 	def iter_image_and_metadata(self, message=''):
 		"""Yields the image array and metadata for all of the images
@@ -135,9 +135,10 @@ class GalaxyCatalog(SourceBase):
 				source_parameters['random_rotation']
 
 		Returns:
-			(list,list) A list containing the model ['INTERPOL'] and
+			(list,list,list): A list containing the model ['INTERPOL'],
 			the kwargs for an instance of the class
-			lenstronomy.LightModel.Profiles.interpolation.Interpol
+			lenstronomy.LightModel.Profiles.interpolation.Interpol,
+			and the redshift of the model.
 
 		Notes:
 			If not catalog_i is provided, one that meets the cuts will be
@@ -169,7 +170,8 @@ class GalaxyCatalog(SourceBase):
 				center_x=self.source_parameters['center_x'],
 				center_y=self.source_parameters['center_y'],
 				phi_G=phi,
-				scale=pixel_width)])
+				scale=pixel_width)],
+			[z_new])
 
 	@staticmethod
 	def draw_phi():

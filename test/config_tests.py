@@ -29,7 +29,6 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Start by checking some of the global parameters
 		self.assertEqual(self.c.kwargs_numerics['supersampling_factor'],1)
 		self.assertEqual(self.c.numpix,64)
-		self.assertTrue(self.c.multi_plane)
 		self.assertFalse(self.c.do_drizzle)
 		self.assertEqual(self.c.mag_cut,1.0)
 		self.assertEqual(self.c.add_noise,True)
@@ -71,12 +70,15 @@ class ConfigUtilsTests(unittest.TestCase):
 			len(kwargs_params['kwargs_lens']))
 		self.assertEqual(len(kwargs_model['lens_model_list']),
 			len(kwargs_model['lens_redshift_list']))
+		self.assertTrue(kwargs_model['multi_plane'])
 
 		# Now check the source lists
 		self.assertListEqual(kwargs_model['source_light_model_list'],['INTERPOL'])
 		self.assertTrue(isinstance(
 			kwargs_params['kwargs_source'][0]['image'],np.ndarray))
 		self.assertListEqual(kwargs_model['source_redshift_list'],[1.5])
+		self.assertEqual(kwargs_model['z_source_convention'],1.5)
+		self.assertEqual(kwargs_model['z_source'],1.5)
 
 		# Now check that there is no lens light or point source for this
 		# config.
@@ -103,6 +105,10 @@ class ConfigUtilsTests(unittest.TestCase):
 			['SOURCE_POSITION'])
 		self.assertEqual(len(kwargs_params['kwargs_ps']),1)
 
+		# Check that the multiplane triggers when you have los halos
+		kwargs_model, kwargs_params = self.c_all.get_lenstronomy_models_kwargs()
+		self.assertTrue(kwargs_model['multi_plane'])
+
 	def test_get_metadata(self):
 		# Test that the metadata matches the sample
 		kwargs_model, kwargs_params = self.c.get_lenstronomy_models_kwargs(
@@ -124,6 +130,16 @@ class ConfigUtilsTests(unittest.TestCase):
 		self.assertEqual(metadata['subhalo_parameters_c_0'],18)
 		self.assertEqual(metadata['los_parameters_c_0'],18)
 
+	def test_get_sample_cosmology(self):
+		# Just test that this gives the correct cosmology
+		cosmo = self.c.get_sample_cosmology()
+		cosmo_comp = cosmology_utils.get_cosmology('planck18')
+		self.assertEqual(cosmo.H0,cosmo_comp.H0)
+
+		# Check that the astropy version works
+		cosmo = self.c.get_sample_cosmology(as_astropy=True)
+		self.assertEqual(cosmo.H0,cosmo_comp.toAstropy().H0)
+
 	def test__calculate_ps_metadata(self):
 		# Check that the metadata is added as expected.
 		# Get all of the lenstronomy parameters and models that we need
@@ -136,7 +152,7 @@ class ConfigUtilsTests(unittest.TestCase):
 		lens_model = LensModel(kwargs_model['lens_model_list'],
 			z_source=z_source,
 			lens_redshift_list=kwargs_model['lens_redshift_list'],
-			cosmo=cosmo.toAstropy(),multi_plane=self.c_all.multi_plane)
+			cosmo=cosmo.toAstropy(),multi_plane=kwargs_model['multi_plane'])
 		point_source_model = PointSource(
 			kwargs_model['point_source_model_list'],lensModel=lens_model,
 			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params)
@@ -288,7 +304,6 @@ class ConfigUtilsTests(unittest.TestCase):
 		self.c.los_class = FakeLOSClass()
 		self.c.main_deflector_class = None
 		self.c.sample['los_parameters'] = {}
-		self.c.multi_plane = True
 		los_image, metadata = self.c._draw_image_standard(self.c.add_noise)
 		np.testing.assert_almost_equal(image,los_image)
 
@@ -357,7 +372,6 @@ class ConfigUtilsTests(unittest.TestCase):
 			cosmology_parameters='planck18',
 			source_parameters=c_drizz.sample['source_parameters'])
 		c_drizz.numpix = 200
-		c_drizz.multi_plane = False
 		c_drizz.kwargs_numerics = {'supersampling_factor':1}
 		c_drizz.mag_cut = None
 		c_drizz.add_noise = False
@@ -460,7 +474,6 @@ class ConfigUtilsTests(unittest.TestCase):
 			cosmology_parameters='planck18',
 			source_parameters=c_drizz.sample['source_parameters'])
 		c_drizz.numpix = 128
-		c_drizz.multi_plane = False
 		c_drizz.kwargs_numerics = {'supersampling_factor':1}
 		c_drizz.mag_cut = None
 		c_drizz.add_noise = False

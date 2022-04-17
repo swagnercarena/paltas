@@ -42,8 +42,10 @@ class SingleSersicSource(SourceBase):
 		"""Return lenstronomy LightModel kwargs
 
 		Returns:
-			(list,list) A list containing the model names(s), and
-			a list containing the model kwargs dictionaries.
+			(list,list,list) A list containing the model name(s),
+			a list containing the model kwargs dictionaries, and a list
+			containing the redshifts of each model. Redshifts list can
+			be None.
 		"""
 		# Just extract each of the sersic parameters.
 		sersic_params ={
@@ -60,7 +62,7 @@ class SingleSersicSource(SourceBase):
 			self.source_parameters['output_ab_zeropoint'], sersic_params)
 		return (
 			['SERSIC_ELLIPSE'],
-			[sersic_params])
+			[sersic_params],[self.source_parameters['z_source']])
 
 	@staticmethod
 	def mag_to_amplitude(mag, mag_zero_point, kwargs_list):
