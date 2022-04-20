@@ -1,6 +1,6 @@
 __author__ = 'Sebastian Wagner-Carena'
 __email__ = 'sebaswagner@outlook.com'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 # Analysis is not imported by default because it required tensorflow.
 
