@@ -8,6 +8,7 @@ Documentation
 
    paltas.generate
    paltas.Analysis
+   paltas.Configs
    paltas.MainDeflector
    paltas.PointSource
    paltas.Sampling

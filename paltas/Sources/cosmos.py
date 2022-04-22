@@ -65,6 +65,13 @@ class COSMOSCatalog(GalaxyCatalog):
 		# Store the path as a Path object.
 		self.folder = Path(source_parameters['cosmos_folder'])
 
+		if not self.folder.exists():
+			raise ValueError('The COSMOS path your provided (%s) does not '%(
+				source_parameters['cosmos_folder']) +
+				'appear to exist. Please download and unzip the catalog that ' +
+				'can be found at https://github.com/GalSim-developers/GalSim/' +
+				'wiki/RealGalaxy%20Data.')
+
 		# Check if we've already populated the catalog
 		self.catalog_path = self.folder/'paltas_catalog.npy'
 		self.npy_files_path = self.folder/'npy_files'
@@ -271,9 +278,10 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 				depending on source_parameters['random_rotation']
 
 		Returns:
-			(list,list) A list containing the model ['INTERPOL'] and
+			(list,list,list): A list containing the model ['INTERPOL'],
 			the kwargs for an instance of the class
-			lenstronomy.LightModel.Profiles.interpolation.Interpol
+			lenstronomy.LightModel.Profiles.interpolation.Interpol,
+			and the redshift of the model.
 
 		Notes:
 			If not catalog_i is provided, one that meets the cuts will be
@@ -306,7 +314,8 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 				e1=e1,
 				e2=e2,
 				R_sersic=sercic_info['r_half'] * z_scaling,
-				n_sersic=sercic_info['n'])])
+				n_sersic=sercic_info['n'])],
+			[z_new])
 
 	def image_and_metadata(self, catalog_i):
 		"""Returns the image array and metadata for one galaxy

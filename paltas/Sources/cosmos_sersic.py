@@ -74,7 +74,8 @@ class COSMOSSersic(COSMOSCatalog):
 			If catalog_i is not provided, one that meets the cuts will be
 			selected at random.
 		"""
-		model_list, kwargs_list = COSMOSCatalog.draw_source(self, catalog_i, phi)
+		model_list, kwargs_list, _ = (
+			COSMOSCatalog.draw_source(self, catalog_i, phi))
 		# look up difference between append & extend
 		model_list.append('SERSIC_ELLIPSE')
 
@@ -99,4 +100,4 @@ class COSMOSSersic(COSMOSCatalog):
 
 		kwargs_list.append(sersic_kwargs_dict)
 
-		return model_list, kwargs_list
+		return model_list, kwargs_list, [self.source_parameters['z_source']]*2

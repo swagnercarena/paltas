@@ -606,7 +606,7 @@ class SubhalosDG19Tests(unittest.TestCase):
 		self.assertListEqual(subhalo_z_list,[0.5]*len(subhalo_model_list))
 
 		# Check that things still work in the limit of no substructure
-		self.sd.subhalo_parameters['sigma_sub'] = 1e-9
+		self.sd.subhalo_parameters['sigma_sub'] = 1e-12
 		subhalo_model_list, subhalo_kwargs_list, subhalo_z_list = (
 			self.sd.draw_subhalos())
 		self.assertEqual(len(subhalo_model_list),0)
@@ -1069,7 +1069,7 @@ class LOSDG19Tests(unittest.TestCase):
 
 	def test_calculate_average_alpha(self):
 		# Test that the interpolation class on average ensures
-		# that each sightline has a deflection of 0.
+		# that each sightline has a deflection and potential of 0.
 		# Set the parameters of our alpha calculation
 		num_pix = 256
 		iml, imk, imz = self.ld.calculate_average_alpha(num_pix)
@@ -1080,6 +1080,7 @@ class LOSDG19Tests(unittest.TestCase):
 		for zi in [len(imz)//2,-1]:
 			ax_avg = np.zeros((num_pix,num_pix))
 			ay_avg = np.zeros((num_pix,num_pix))
+			a_avg = np.zeros((num_pix,num_pix))
 			z = imz[zi]
 			pixel_scale = 0.08/(1+z)
 			x_grid, y_grid = util.make_grid(numPix=num_pix,deltapix=pixel_scale)
@@ -1097,19 +1098,26 @@ class LOSDG19Tests(unittest.TestCase):
 					self.source_parameters['z_source'],
 					cosmo=self.cosmo.toAstropy())
 				ax, ay = lm.alpha(x_grid,y_grid,kwargs_list)
+				a = lm.potential(x_grid,y_grid,kwargs_list)
 				ax = util.array2image(ax)
 				ay = util.array2image(ay)
+				a = util.array2image(a)
 				ax_avg += ax
 				ay_avg += ay
+				a_avg += a
 			ax_avg /= n_draws
 			ay_avg /= n_draws
+			a_avg /= n_draws
 			# The quickest thing with the interpolation is just to query the
 			# lens model.
 			lm = LensModel([iml[zi]],imz[zi],
 					self.source_parameters['z_source'],
 					cosmo=self.cosmo.toAstropy())
 			imax, imay = lm.alpha(x_grid,y_grid,[imk[zi]])
+			ima = lm.potential(x_grid,y_grid,[imk[zi]])
 			imax = util.array2image(imax)
 			imay = util.array2image(imay)
+			ima = util.array2image(ima)
 			self.assertLess(np.median(np.abs(np.sqrt(ax_avg**2+ay_avg**2)-
 				np.sqrt(imax**2+imay**2))/np.sqrt(ax_avg**2+ay_avg**2)),0.6)
+			self.assertLess(np.median((a_avg+ima)/a_avg),0.6)
