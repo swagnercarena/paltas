@@ -504,7 +504,7 @@ class LowMassFromSims(LOSBase):
 		self.los_inner_analy_class = LOSDG19(self.los_inner_analy_params,
 			self.main_deflector_parameters,self.source_parameters,
 			self.cosmology_parameters)
-		self.los_outer_analy_params = LOSDG19(self.los_outer_analy_params,
+		self.los_outer_analy_class = LOSDG19(self.los_outer_analy_params,
 			self.main_deflector_parameters,self.source_parameters,
 			self.cosmology_parameters)
 
