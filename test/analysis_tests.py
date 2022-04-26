@@ -1012,6 +1012,28 @@ class ConvModelsTests(unittest.TestCase):
 			train_only_head=True)
 		self.assertEqual(len(model.trainable_weights),2)
 
+	def test_build_xresnet34_fc_inputs(self):
+		# Confirm that the model behaves correctly with the new inputs.
+		img_size = (64,64,1)
+		num_outputs = 8
+		num_fc_inputs = 2
+		fc_model = Analysis.conv_models.build_xresnet34_fc_inputs(img_size,
+			num_outputs,num_fc_inputs)
+
+		# Check that the expected layers are present.
+		self.assertEqual(fc_model.get_layer('fc_dense1').input.shape[1],514)
+		self.assertEqual(fc_model.get_layer('fc_dense1').output.shape[1],256)
+
+		# Now check that the model takes in the expected input and is dependent
+		# on the fc inputs.
+		input_image = np.zeros((1,)+img_size)
+		input_fc = np.zeros((1,)+(num_fc_inputs,))
+		zero_out = fc_model([input_image,input_fc])
+		np.testing.assert_array_equal(zero_out,np.zeros((1,num_outputs)))
+
+		ones_out = fc_model([input_image,input_fc+1])
+		np.testing.assert_array_less(zero_out,np.abs(ones_out))
+
 
 class TransformerModelsTests(unittest.TestCase):
 
