@@ -589,6 +589,85 @@ class DatasetGenerationTests(unittest.TestCase):
 		os.remove(input_norm_path)
 		os.remove(tf_record_path)
 
+	def test_generate_params_as_input_dataset(self):
+		# Test with an artificial dataset as well as the outputs of a call
+		# to the other dataset generation functions.
+
+		# Create our simplistic base dataset
+		def artificial_dataset():
+			for _ in range(2):
+				images = np.ones((10,64,64,1))
+				values = np.repeat(np.arange(5).reshape((1,5)),5,axis=0)
+				yield images, values
+
+		# Set some arbitrary parameters
+		base_dataset = artificial_dataset()
+		all_params = ['a','b','c','d','e']
+		params_as_inputs = ['b','e']
+
+		# Generate our new dataset
+		dataset_params_inputs = (
+			Analysis.dataset_generation.generate_params_as_input_dataset(
+				base_dataset,params_as_inputs,all_params))
+
+		for images,scalar_inputs,lens_params_batch in dataset_params_inputs:
+			np.testing.assert_almost_equal(images,np.ones((10,64,64,1)))
+			np.testing.assert_almost_equal(scalar_inputs,np.repeat(
+				np.array([[1,4]]),5,axis=0))
+			np.testing.assert_almost_equal(lens_params_batch,np.repeat(
+				np.array([[0,2,3]]),5,axis=0))
+
+		# Now we can pass in a dataset coming from generate_tf_dataset.
+		all_params = ['subhalo_parameters_sigma_sub',
+			'los_parameters_delta_los','main_deflector_parameters_theta_E',
+			'main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
+		params_as_inputs = ['subhalo_parameters_sigma_sub']
+		metadata_path = self.fake_test_folder + 'metadata.csv'
+		tf_record_path = self.fake_test_folder + 'tf_record_test'
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
+			all_params,metadata_path,tf_record_path)
+		metadata = pd.read_csv(metadata_path)
+		_ = Analysis.dataset_generation.normalize_outputs(metadata,
+			all_params,input_norm_path)
+		batch_size = 5
+		n_epochs = 1
+		norm_images = False
+		base_dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,all_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=None)
+		dataset_params_inputs = (
+			Analysis.dataset_generation.generate_params_as_input_dataset(
+				base_dataset,params_as_inputs,all_params))
+		for batch in dataset_params_inputs:
+			self.assertListEqual(list(batch[0].shape),
+				[batch_size,64,64,1])
+			self.assertListEqual(list(batch[1].shape),
+				[batch_size,1])
+			self.assertListEqual(list(batch[2].shape),
+				[batch_size,4])
+
+		# Repeat the same but for the rotation dataset
+		rotated_dataset = (
+			Analysis.dataset_generation.generate_rotations_dataset(
+				tf_record_path,all_params,batch_size,n_epochs,
+				norm_images=norm_images,kwargs_detector=None))
+		dataset_params_inputs = (
+			Analysis.dataset_generation.generate_params_as_input_dataset(
+				rotated_dataset,params_as_inputs,all_params))
+		for batch in dataset_params_inputs:
+			self.assertListEqual(list(batch[0].shape),
+				[batch_size,64,64,1])
+			self.assertListEqual(list(batch[1].shape),
+				[batch_size,1])
+			self.assertListEqual(list(batch[2].shape),
+				[batch_size,4])
+
+		# Clean up the file now that we're done
+		os.remove(input_norm_path)
+		os.remove(tf_record_path)
+
 
 class MSELossTests(unittest.TestCase):
 
