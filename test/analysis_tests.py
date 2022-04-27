@@ -610,11 +610,11 @@ class DatasetGenerationTests(unittest.TestCase):
 			Analysis.dataset_generation.generate_params_as_input_dataset(
 				base_dataset,params_as_inputs,all_params))
 
-		for images,scalar_inputs,lens_params_batch in dataset_params_inputs:
-			np.testing.assert_almost_equal(images,np.ones((10,64,64,1)))
-			np.testing.assert_almost_equal(scalar_inputs,np.repeat(
+		for inputs,output in dataset_params_inputs:
+			np.testing.assert_almost_equal(inputs[0],np.ones((10,64,64,1)))
+			np.testing.assert_almost_equal(inputs[1],np.repeat(
 				np.array([[1,4]]),5,axis=0))
-			np.testing.assert_almost_equal(lens_params_batch,np.repeat(
+			np.testing.assert_almost_equal(output,np.repeat(
 				np.array([[0,2,3]]),5,axis=0))
 
 		# Now we can pass in a dataset coming from generate_tf_dataset.
@@ -641,11 +641,11 @@ class DatasetGenerationTests(unittest.TestCase):
 			Analysis.dataset_generation.generate_params_as_input_dataset(
 				base_dataset,params_as_inputs,all_params))
 		for batch in dataset_params_inputs:
-			self.assertListEqual(list(batch[0].shape),
+			self.assertListEqual(list(batch[0][0].shape),
 				[batch_size,64,64,1])
-			self.assertListEqual(list(batch[1].shape),
+			self.assertListEqual(list(batch[0][1].shape),
 				[batch_size,1])
-			self.assertListEqual(list(batch[2].shape),
+			self.assertListEqual(list(batch[1].shape),
 				[batch_size,4])
 
 		# Repeat the same but for the rotation dataset
@@ -657,11 +657,11 @@ class DatasetGenerationTests(unittest.TestCase):
 			Analysis.dataset_generation.generate_params_as_input_dataset(
 				rotated_dataset,params_as_inputs,all_params))
 		for batch in dataset_params_inputs:
-			self.assertListEqual(list(batch[0].shape),
+			self.assertListEqual(list(batch[0][0].shape),
 				[batch_size,64,64,1])
-			self.assertListEqual(list(batch[1].shape),
+			self.assertListEqual(list(batch[0][1].shape),
 				[batch_size,1])
-			self.assertListEqual(list(batch[2].shape),
+			self.assertListEqual(list(batch[1].shape),
 				[batch_size,4])
 
 		# Clean up the file now that we're done
@@ -1785,6 +1785,24 @@ class TrainModelTests(unittest.TestCase):
 		# Use a second config file that's a little different.
 		sys.argv = ['test','test_data/train_config2.py','--tensorboard_dir',
 			tensorboard_dir]
+		Analysis.train_model.main()
+
+		# Cleanup the files we don't want
+		os.remove('test_data/fake_model.h5')
+		os.remove('test_data/fake_train/norms.csv')
+		os.remove('test_data/fake_train/data.tfrecord')
+		tensorboard_train = glob.glob('test_data/train/*')
+		for f in tensorboard_train:
+			os.remove(f)
+		os.rmdir('test_data/train')
+		tensorboard_val = glob.glob('test_data/validation/*')
+		for f in tensorboard_val:
+			os.remove(f)
+		os.rmdir('test_data/validation')
+
+		# Use a config file that has some scalar inputs included.
+		sys.argv = ['test','test_data/train_config_pai.py',
+			'--tensorboard_dir',tensorboard_dir]
 		Analysis.train_model.main()
 
 		# Cleanup the files we don't want

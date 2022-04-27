@@ -521,8 +521,9 @@ def generate_params_as_input_dataset(base_dataset,params_as_inputs,
 			that will be outputted by the generator.
 
 	Returns:
-		(generator): A generator that returns a tuple with the image, the
-		input values, and the parameter values.
+		(generator): A generator that returns a tuple with the inputs (which
+		are the image and the scalar input values), and the outputs parameter
+		values.
 	"""
 
 	# Which inputs do we need to pull out and which ones do we keep as
@@ -543,11 +544,11 @@ def generate_params_as_input_dataset(base_dataset,params_as_inputs,
 				all_param_batch = all_param_batch.numpy()
 
 			scalar_inputs = all_param_batch[:,pai_indices]
-			lens_param_batch = all_param_batch[:,pai_mask]
+			outputs_batch = all_param_batch[:,pai_mask]
 
-			# Yield the image, the scalar inputs, and the parameters we
-			# want to learn.
-			yield image_batch, scalar_inputs, lens_param_batch
+			# Yield the inputs, which are the image and the scalar inputs, along
+			# with the parameters we want to learn.
+			yield [image_batch, scalar_inputs], outputs_batch
 
 	# Return the generator on the base dataset
 	return param_extractor(base_dataset)
