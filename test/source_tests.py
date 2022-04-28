@@ -487,7 +487,6 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		self.mag_apparent = 50
 		mag_absolute = self.mag_apparent - 5 *np.log10(
 			cosmo.luminosityDistance(1.5)*1e6/cosmo.h/10)
-		print(mag_absolute)
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
 			'faintest_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
