@@ -7,6 +7,7 @@ distribution as the two sources for paltas.
 """
 from .cosmos import COSMOSCatalog
 from .sersic import SingleSersicSource
+from ..Utils.cosmology_utils import absolute_to_apparent
 
 
 class COSMOSSersic(COSMOSCatalog):
@@ -94,9 +95,11 @@ class COSMOSSersic(COSMOSCatalog):
 
 		# mag to amp conversion
 		sersic_kwargs_dict.pop('mag')
+		mag_apparent = absolute_to_apparent(self.source_parameters['mag_sersic'],
+			self.source_parameters['z_source'],self.cosmo)
 		sersic_kwargs_dict['amp'] = SingleSersicSource.mag_to_amplitude(
-			self.source_parameters['mag_sersic'],
-			self.source_parameters['output_ab_zeropoint'], sersic_kwargs_dict)
+			mag_apparent,self.source_parameters['output_ab_zeropoint'],
+			sersic_kwargs_dict)
 
 		kwargs_list.append(sersic_kwargs_dict)
 

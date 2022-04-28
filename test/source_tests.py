@@ -42,18 +42,12 @@ class SourceBaseTests(unittest.TestCase):
 class SingleSersicSourceTests(SourceBaseTests):
 
 	def setUp(self):
+		self.source_parameters = dict(magnitude=20,output_ab_zeropoint=25,
+			R_sersic=1.,n_sersic=2.,e1=0.,e2=0.,center_x=0.,center_y=0.,
+			z_source=1.0)
 		self.c = SingleSersicSource(
 			cosmology_parameters='planck18',
-			source_parameters=dict(
-				magnitude=20,
-				output_ab_zeropoint=25,
-				R_sersic=1.,
-				n_sersic=2.,
-				e1=0.,
-				e2=0.,
-				center_x=0.,
-				center_y=0.,
-				z_source=1.0))
+			source_parameters=self.source_parameters)
 		self.cosmo = get_cosmology('planck18')
 
 	def test_draw_source(self):
@@ -81,6 +75,11 @@ class SingleSersicSourceTests(SourceBaseTests):
 			kwargs_source=light_kwargs_list)
 		assert isinstance(image, np.ndarray)
 		assert image.sum() > 0
+
+		# Check that the input magnitude was treated as an absolute magnitude
+		amp_abs = self.c.mag_to_amplitude(self.source_parameters['magnitude'],
+			self.source_parameters['output_ab_zeropoint'],self.source_parameters)
+		self.assertLess(light_kwargs_list[0]['amp'],amp_abs)
 
 	def test_mag_to_amplitude(self):
 		# Test that the magnitude to amplitude conversion follows our basic
@@ -484,13 +483,18 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 	
 	def setUp(self):
 		super().setUp()
+		cosmo = get_cosmology('planck18')
+		self.mag_apparent = 50
+		mag_absolute = self.mag_apparent - 5 *np.log10(
+			cosmo.luminosityDistance(1.5)*1e6/cosmo.h/10)
+		print(mag_absolute)
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
 			'faintest_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
 			'random_rotation':False, 'min_flux_radius':None,
 			'center_x':0.0,'center_y':0.0,
 			'output_ab_zeropoint':25.95, 'z_source':1.5,
-			'mag_sersic':50, 'R_sersic':0.5, 'n_sersic':2, 
+			'mag_sersic':mag_absolute,'R_sersic':0.5,'n_sersic':2,
 			'e1_sersic':0, 'e2_sersic':0, 'center_x_sersic':0,
 			'center_y_sersic':0}
 
@@ -542,13 +546,13 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		data_class = ImageData(**data_configure_simple(
 			numPix=n_pixels,deltaPix=pixel_width))
 
-		# generate SingleSersicSource image
+		# Generate SingleSersicSource image
 		single_sersic_kwargs = {'R_sersic':0.5, 'n_sersic':2, 'e1':0, 
 			'e2':0, 'center_x':0, 'center_y':0}
-		# this will test mag_to_amplitude conversion
+		# This will test mag_to_amplitude conversion
 		single_sersic_kwargs['amp'] = SingleSersicSource.mag_to_amplitude(
-			self.source_parameters['mag_sersic'],
-			self.source_parameters['output_ab_zeropoint'],single_sersic_kwargs)
+			self.mag_apparent,self.source_parameters['output_ab_zeropoint'],
+			single_sersic_kwargs)
 		light_model = LightModel(['SERSIC_ELLIPSE'])
 		complete_image_model = ImageModel(data_class=data_class,
 			psf_class=psf_class,lens_model_class=lens_model, 

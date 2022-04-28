@@ -154,6 +154,26 @@ class CosmologyTests(unittest.TestCase):
 		self.assertAlmostEqual(lc.ddt, cosmology_utils.ddt(sample,cosmo),
 			places=2)
 
+	def test_absolute_to_apparent(self):
+		# Test that the aboluste magnitude behaves as expected.
+		cosmo = cosmology_utils.get_cosmology('planck18')
+		# Set the distance to 10 pc and convert to Mpc/h
+		distance = 1e10/1e6*cosmo.h
+		z_light = cosmo.luminosityDistance(distance,inverse=True)
+		m_absolute = 1
+
+		# Calculate the apparent magnitude
+		m_apparent = cosmology_utils.absolute_to_apparent(m_absolute,z_light,
+			cosmo)
+		self.assertAlmostEqual(m_apparent,m_absolute+45,places=3)
+
+		# Test a closer value
+		distance = 1e9/1e6*cosmo.h
+		z_light = cosmo.luminosityDistance(distance,inverse=True)
+		m_apparent_2 = cosmology_utils.absolute_to_apparent(m_absolute,z_light,
+			cosmo)
+		self.assertAlmostEqual(m_apparent_2,m_absolute+40,places=2)
+
 
 class HubbleUtilsTests(unittest.TestCase):
 

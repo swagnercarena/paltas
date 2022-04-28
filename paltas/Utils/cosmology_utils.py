@@ -79,3 +79,23 @@ def ddt(sample,cosmo):
 		z_max=z_source)
 	# convert from Mpc/h to Mpc 
 	return (1+z_lens) * D_d * D_s / (D_ds*cosmo.h)
+
+
+def absolute_to_apparent(mag_absolute,z_light,cosmo):
+	"""Converts from absolute magnitude to apparent magnitude.
+
+	Args:
+		mag_apparent (float): The absolute magnitude
+		z_light (float): The redshift of the light
+		cosmo (colossus.cosmology.Cosmology): An instance of the colossus
+			cosmology object
+
+	Returns:
+		(float): The absolute magnitude of the light
+	"""
+	# Use the luminosity distance for the conversion
+	lum_dist = cosmo.luminosityDistance(z_light)
+	# Convert from Mpc/h to pc
+	lum_dist *= 1e6/cosmo.h
+
+	return mag_absolute + 5 *np.log10(lum_dist/10)
