@@ -2,20 +2,22 @@ import numpy as np
 import unittest
 import os
 from paltas.Sources.source_base import SourceBase
-from paltas.Sources.sersic import SingleSersicSource
+from paltas.Sources.sersic import SingleSersicSource, DoubleSersicData
 from paltas.Sources.galaxy_catalog import GalaxyCatalog
 from paltas.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
 from paltas.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
 from paltas.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
 from paltas.Sources.cosmos_sersic import COSMOSSersic
-from paltas.Utils.cosmology_utils import get_cosmology
+from paltas.Utils.cosmology_utils import get_cosmology, absolute_to_apparent
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.ImSim.image_model import ImageModel
 from lenstronomy.Data.imaging_data import ImageData
 from lenstronomy.Util.simulation_util import data_configure_simple
 from lenstronomy.Data.psf import PSF
+from lenstronomy.LensModel.Profiles import sersic_utils
 import scipy
+from scipy.integrate import quad
 import copy
 
 
@@ -106,6 +108,199 @@ class SingleSersicSourceTests(SourceBaseTests):
 		kwargs_list['amp'] = amp_class
 		sersic_model = LightModel(['SERSIC_ELLIPSE'])
 		self.assertGreater(sersic_model.total_flux([kwargs_list])[0],1)
+
+	def test_get_total_sersic_flux_r(self):
+		# Calculates the sersic flux within a given radius
+		R_sersic = 3
+		n_sersic = 1
+		amp_sersic = 1
+		b_n = sersic_utils.SersicUtil.b_n(n_sersic)
+
+		# Do the integration and compare to the analytic
+		def integrated_flux(r,R_sersic,n_sersic,amp_sersic,b_n):
+			return amp_sersic * quad(lambda x: 2*np.pi*x*np.exp(
+				-b_n*((x/R_sersic)**(1/n_sersic)-1)),0,r)[0]
+
+		# Try for a few radii
+		r = R_sersic
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),integrated_flux(r,R_sersic,n_sersic,
+			amp_sersic,b_n))
+		r = R_sersic/3
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),integrated_flux(r,R_sersic,n_sersic,
+			amp_sersic,b_n))
+		r = R_sersic*3
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),integrated_flux(r,R_sersic,n_sersic,
+			amp_sersic,b_n))
+
+		# Switch the parameters and compare the results
+		R_sersic = 2.4
+		n_sersic = 2.6
+		amp_sersic = 1.7
+		b_n = sersic_utils.SersicUtil.b_n(n_sersic)
+
+		# Try for a few radii
+		r = R_sersic
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),integrated_flux(r,R_sersic,n_sersic,
+			amp_sersic,b_n))
+		r = R_sersic/5
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),integrated_flux(r,R_sersic,n_sersic,
+			amp_sersic,b_n))
+		r = R_sersic*5
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),integrated_flux(r,R_sersic,n_sersic,
+			amp_sersic,b_n))
+
+	def test_get_total_sersic_flux(self):
+		# Test that the total integral agrees with the integral in the large
+		# r limit.
+		R_sersic = 3
+		n_sersic = 1
+		amp_sersic = 1
+		r = 1e3*R_sersic
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),
+			SingleSersicSource.get_total_sersic_flux(R_sersic,n_sersic,
+				amp_sersic))
+
+		R_sersic = 30
+		n_sersic = 3.435
+		amp_sersic = 1.56
+		r = 1e3*R_sersic
+		self.assertAlmostEqual(SingleSersicSource.get_total_sersic_flux_r(
+			r,R_sersic,n_sersic,amp_sersic),
+			SingleSersicSource.get_total_sersic_flux(R_sersic,n_sersic,
+				amp_sersic))
+
+
+class DoubleSersicDataTests(SourceBaseTests):
+	def setUp(self):
+		super().setUp()
+		self.source_parameters = {'magnitude':-17, 'f_bulge':0.5,
+		'output_ab_zeropoint':25,'n_bulge':1,'n_disk':4,
+		'r_disk_bulge':2,'e1':0.0,'e2':0.0,'center_x':0.0,'center_y':0.0,
+		'z_source':0.5}
+		self.c = DoubleSersicData(cosmology_parameters='planck18',
+			source_parameters=self.source_parameters)
+		np.random.seed(4)
+
+	def test_get_bulge_disk_mag(self):
+		# Test that the magnitudes translate to a flux ratio sepcified by
+		# the fraction.
+		def get_flux_from_mag(mag):
+			return 10**(-mag/2.5)
+
+		# Get the three relevant magnitudes
+		total_magnitude = absolute_to_apparent(
+			self.source_parameters['magnitude'],
+			self.source_parameters['z_source'],self.cosmo)
+		bulge_mag, disk_mag = self.c.get_bulge_disk_mag()
+
+		# Convert the magnitudes to fluxes
+		total_flux = get_flux_from_mag(total_magnitude)
+		bulge_flux = get_flux_from_mag(bulge_mag)
+		disk_flux = get_flux_from_mag(disk_mag)
+
+		self.assertAlmostEqual(total_flux,2*bulge_flux)
+		self.assertAlmostEqual(total_flux,2*disk_flux)
+
+		# Try again with a different fraction.
+		self.c.update_parameters(source_parameters={'f_bulge':0.99})
+		bulge_mag, disk_mag = self.c.get_bulge_disk_mag()
+		bulge_flux = get_flux_from_mag(bulge_mag)
+		disk_flux = get_flux_from_mag(disk_mag)
+
+		self.assertAlmostEqual(total_flux*0.99,bulge_flux)
+		self.assertAlmostEqual(total_flux*0.01,disk_flux)
+
+	def test_get_total_half_light(self):
+		# Test the it returns the correct mean value and that the scatter
+		# behaves as expected for high / low magnitude galaxies.
+		half_lights = []
+		for _ in range(int(1e4)):
+			half_lights.append(self.c.get_total_half_light())
+		self.assertAlmostEqual(np.mean(np.log10(half_lights)),-0.55,places=1)
+		self.assertAlmostEqual(np.std(np.log10(half_lights)),0.48,places=1)
+
+		# Shift to a higher magnitude and make sure the standard deviation and
+		# mean shifts.
+		self.c.update_parameters(source_parameters={'magnitude':-23})
+		half_lights = []
+		for _ in range(int(1e4)):
+			half_lights.append(self.c.get_total_half_light())
+		self.assertAlmostEqual(np.mean(np.log10(half_lights)),0.89,places=1)
+		self.assertAlmostEqual(np.std(np.log10(half_lights)),0.25,places=1)
+
+	def test_get_bulge_disk_half_light(self):
+		# Test that the model produced by the function respects the total
+		# half light radius.
+		amp_disk = 1
+		amp_bulge = 1
+		R_total = self.c.get_total_half_light()
+		R_bulge, R_disk = self.c.get_bulge_disk_half_light(R_total)
+		n_bulge = self.source_parameters['n_bulge']
+		n_disk = self.source_parameters['n_disk']
+
+		# Integrate the light profiles.
+		flux_R = self.c.get_total_sersic_flux_r(R_total,R_bulge,n_bulge,
+			amp_bulge)
+		flux_R += self.c.get_total_sersic_flux_r(R_total,R_disk,n_disk,
+			amp_disk)
+		flux_total = self.c.get_total_sersic_flux(R_bulge,n_bulge,amp_bulge)
+		flux_total += self.c.get_total_sersic_flux(R_disk,n_disk,amp_disk)
+		self.assertAlmostEqual(flux_R/flux_total,0.5)
+
+		# Test the two extremes.
+		self.c.update_parameters(source_parameters={'f_bulge':1-1e-5})
+		R_total = self.c.get_total_half_light()
+		R_bulge, R_disk = self.c.get_bulge_disk_half_light(R_total)
+		self.assertAlmostEqual(R_total,R_bulge,places=2)
+
+		self.c.update_parameters(source_parameters={'f_bulge':1e-5})
+		R_total = self.c.get_total_half_light()
+		R_bulge, R_disk = self.c.get_bulge_disk_half_light(R_total)
+		self.assertAlmostEqual(R_total,R_disk,places=2)
+
+	def test_draw_source(self):
+		# Test that the parameters returned by draw source create
+		# lenstronomy light models that match our expectations
+		light_models, light_kwargs_list, source_redshift_list = (
+			self.c.draw_source())
+
+		self.assertListEqual(source_redshift_list,[0.5,0.5])
+		self.assertListEqual(light_models,['SERSIC_ELLIPSE',
+			'SERSIC_ELLIPSE'])
+
+		# Check that the light fractions match
+		light_model_bulge = LightModel(light_models[:1])
+		light_model_disk = LightModel(light_models[1:])
+
+		self.assertAlmostEqual(light_model_bulge.total_flux(
+			light_kwargs_list[:1]),light_model_disk.total_flux(
+			light_kwargs_list[1:]))
+
+		lens_model = LensModel(['SPEP'])
+		light_model = LightModel(light_models)
+
+		n_pixels = 200
+		pixel_width = 0.08
+		image_model = ImageModel(
+			data_class=ImageData(**data_configure_simple(numPix=n_pixels,
+				deltaPix=pixel_width)),
+			psf_class=PSF(psf_type='GAUSSIAN', fwhm=0.1 * pixel_width),
+			lens_model_class=lens_model,source_model_class=light_model)
+		# Create a lens that will do nothing
+		lens_kwargs = [{'theta_E': 1e-10, 'e1': 0., 'e2': 0., 'gamma': 0.,
+			'center_x': 0, 'center_y': 0}]
+
+		image = image_model.image(kwargs_lens=lens_kwargs,
+			kwargs_source=light_kwargs_list)
+		assert isinstance(image, np.ndarray)
+		assert image.sum() > 0
 
 
 class GalaxyCatalogTests(SourceBaseTests):
