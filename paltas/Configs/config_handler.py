@@ -94,7 +94,7 @@ class ConfigHandler():
 		self.source_class = self.config_dict['source']['class'](
 			sample['cosmology_parameters'],sample['source_parameters'])
 
-		# See if a magnitude cut was specified
+		# See if a magnification cut was specified
 		if hasattr(self.config_module, 'mag_cut'):
 			self.mag_cut = self.config_module.mag_cut
 		else:
@@ -462,7 +462,9 @@ class ConfigHandler():
 
 		# Check for the magnification cut and apply it.
 		if self.mag_cut is not None:
-			mag = np.sum(image)/np.sum(source_light_model.total_flux(
+			mag = np.sum(image)-np.sum(lens_light_model.total_flux(
+				kwargs_params['kwargs_lens_light']))
+			mag /= np.sum(source_light_model.total_flux(
 				kwargs_params['kwargs_source']))
 			if mag < self.mag_cut:
 				return None,None
