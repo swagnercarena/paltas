@@ -159,8 +159,8 @@ class DoubleSersicData(SingleSersicSource):
 	- magnitude - AB absolute total magnitude of the source
 	- f_bulge - the fraction of the flux to assign to the bulge
 	- output_ab_zeropoint - AB magnitude zeropoint of the detector
-	- n_bulge - sersic index of the bulge. Should be close to 1
-	- n_disk - sersic index of the disk. Should be close to 4
+	- n_bulge - sersic index of the bulge. Should be close to 4
+	- n_disk - sersic index of the disk. Should be close to 1
 	- r_disk_bulge - the ratio of the disk to bulge half-light radius
 	- e1 - x-direction ellipticity eccentricity of both components
 	- e2 - xy-direction ellipticity eccentricity of both components
