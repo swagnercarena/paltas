@@ -372,6 +372,17 @@ class GalaxyCatalogTests(SourceBaseTests):
 		np.testing.assert_almost_equal(np.ones((64,64))*10**(1/2.5),
 			lens_kwargs[0]['image'])
 
+		# Test the absolute magnitude was used correctly
+		self.c.source_parameters['source_absolute_magnitude'] = -21
+		mag_apparent = absolute_to_apparent(
+			self.c.source_parameters['source_absolute_magnitude'],
+			self.c.source_parameters['z_source'],self.c.cosmo)
+		light_model,light_kwargs,source_z_list = self.c.draw_source(1)
+		lm = LightModel(light_model)
+		flux_total = lm.total_flux(light_kwargs)
+		self.assertAlmostEqual(mag_apparent,cps2magnitude(flux_total,
+			self.c.source_parameters['output_ab_zeropoint']))
+
 	def test_normalize_to_mag(self):
 		# Test that the magnitude normalization agrees with the
 		# lenstronomy calculations.
