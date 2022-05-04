@@ -16,6 +16,7 @@ from lenstronomy.Data.imaging_data import ImageData
 from lenstronomy.Util.simulation_util import data_configure_simple
 from lenstronomy.Data.psf import PSF
 from lenstronomy.LensModel.Profiles import sersic_utils
+from lenstronomy.Util.data_util import cps2magnitude
 import scipy
 from scipy.integrate import quad
 import copy
@@ -89,10 +90,10 @@ class SingleSersicSourceTests(SourceBaseTests):
 		# Start by passing in the same magnitude as the zero point and make
 		# sure that the total flux is 1.
 		mag = 10
-		mag_zero_point = 10
+		mag_zeropoint = 10
 		kwargs_list = {'amp':1.0,'R_sersic':1.0,'n_sersic':2.0,
 			'e1':0.0,'e2':0.0,'center_x':0.0,'center_y':0.0}
-		amp_class = self.c.mag_to_amplitude(mag,mag_zero_point,
+		amp_class = self.c.mag_to_amplitude(mag,mag_zeropoint,
 			kwargs_list)
 
 		# Generate a lenstronomy object with this amplitude and make sure
@@ -103,7 +104,7 @@ class SingleSersicSourceTests(SourceBaseTests):
 
 		# Now just check that for a brighter magnitude it's greater than 1
 		mag = 9.5
-		amp_class = self.c.mag_to_amplitude(mag,mag_zero_point,
+		amp_class = self.c.mag_to_amplitude(mag,mag_zeropoint,
 			kwargs_list)
 		kwargs_list['amp'] = amp_class
 		sersic_model = LightModel(['SERSIC_ELLIPSE'])
@@ -370,6 +371,39 @@ class GalaxyCatalogTests(SourceBaseTests):
 		lens_model,lens_kwargs,source_z_list = self.c.draw_source(1)
 		np.testing.assert_almost_equal(np.ones((64,64))*10**(1/2.5),
 			lens_kwargs[0]['image'])
+
+	def test_normalize_to_mag(self):
+		# Test that the magnitude normalization agrees with the
+		# lenstronomy calculations.
+
+		# Generate an artificial image
+		image = np.random.randn(64,64)
+		mag_zeropoint = -16.565
+		mag_apparent = -18
+		pixel_width = 0.04
+		self.c.normalize_to_mag(image,mag_apparent,mag_zeropoint,
+			pixel_width)
+
+		# Use the lens model for full consistency
+		light_model = LightModel(['INTERPOL'])
+		flux_lenstronomy = light_model.total_flux([{'image':image,
+			'center_x':0.0,'center_y':0.0,'phi_G':0.0,
+			'scale':pixel_width}])[0]
+		self.assertAlmostEqual(cps2magnitude(flux_lenstronomy,mag_zeropoint),
+			mag_apparent)
+
+		# Try for one more configutation
+		image = np.random.randn(64,64)
+		mag_zeropoint = 2.565
+		mag_apparent = 5
+		pixel_width = 0.032
+		self.c.normalize_to_mag(image,mag_apparent,mag_zeropoint,
+			pixel_width)
+		flux_lenstronomy = light_model.total_flux([{'image':image,
+			'center_x':0.0,'center_y':0.0,'phi_G':0.0,
+			'scale':pixel_width}])[0]
+		self.assertAlmostEqual(cps2magnitude(flux_lenstronomy,mag_zeropoint),
+			mag_apparent)
 
 	def test_draw_phi(self):
 		# Test that draw_phi returns a uniform distribution

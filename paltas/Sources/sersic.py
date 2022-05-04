@@ -72,13 +72,13 @@ class SingleSersicSource(SourceBase):
 			[sersic_params],[self.source_parameters['z_source']])
 
 	@staticmethod
-	def mag_to_amplitude(mag_apparent,mag_zero_point,kwargs_list):
+	def mag_to_amplitude(mag_apparent,mag_zeropoint,kwargs_list):
 		"""Converts a user defined magnitude to the corresponding amplitude
 		that lenstronomy will use
 	
 		Args:
 			mag_apparent (float): The desired apparent magnitude
-			mag_zero_point (float): The magnitude zero-point of the detector
+			mag_zeropoint (float): The magnitude zero-point of the detector
 			kwargs_list (dict): A dict of kwargs for SERSIC_ELLIPSE, amp
 				parameter not included
 
@@ -90,7 +90,7 @@ class SingleSersicSource(SourceBase):
 		sersic_model = LightModel(['SERSIC_ELLIPSE'])
 		# norm=True sets amplitude = 1
 		flux_norm = sersic_model.total_flux([kwargs_list], norm=True)[0]
-		flux_true = magnitude2cps(mag_apparent, mag_zero_point)
+		flux_true = magnitude2cps(mag_apparent, mag_zeropoint)
 		
 		return flux_true/flux_norm
 

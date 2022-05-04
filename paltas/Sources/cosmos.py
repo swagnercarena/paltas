@@ -52,10 +52,17 @@ class COSMOSCatalog(GalaxyCatalog):
 		arcseconds
 	- 	output_ab_zeropoint - AB magnitude zeropoint of the detector
 	- 	z_source - source redshift
+
+	Optional Parameters
+
+	-	source_absolute_magnitude - AB absolute magnitude of the source. The
+		light from the catalog galaxy will be rescaled to match this
+		magnitude.
 	"""
 	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
 		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
-		'min_flux_radius','output_ab_zeropoint','z_source','center_x','center_y')
+		'min_flux_radius','output_ab_zeropoint','z_source','center_x',
+		'center_y')
 	# Average AB magnitude zeropoint for the COSMOS run.
 	ab_zeropoint = 25.95
 
@@ -253,6 +260,12 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 		arcseconds
 	- 	output_ab_zeropoint - AB magnitude zeropoint of the detector
 	- 	z_source - source redshift
+
+	Optional Parameters
+
+	-	source_absolute_magnitude - AB absolute magnitude of the source. The
+		light from the catalog galaxy will be rescaled to match this
+		magnitude.
 	"""
 
 	def __init__(self, *args, **kwargs):
@@ -384,6 +397,12 @@ class COSMOSExcludeCatalog(COSMOSCatalog):
 	- 	z_source - source redshift
 	-	source_exclusion_list - A list of COSMOS source indices to exclude,
 		even if they pass the other cuts.
+
+	Optional Parameters
+
+	-	source_absolute_magnitude - AB absolute magnitude of the source. The
+		light from the catalog galaxy will be rescaled to match this
+		magnitude.
 	"""
 
 	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
@@ -443,6 +462,12 @@ class COSMOSIncludeCatalog(COSMOSCatalog):
 	- 	z_source - source redshift
 	-	source_inclusion_list - A list of COSMOS source indices to include,
 		cutting any source not in this list.
+
+	Optional Parameters
+
+	-	source_absolute_magnitude - AB absolute magnitude of the source. The
+		light from the catalog galaxy will be rescaled to match this
+		magnitude.
 	"""
 
 	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
