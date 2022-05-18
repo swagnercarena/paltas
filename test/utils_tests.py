@@ -165,14 +165,16 @@ class CosmologyTests(unittest.TestCase):
 		# Calculate the apparent magnitude
 		m_apparent = cosmology_utils.absolute_to_apparent(m_absolute,z_light,
 			cosmo)
-		self.assertAlmostEqual(m_apparent,m_absolute+45,places=3)
+		self.assertAlmostEqual(m_apparent,m_absolute+45+2.5*np.log(1+z_light),
+			places=3)
 
 		# Test a closer value
 		distance = 1e9/1e6*cosmo.h
 		z_light = cosmo.luminosityDistance(distance,inverse=True)
 		m_apparent_2 = cosmology_utils.absolute_to_apparent(m_absolute,z_light,
 			cosmo)
-		self.assertAlmostEqual(m_apparent_2,m_absolute+40,places=2)
+		self.assertAlmostEqual(m_apparent_2,m_absolute+40+2.5*np.log(1+z_light),
+			places=2)
 
 
 class HubbleUtilsTests(unittest.TestCase):
