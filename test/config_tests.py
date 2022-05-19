@@ -279,6 +279,8 @@ class ConfigUtilsTests(unittest.TestCase):
 		image, metadata = self.c._draw_image_standard(self.c.add_noise)
 
 		# Check for magnification and check most light is not in center of image
+		self.c.source_class.k_correct_image(orig_image,orig_meta['z'],
+			self.c.sample['source_parameters']['z_source'])
 		self.assertGreater(np.sum(image),np.sum(orig_image))
 		self.assertGreater(np.mean(image[0:90,0:90]),
 			np.mean(image[90:110,90:110]))
@@ -435,6 +437,8 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Check for magnification and check most light is not in
 		# center of image
 		self.assertTupleEqual((170,170),image.shape)
+		c_drizz.source_class.k_correct_image(orig_image,orig_meta['z'],
+			c_drizz.sample['source_parameters']['z_source'])
 		self.assertGreater(np.sum(image),np.sum(orig_image))
 		self.assertGreater(np.mean(image[0:80,0:80]),
 			np.mean(image[80:90,80:90]))

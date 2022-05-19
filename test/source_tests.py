@@ -9,6 +9,7 @@ from paltas.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
 from paltas.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
 from paltas.Sources.cosmos_sersic import COSMOSSersic
 from paltas.Utils.cosmology_utils import get_cosmology, absolute_to_apparent
+from paltas.Utils.cosmology_utils import get_k_correction
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.ImSim.image_model import ImageModel
@@ -281,8 +282,8 @@ class DoubleSersicDataTests(SourceBaseTests):
 		light_model_disk = LightModel(light_models[1:])
 
 		self.assertAlmostEqual(light_model_bulge.total_flux(
-			light_kwargs_list[:1]),light_model_disk.total_flux(
-			light_kwargs_list[1:]))
+			light_kwargs_list[:1])[0],light_model_disk.total_flux(
+			light_kwargs_list[1:])[0])
 
 		lens_model = LensModel(['SPEP'])
 		light_model = LightModel(light_models)
@@ -353,7 +354,7 @@ class GalaxyCatalogTests(SourceBaseTests):
 		# Now implement a fake draw_source function
 		def fake_image_and_metadata(catalog_i):
 			image = np.ones((64,64))
-			metadata = {'pixel_width':1.0,'z':2.0}
+			metadata = {'pixel_width':1.0,'z':1.5}
 			return image,metadata
 		self.c.image_and_metadata=fake_image_and_metadata
 
@@ -382,6 +383,36 @@ class GalaxyCatalogTests(SourceBaseTests):
 		flux_total = lm.total_flux(light_kwargs)
 		self.assertAlmostEqual(mag_apparent,cps2magnitude(flux_total,
 			self.c.source_parameters['output_ab_zeropoint']))
+
+	def test_k_correct_image(self):
+		# Test that the k-correction behaves as expected.
+		image = np.random.randn(64,64)
+		image_copy = copy.deepcopy(image)
+		self.c.k_correct_image(image,0.5,0.5)
+		np.testing.assert_almost_equal(image,image_copy)
+
+		# Test that moving an object back in redshift space makes it dimmer
+		image = np.random.randn(64,64)
+		image_copy = copy.deepcopy(image)
+		self.c.k_correct_image(image,0.5,0.8)
+		np.testing.assert_array_less(np.abs(image),np.abs(image_copy))
+
+		# Test that the magnitude change matches in the redshift 0 limit.
+		image = np.abs(np.random.randn(64,64))
+		image_copy = copy.deepcopy(image)
+		self.c.k_correct_image(image,0,0.8)
+		mag_orig = -2.5*np.log10(np.sum(image_copy))
+		mag_k = -2.5*np.log10(np.sum(image))
+		self.assertAlmostEqual(mag_orig+get_k_correction(0.8),mag_k)
+
+		# Do the same for two different magnitudes
+		image = np.abs(np.random.randn(64,64))
+		image_copy = copy.deepcopy(image)
+		self.c.k_correct_image(image,0.23,0.8)
+		mag_orig = -2.5*np.log10(np.sum(image_copy))
+		mag_k = -2.5*np.log10(np.sum(image))
+		self.assertAlmostEqual(mag_orig+get_k_correction(0.8),
+			mag_k+get_k_correction(0.23))
 
 	def test_normalize_to_mag(self):
 		# Test that the magnitude normalization agrees with the
@@ -646,8 +677,11 @@ class COSMOSCatalogTests(SourceBaseTests):
 		lm_kwargs = lm_kwargs[0]
 		self.assertEqual(s_z_list[0],1.0)
 		self.assertEqual(lm_list[0],'INTERPOL')
-		np.testing.assert_equal(lm_kwargs['image'],
-			image/metadata['pixel_width']**2)
+		# Calculate the k_correction effect
+		image_k = copy.copy(image)
+		self.c.k_correct_image(image_k,metadata['z'],z_new)
+		np.testing.assert_almost_equal(lm_kwargs['image'],
+			image_k/metadata['pixel_width']**2)
 		high_z_scale = lm_kwargs['scale']
 
 		self.assertLess(high_z_scale,low_z_scale)

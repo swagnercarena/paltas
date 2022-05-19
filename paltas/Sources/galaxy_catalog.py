@@ -7,7 +7,7 @@ source catalog into sources to be passed to lenstronomy.
 """
 import numpy as np
 from .source_base import SourceBase
-from ..Utils.cosmology_utils import absolute_to_apparent
+from ..Utils.cosmology_utils import absolute_to_apparent, get_k_correction
 from lenstronomy.Util.data_util import magnitude2cps
 
 
@@ -184,6 +184,9 @@ class GalaxyCatalog(SourceBase):
 
 		pixel_width *= self.z_scale_factor(metadata['z'], z_new)
 
+		# Apply the k correction to the image from the redshifting
+		self.k_correct_image(img,metadata['z'],z_new)
+
 		# If a desired absolute magnitude was specified, scale the image
 		# accordingly
 		if 'source_absolute_magnitude' in self.source_parameters:
@@ -203,6 +206,24 @@ class GalaxyCatalog(SourceBase):
 				phi_G=phi,
 				scale=pixel_width)],
 			[z_new])
+
+	@staticmethod
+	def k_correct_image(image,z_original,z_new):
+		"""Apply the k-correction to the image at the pixel level.
+
+		Args:
+			image (np.array): The image that needs to be k-corrected
+			z_original (float): The original redshift of the object
+			z_new (float): The new redshift of the object
+
+		Notes:
+			image will be changed in place
+		"""
+		# Calculate the k-correction for the change in redshift
+		mag_k_correct = get_k_correction(z_new) - get_k_correction(z_original)
+
+		# Apply the correction
+		image *= 10**(-mag_k_correct/2.5)
 
 	@staticmethod
 	def normalize_to_mag(image,mag_apparent,mag_zero_point,pixel_width):

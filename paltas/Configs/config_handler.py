@@ -462,10 +462,15 @@ class ConfigHandler():
 
 		# Check for the magnification cut and apply it.
 		if self.mag_cut is not None:
-			mag = np.sum(image)-np.sum(lens_light_model.total_flux(
+			# Evaluate the light that would have been in the image using
+			# the image model
+			lens_light_total = np.sum(image_model.lens_surface_brightness(
 				kwargs_params['kwargs_lens_light']))
-			mag /= np.sum(source_light_model.total_flux(
+			source_light_total = np.sum(source_light_model.total_flux(
 				kwargs_params['kwargs_source']))
+
+			mag = np.sum(image)-lens_light_total
+			mag /= source_light_total
 			if mag < self.mag_cut:
 				return None,None
 
@@ -488,9 +493,6 @@ class ConfigHandler():
 		"""Uses the current config sample to generate a drizzled image and the
 		associated metadata.
 
-		Args:
-			apply_psf (bool): If False, the psf will not be applied. Defaults
-				to true.
 		Returns:
 			(np.array,dict): A tuple containing a numpy array of the generated
 			image and a metavalue dictionary with the corresponding sampled

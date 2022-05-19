@@ -241,9 +241,8 @@ class DoubleSersicData(SingleSersicSource):
 			of each component is set to respect the user provided ratio and
 			the SDS constraint for the total.
 		"""
-		# Extract the total half-light radius, the flux ratios, the
-		# ratio of the half-light radii for both systems, and the sersic
-		# index for both systems.
+		# Extract the the flux ratios, the ratio of the half-light radii for
+		# both systems, and the sersic index for both systems.
 		f_bulge = self.source_parameters['f_bulge']
 		r_disk_bulge = self.source_parameters['r_disk_bulge']
 		n_bulge = self.source_parameters['n_bulge']

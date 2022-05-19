@@ -176,6 +176,15 @@ class CosmologyTests(unittest.TestCase):
 		self.assertAlmostEqual(m_apparent_2,m_absolute+40+2.5*np.log(1+z_light),
 			places=2)
 
+	def test_get_k_correction(self):
+		# Test that the k-correction script returns the correct values
+		z_light = 0.5
+		self.assertAlmostEqual(cosmology_utils.get_k_correction(z_light),
+			2.5*np.log(1+z_light))
+		z_light = 0.2134
+		self.assertAlmostEqual(cosmology_utils.get_k_correction(z_light),
+			2.5*np.log(1+z_light))
+
 
 class HubbleUtilsTests(unittest.TestCase):
 
