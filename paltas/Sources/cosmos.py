@@ -87,7 +87,7 @@ class COSMOSCatalog(GalaxyCatalog):
 
 		else:
 			# Make the directory where I'm going to save the npy files
-			self.npy_files_path.mkdir()
+			self.npy_files_path.mkdir(exist_ok=True)
 			# Combine all partial catalog files
 			catalogs = [unfits(str(self.folder / fn)) for fn in [
 				'real_galaxy_catalog_23.5.fits',
