@@ -170,8 +170,8 @@ class DoubleSersicData(SingleSersicSource):
 	"""
 
 	required_parameters = ('magnitude', 'f_bulge', 'output_ab_zeropoint',
-		'n_bulge','n_disk','r_disk_bulge','e1','e2','center_x','center_y',
-		'z_source')
+		'n_bulge','n_disk','r_disk_bulge','e1_bulge','e2_bulge','e1_disk',
+		'e2_disk','center_x','center_y','z_source')
 
 	def get_bulge_disk_mag(self):
 		"""Returns the apparent magnitude for the bulge and the disk
@@ -209,21 +209,22 @@ class DoubleSersicData(SingleSersicSource):
 		"""
 		# Define the fit parameters
 		a = 0.6
-		b = -4.63
+		b = -5.06
 		M_0 = -20.52
-		sigma_1, sigma_2 = 0.48, 0.25
+		sigma_1, sigma_2 = 0.45, 0.27
 
 		# Extract the absolute magnitude
 		M = self.source_parameters['magnitude']
 
 		# Start with the mean relation
 		log_R_half = -0.4*a*M+b
+		ln_R_half = np.log(10**log_R_half)
 
 		# Add scatter
-		log_R_half += np.random.randn() * (
+		ln_R_half += np.random.randn() * (
 			sigma_2 + (sigma_1-sigma_2)/(1+10**(-0.8*(M-M_0))))
 
-		return 10**(log_R_half)
+		return np.exp(ln_R_half)
 
 	def get_bulge_disk_half_light(self,R_total):
 		"""Returns the half-light radius for the disk and the bulge.
@@ -302,17 +303,19 @@ class DoubleSersicData(SingleSersicSource):
 
 		# Make the kwargs for both sersics.
 		kwargs_bulge = {'R_sersic':r_half_bulge,
-			'n_sersic':self.source_parameters['n_bulge']}
+			'n_sersic':self.source_parameters['n_bulge'],
+			'e1':self.source_parameters['e1_bulge'],
+			'e2':self.source_parameters['e2_bulge']}
 		kwargs_disk = {'R_sersic':r_half_disk,
-			'n_sersic':self.source_parameters['n_disk']}
+			'n_sersic':self.source_parameters['n_disk'],
+			'e1':self.source_parameters['e1_disk'],
+			'e2':self.source_parameters['e2_disk']}
 		light_model_kwargs = [kwargs_bulge,kwargs_disk]
 
 		# Add the shared parameters.
 		for kwargs in light_model_kwargs:
 			kwargs['center_x'] = self.source_parameters['center_x']
 			kwargs['center_y'] = self.source_parameters['center_y']
-			kwargs['e1'] = self.source_parameters['e1']
-			kwargs['e2'] = self.source_parameters['e2']
 
 		# Get the amplitude for each component
 		amp_bulge = SingleSersicSource.mag_to_amplitude(mag_bulge,

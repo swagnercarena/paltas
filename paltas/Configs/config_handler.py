@@ -50,8 +50,7 @@ class ConfigHandler():
 		# Get the random seed to use, or draw a random not-too-large one
 		# (so it is easy to copy-paste from metadata into config files)
 		self.base_seed = getattr(
-			self.config_module,
-			'seed',
+			self.config_module,'seed',
 			(np.random.randint(np.iinfo(np.int64).max,)))
 		# Make sure base_seed is a sequence, not a number
 		if isinstance(self.base_seed, (int, float)):
@@ -650,6 +649,8 @@ class ConfigHandler():
 			calling the function repeatedly will return images of different
 			realizations of that population.
 		"""
+		# Generate a new random seed for each call to draw_image in order
+		# to ensure deterministic behavior
 		seed = self.reseed()
 
 		# Draw a new sample if requested
@@ -677,6 +678,9 @@ class ConfigHandler():
 
 	def reseed(self):
 		"""Generates, sets, and returns a new random seed.
+
+		Returns:
+			(tuple): The tuple used to seed numpy.
 		"""
 		if self.reseed_counter == 0:
 			# Use the base seed; perhaps to reproduce one particular image
@@ -697,5 +701,9 @@ class ConfigHandler():
 # https://numba.pydata.org/numba-doc/0.22.1/reference/numpysupported.html#random
 @numba.njit
 def _set_numba_seed(seed):
-	"""Reseeds numba's random number generator"""
+	"""Reseeds numba's random number generator
+
+	Args:
+		seed (int): The integer random seed to use for seeding numba.
+	"""
 	np.random.seed(seed)
