@@ -37,8 +37,6 @@ class ConfigHandler():
 		config_path (str): A path to the config file to parse.
 	"""
 
-	reseed_counter = 0
-
 	def __init__(self,config_path,):
 		# Get the dictionary from the provided .py file
 		config_dir, config_file = os.path.split(os.path.abspath(config_path))
@@ -57,6 +55,7 @@ class ConfigHandler():
 		# Make sure base_seed is a sequence, not a number
 		if isinstance(self.base_seed, (int, float)):
 			self.base_seed = (self.base_seed,)
+		self.reseed_counter = 0
 
 		# Set up our sampler and draw a sample for initialization
 		self.sampler = Sampler(self.config_dict)
