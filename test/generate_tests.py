@@ -33,7 +33,7 @@ class GenerateTests(unittest.TestCase):
 		n_generate = 21
 		output_folder = 'test_data/test_dataset'
 		sys.argv = ['test','test_data/config_dict.py',output_folder,'--n',
-			str(n_generate),'--tf_record','--save_png_too']
+			str(n_generate),'--save_png_too']
 		generate.main()
 
 		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
@@ -75,7 +75,6 @@ class GenerateTests(unittest.TestCase):
 		# Remove the metadata file
 		os.remove(os.path.join(output_folder,'metadata.csv'))
 		os.remove(os.path.join(output_folder,'config_dict.py'))
-		os.remove(os.path.join(output_folder,'data.tfrecord'))
 
 		# Remove the images
 		for i in range(n_generate):
