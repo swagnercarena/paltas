@@ -184,8 +184,8 @@ class DoubleSersicDataTests(SourceBaseTests):
 		super().setUp()
 		self.source_parameters = {'magnitude':-17, 'f_bulge':0.5,
 		'output_ab_zeropoint':25,'n_bulge':1,'n_disk':4,
-		'r_disk_bulge':2,'e1':0.0,'e2':0.0,'center_x':0.0,'center_y':0.0,
-		'z_source':0.5}
+		'r_disk_bulge':2,'e1_bulge':0.0,'e2_bulge':0.0,'e1_disk':0.1,
+		'e2_disk':0.1,'center_x':0.0,'center_y':0.0,'z_source':0.5}
 		self.c = DoubleSersicData(cosmology_parameters='planck18',
 			source_parameters=self.source_parameters)
 		np.random.seed(4)
@@ -225,8 +225,8 @@ class DoubleSersicDataTests(SourceBaseTests):
 		half_lights = []
 		for _ in range(int(1e4)):
 			half_lights.append(self.c.get_total_half_light())
-		self.assertAlmostEqual(np.mean(np.log10(half_lights)),-0.55,places=1)
-		self.assertAlmostEqual(np.std(np.log10(half_lights)),0.48,places=1)
+		self.assertAlmostEqual(np.mean(np.log10(half_lights)),-0.98,places=1)
+		self.assertAlmostEqual(np.std(np.log(half_lights)),0.45,places=1)
 
 		# Shift to a higher magnitude and make sure the standard deviation and
 		# mean shifts.
@@ -234,8 +234,8 @@ class DoubleSersicDataTests(SourceBaseTests):
 		half_lights = []
 		for _ in range(int(1e4)):
 			half_lights.append(self.c.get_total_half_light())
-		self.assertAlmostEqual(np.mean(np.log10(half_lights)),0.89,places=1)
-		self.assertAlmostEqual(np.std(np.log10(half_lights)),0.25,places=1)
+		self.assertAlmostEqual(np.mean(np.log10(half_lights)),0.46,places=1)
+		self.assertAlmostEqual(np.std(np.log(half_lights)),0.27,places=1)
 
 	def test_get_bulge_disk_half_light(self):
 		# Test that the model produced by the function respects the total
@@ -288,6 +288,13 @@ class DoubleSersicDataTests(SourceBaseTests):
 		lens_model = LensModel(['SPEP'])
 		light_model = LightModel(light_models)
 
+		# Check that the ellipticites have been set correctly
+		self.assertEqual(light_kwargs_list[0]['e1'],0.0)
+		self.assertEqual(light_kwargs_list[0]['e2'],0.0)
+		self.assertEqual(light_kwargs_list[1]['e1'],0.1)
+		self.assertEqual(light_kwargs_list[1]['e2'],0.1)
+
+		# Make sure the sources play well with lenstronomy
 		n_pixels = 200
 		pixel_width = 0.08
 		image_model = ImageModel(

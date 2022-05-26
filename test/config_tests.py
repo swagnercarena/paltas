@@ -580,3 +580,25 @@ class ConfigUtilsTests(unittest.TestCase):
 		image_small,metadata = self.c.draw_image(new_sample=False)
 		self.assertEqual(metadata['main_deflector_parameters_theta_E'],0.1)
 		self.assertLess(np.sum(image_small),np.sum(image))
+
+	def test_draw_image_reproducible(self):
+		# Test we can reproduce generated images by setting appropriate
+		# random seeds
+		c = config_handler.ConfigHandler('test_data/config_dict_drizz.py')
+		img_1, meta_1 = c.draw_image()
+		img_2, meta_2 = c.draw_image()
+		seed_1, seed_2 = meta_1['seed'], meta_2['seed']
+		assert not np.all(img_1 == img_2), "Images should be different"
+
+		# Just set the base_seed attribute manually; simpler than building
+		# a temporary config file
+		c_1 = config_handler.ConfigHandler('test_data/config_dict_drizz.py')
+		c_1.base_seed = seed_1
+		img_1a, _ = c_1.draw_image()
+		np.testing.assert_allclose(img_1, img_1a)
+
+		# Test this works even for an image in the middle of a training set
+		c_2 = config_handler.ConfigHandler('test_data/config_dict_drizz.py')
+		c_2.base_seed = seed_2
+		img_2a, _ = c_2.draw_image()
+		np.testing.assert_allclose(img_2, img_2a)
