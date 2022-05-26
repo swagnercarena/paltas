@@ -49,10 +49,11 @@ class ConfigHandler():
 
 		# Get the random seed to use, or draw a random not-too-large one
 		# (so it is easy to copy-paste from metadata into config files)
+		# Max is 2**32 - 1, see _legacy_seeding in numpy/random/_mt19937.pyx
 		self.base_seed = getattr(
 			self.config_module,
 			'seed',
-			(np.random.randint(np.iinfo(np.int64).max,)))
+			(np.random.randint(2**32 - 1,)))
 		# Make sure base_seed is a sequence, not a number
 		if isinstance(self.base_seed, (int, float)):
 			self.base_seed = (self.base_seed,)
