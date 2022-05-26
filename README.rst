@@ -77,8 +77,8 @@ Attribution
 -----------
 If you use ``paltas`` or its datasets for your own research, please cite the ``paltas`` package (`Wagner-Carena et al. 2022 <https://arxiv.org/abs/2203.00690>`_) as well as the ``lenstronomy`` package (`Birrer & Amara 2018 <https://arxiv.org/abs/1803.09746v1>`_, `Birrer et al. 2021 <https://joss.theoj.org/papers/10.21105/joss.03283>`_).
 
-Zenodo Upload
--------------
+Zenodo Uploads
+--------------
 The following is a list of the zenodo uploads associated to papers using paltas. These uploads will include additional chains, test sets, and model weights required to reproduce the paper results.
 
 * `From Images to Dark Matter: End-To-End Inference of Substructure From Hundreds of Strong Gravitational Lenses -- Data <https://zenodo.org/record/6326743#.Yo_4qBPML0o>`_. 
