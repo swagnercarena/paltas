@@ -24,8 +24,20 @@ import lenstronomy.Util.util as util
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.
 SERIALIZATIONWARNING = True
-KWARGSNUMERICWARNING1 = True
-KWARGSNUMERICWARNING2 = True
+KWARGSNUMERICWARNING1 = False
+KWARGSNUMERICWARNING2 = False
+
+# Exclude these parameters from the image metadata. These are rarely sampled
+# and would bloat the metadata or make it hard to serialize.
+EXCLUDE_FROM_METADATA = (
+    # Long list of sources that were included
+    ('source_parameters', 'source_inclusion_list'),
+    # Big array denoting the PSF
+    ('psf_parameters', 'kernel_point_source'),
+    # Tiny list denoting drizzle pattern
+    # (allowing this would complicate check against lists entering metadata)
+    ('drizzle_parameters', 'offset_pattern'),
+)
 
 
 class ConfigHandler():
@@ -281,15 +293,18 @@ class ConfigHandler():
 				# Make sure that lists and other objects that cannot be
 				# serialized well are not written out. Warn about this only
 				# once.
+				if (component, key) in EXCLUDE_FROM_METADATA:
+					continue
 				if isinstance(comp_value,bool):
 					metadata[component+'_'+key] = int(comp_value)
-				elif (isinstance(comp_value,str) or isinstance(comp_value,int) or
-					isinstance(comp_value,float)):
+				elif isinstance(comp_value, (str, int, float)) or comp_value is None:
 					metadata[component+'_'+key] = comp_value
 				elif SERIALIZATIONWARNING:
-					warnings.warn('One or more parameters in config_dict '
-						'cannot be serialized and will not be written to '
-						'metadata.csv',category=RuntimeWarning)
+					warnings.warn(
+						f'Parameter ({component}, {key}) in config_dict, '
+						'and possibly others, will not be written to '
+						'metadata.csv',
+						category=RuntimeWarning)
 					SERIALIZATIONWARNING = False
 
 		return metadata
