@@ -1,4 +1,4 @@
-from paltas.Configs.xxxx_yyyy.config_train import *
+from paltas.Configs.paper_2203_00690.config_train import *
 from paltas.Sources.cosmos import COSMOSIncludeCatalog
 import os
 import pandas as pd
