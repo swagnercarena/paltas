@@ -37,6 +37,8 @@ EXCLUDE_FROM_METADATA = (
     # Tiny list denoting drizzle pattern
     # (allowing this would complicate check against lists entering metadata)
     ('drizzle_parameters', 'offset_pattern'),
+	# Path to the COSMOS images. Pointless repeating setup-specific string.
+	('source_parameters', 'cosmos_folder'),
 )
 
 
