@@ -215,7 +215,7 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
-	log_learning_params=None):
+	log_learning_params=None,shuffle=True):
 	"""	Generate a TFDataset that a model can be trained with.
 
 	Args:
@@ -237,6 +237,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		log_learning_params ([str,...]): A list of strings containing the
 			parameters that the network is expected to learn the log of. Can
 			be None.
+		shuffle (bool): if True (default is True), randomly shuffles dataset.
 
 	Returns:
 		(tf.Dataset): A tf.Dataset object that returns the input image and the
@@ -313,8 +314,10 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	# points exactly
 	dataset = raw_dataset.map(parse_image_features,
 		num_parallel_calls=tf.data.experimental.AUTOTUNE).repeat(
-		n_epochs).shuffle(buffer_size=buffer_size).batch(batch_size).prefetch(
-		tf.data.experimental.AUTOTUNE)
+		n_epochs)
+	if shuffle:
+		dataset = dataset.shuffle(buffer_size=buffer_size)
+	dataset = dataset.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 	return dataset
 
 
@@ -443,7 +446,7 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 
 def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
-	log_learning_params=None):
+	log_learning_params=None,shuffle=True):
 	"""	Returns a generator that builds off of a TFDataset by adding random
 	rotations to the images and parameters.
 
@@ -466,6 +469,7 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 		log_learning_params ([str,...]): A list of strings containing the
 			parameters that the network is expected to learn the log of. Can
 			be None.
+		shuffle (bool): if True (default is True), randomly shuffles dataset.
 
 	Returns:
 		(generator): A generator that returns a tuple with the rotated image
@@ -474,7 +478,8 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 	# Create our base tf dataset without normalization
 	base_dataset = generate_tf_dataset(tf_record_path,learning_params,
 		batch_size,n_epochs,norm_images=norm_images,
-		kwargs_detector=kwargs_detector,log_learning_params=log_learning_params)
+		kwargs_detector=kwargs_detector,log_learning_params=log_learning_params,
+		shuffle=shuffle)
 
 	# If normalization file is provided use it
 	if input_norm_path is not None:
