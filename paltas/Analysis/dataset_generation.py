@@ -164,6 +164,7 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 	"""
 	# Pull the list of numpy filepaths from the directory
 	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
+	npy_file_list = list(sorted(npy_file_list))
 	# Open label csv
 	metadata = pd.read_csv(metadata_path, index_col=None)
 
