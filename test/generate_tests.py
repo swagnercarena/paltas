@@ -4,6 +4,12 @@ import unittest
 import sys, glob, copy, os
 from paltas import generate
 
+try:
+	import tensorflow as tf
+	tensorflow_installed = True
+except ImportError:
+	tensorflow_installed = False
+
 # Define the cosmos path
 cosmos_folder = 'test_data/cosmos/'
 
@@ -88,6 +94,8 @@ class GenerateTests(unittest.TestCase):
 		output_folder = 'test_data/test_dataset'
 		sys.argv = ['test','test_data/config_dict_drizz.py',output_folder,
 			'--n','10']
+		if tensorflow_installed:
+			sys.argv.append('--tf_record')
 		generate.main()
 
 		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
@@ -128,6 +136,8 @@ class GenerateTests(unittest.TestCase):
 		# Remove the metadata file
 		os.remove(os.path.join(output_folder,'metadata.csv'))
 		os.remove(os.path.join(output_folder,'config_dict_drizz.py'))
+		if tensorflow_installed:
+			os.remove(os.path.join(output_folder,'data.tfrecord'))
 
 		sys.argv = old_sys
 
