@@ -254,6 +254,11 @@ class DoubleSersicData(SingleSersicSource):
 		# of half-light radius R_disk and a bulge of half-light
 		# ratio R_disk/r_disk_bluge.
 		def flux_fraction(R_disk):
+			# Deal with negative guesses. Just return the 0.5 (the return for
+			# R_disk of 0) plus R_disk.
+			if R_disk < 0:
+				return R_disk - 0.5
+
 			# Get the fluxes at R_total
 			flux_disk = self.get_total_sersic_flux_r(R_total,R_disk,
 				n_disk,1-f_bulge)
@@ -272,7 +277,7 @@ class DoubleSersicData(SingleSersicSource):
 
 		# Solve for the disk radius that would give us the correct half-light
 		# radius.
-		R_disk_solve = fsolve(flux_fraction,R_total)[0]
+		R_disk_solve = fsolve(flux_fraction,R_total*r_disk_bulge)[0]
 		R_bulge_solve = R_disk_solve / r_disk_bulge
 
 		return R_bulge_solve,R_disk_solve
