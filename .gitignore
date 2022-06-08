@@ -22,3 +22,6 @@ lib64
 
 # Pycharm
 .idea
+
+# COSMOS images
+datasets/cosmos
