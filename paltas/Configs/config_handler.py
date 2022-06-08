@@ -51,7 +51,7 @@ class ConfigHandler():
 		self.base_seed = getattr(
 			self.config_module,
 			'seed',
-			(np.random.randint(np.iinfo(np.int64).max,)))
+			(np.random.randint(np.iinfo(np.uint32).max,)))
 		# Make sure base_seed is a sequence, not a number
 		if isinstance(self.base_seed, (int, float)):
 			self.base_seed = (self.base_seed,)
@@ -694,7 +694,7 @@ class ConfigHandler():
 		self.reseed_counter += 1
 		# Seed numba's separate random generator
 		# Unfortunately it only accepts an integer argument
-		_set_numba_seed(np.random.randint(np.iinfo(np.int64).max))
+		_set_numba_seed(np.random.randint(np.iinfo(np.uint32).max))
 		return seed
 
 
