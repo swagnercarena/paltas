@@ -674,7 +674,10 @@ class ConfigHandler():
 			r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
 			image[r<=self.config_module.mask_radius] = 0
 
-		metadata['seed'] = seed
+		# Write seed to metadata if the image generation passed cuts.
+		if metadata is not None:
+			metadata['seed'] = seed
+
 		return image,metadata
 
 	def reseed(self):
