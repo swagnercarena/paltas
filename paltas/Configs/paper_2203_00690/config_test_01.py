@@ -1,4 +1,5 @@
 from paltas.Configs.paper_2203_00690.config_val import *
+config_dict = copy.deepcopy(config_dict)
 
 config_dict['subhalo']['parameters']['sigma_sub'] = norm(loc=2.0e-4,
 	scale=1.5e-4).rvs
