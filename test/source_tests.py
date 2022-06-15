@@ -1,14 +1,14 @@
 import numpy as np
 import unittest
 import os
-from manada.Sources.source_base import SourceBase
-from manada.Sources.sersic import SingleSersicSource
-from manada.Sources.galaxy_catalog import GalaxyCatalog
-from manada.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
-from manada.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
-from manada.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
-from manada.Sources.cosmos_sersic import COSMOSSersic
-from manada.Utils.cosmology_utils import get_cosmology
+from paltas.Sources.source_base import SourceBase
+from paltas.Sources.sersic import SingleSersicSource
+from paltas.Sources.galaxy_catalog import GalaxyCatalog
+from paltas.Sources.cosmos import COSMOSCatalog, COSMOSSersicCatalog, unfits
+from paltas.Sources.cosmos import COSMOSExcludeCatalog, COSMOSIncludeCatalog
+from paltas.Sources.cosmos import HUBBLE_ACS_PIXEL_WIDTH
+from paltas.Sources.cosmos_sersic import COSMOSSersic
+from paltas.Utils.cosmology_utils import get_cosmology
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.ImSim.image_model import ImageModel
@@ -58,7 +58,10 @@ class SingleSersicSourceTests(SourceBaseTests):
 
 	def test_draw_source(self):
 		# Check that lenstronomy produces some non-zero image
-		light_models, light_kwargs_list = self.c.draw_source()
+		light_models, light_kwargs_list, source_redshift_list = (
+			self.c.draw_source())
+
+		self.assertListEqual(source_redshift_list,[1.0])
 
 		lens_model = LensModel(['SPEP'])
 		light_model = LightModel(light_models)
@@ -162,14 +165,15 @@ class GalaxyCatalogTests(SourceBaseTests):
 		# Nothing changes if the two zeropoints are the same
 		self.c.__class__.ab_zeropoint = 25.0
 		self.c.source_parameters['output_ab_zeropoint'] = 25.0
-		lens_model,lens_kwargs = self.c.draw_source(1)
+		lens_model,lens_kwargs,source_z_list = self.c.draw_source(1)
+		self.assertListEqual(source_z_list,[1.5])
 		np.testing.assert_almost_equal(np.ones((64,64)),
 			lens_kwargs[0]['image'])
 
 		# The image gets brighter if the output telescope has a larger
 		# zeropoint.
 		self.c.source_parameters['output_ab_zeropoint'] = 26.0
-		lens_model,lens_kwargs = self.c.draw_source(1)
+		lens_model,lens_kwargs,source_z_list = self.c.draw_source(1)
 		np.testing.assert_almost_equal(np.ones((64,64))*10**(1/2.5),
 			lens_kwargs[0]['image'])
 
@@ -202,7 +206,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 			os.path.abspath(__file__))+'/test_data/cosmos/')
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
-			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
+			'faintest_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
 			'random_rotation':False, 'min_flux_radius':None,
 			'center_x':0.0,'center_y':0.0,
 			'output_ab_zeropoint':25.95, 'z_source':1.5
@@ -222,10 +226,18 @@ class COSMOSCatalogTests(SourceBaseTests):
 		'use_bulgefit','viable_sersic','hlr','flux']
 
 	def tearDown(self):
-		os.remove(self.test_cosmo_folder+'manada_catalog.npy')
+		os.remove(self.test_cosmo_folder+'paltas_catalog.npy')
 		for i in range(10):
 			os.remove(self.test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(self.test_cosmo_folder+'npy_files')
+
+	def test_no_cosmos_folder(self):
+		# Check that if the cosmos folder is not there, a helpful ValueError
+		# is raised
+		self.source_parameters['cosmos_folder'] = 'not_here'
+		with self.assertRaises(ValueError):
+			self.c = COSMOSCatalog(cosmology_parameters='planck18',
+				source_parameters=self.source_parameters)
 
 	def test_check_parameterization(self):
 		# Check that trying to initialize a class without the correct
@@ -320,14 +332,14 @@ class COSMOSCatalogTests(SourceBaseTests):
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
 		new_sp = copy.deepcopy(self.source_parameters)
-		new_sp['min_apparent_mag'] = 22
+		new_sp['faintest_apparent_mag'] = 22
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		new_sp['min_apparent_mag'] = 22.5
+		new_sp['faintest_apparent_mag'] = 22.5
 		new_sp['minimum_size_in_pixels'] = 90
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
@@ -379,8 +391,9 @@ class COSMOSCatalogTests(SourceBaseTests):
 		# First don't change the redshift
 		self.source_parameters['z_source'] = metadata['z']
 		self.c.update_parameters(source_parameters=self.source_parameters)
-		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
+		lm_list, lm_kwargs, s_z_list = self.c.draw_source(catalog_i)
 		lm_kwargs = lm_kwargs[0]
+		self.assertEqual(s_z_list[0],metadata['z'])
 		self.assertEqual(lm_list[0],'INTERPOL')
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/lm_kwargs['scale']**2)
@@ -390,8 +403,9 @@ class COSMOSCatalogTests(SourceBaseTests):
 		z_new = 1.0
 		self.source_parameters['z_source'] = z_new
 		self.c.update_parameters(source_parameters=self.source_parameters)
-		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
+		lm_list, lm_kwargs, s_z_list = self.c.draw_source(catalog_i)
 		lm_kwargs = lm_kwargs[0]
+		self.assertEqual(s_z_list[0],1.0)
 		self.assertEqual(lm_list[0],'INTERPOL')
 		np.testing.assert_equal(lm_kwargs['image'],
 			image/metadata['pixel_width']**2)
@@ -406,14 +420,14 @@ class COSMOSCatalogTests(SourceBaseTests):
 			cosmo.angularDiameterDistance(z_new))
 
 		# Test that providing no catalog_i is not a problem
-		lm_list, lm_kwargs = self.c.draw_source()
+		lm_list, lm_kwargs, s_z_list = self.c.draw_source()
 
 		# Test that we get rotations when we set that source parameter to
 		# True
 		self.source_parameters['random_rotation'] = True
 		self.source_parameters['z_source'] = metadata['z']
 		self.c.update_parameters(source_parameters=self.source_parameters)
-		lm_list, lm_kwargs = self.c.draw_source()
+		lm_list, lm_kwargs, s_z_list = self.c.draw_source()
 		self.assertNotEqual(lm_kwargs[0]['phi_G'],0)
 		self.source_parameters['random_rotation'] = False
 		self.c.update_parameters(source_parameters=self.source_parameters)
@@ -449,7 +463,7 @@ class COSMOSCatalogTests(SourceBaseTests):
 		self.source_parameters['center_x'] = metadata['pixel_width']
 		self.source_parameters['center_y'] = metadata['pixel_width']
 		self.c.update_parameters(source_parameters=self.source_parameters)
-		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
+		lm_list, lm_kwargs, s_z_list = self.c.draw_source(catalog_i)
 
 		# Test that if we pass these kwargs into a lenstronomy
 		# Interpolation class we get the shifted image.
@@ -472,7 +486,7 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		super().setUp()
 		self.source_parameters = {
 			'smoothing_sigma':0, 'max_z':None, 'minimum_size_in_pixels':None,
-			'min_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
+			'faintest_apparent_mag':None,'cosmos_folder':self.test_cosmo_folder,
 			'random_rotation':False, 'min_flux_radius':None,
 			'center_x':0.0,'center_y':0.0,
 			'output_ab_zeropoint':25.95, 'z_source':1.5,
@@ -487,11 +501,12 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		super().test_draw_source()
 
 		catalog_i = 0
-		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
+		lm_list, lm_kwargs,s_z_list = self.c.draw_source(catalog_i)
 
 		# draw source & make sure model list contains both INTERPOL & SERSIC
 		self.assertTrue('INTERPOL' in lm_list)
 		self.assertTrue('SERSIC_ELLIPSE' in lm_list)
+		self.assertListEqual(s_z_list,[0.19499999284744263,0.19499999284744263])
 
 		# make sure all parameters for sersic are there
 		sersic_params = ('amp', 'R_sersic', 'n_sersic', 'e1', 'e2', 
@@ -505,10 +520,10 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		mag = 10
 		self.source_parameters['mag_sersic'] = mag
 		self.c.update_parameters(source_parameters=self.source_parameters)
-		_, lm_kwargs_mag1 = self.c.draw_source(catalog_i)
+		_, lm_kwargs_mag1,_ = self.c.draw_source(catalog_i)
 		self.source_parameters['mag_sersic'] = 2*mag
 		self.c.update_parameters(source_parameters=self.source_parameters)
-		_, lm_kwargs_mag2 = self.c.draw_source(catalog_i)
+		_, lm_kwargs_mag2,_ = self.c.draw_source(catalog_i)
 		ratio_true = 10**(-(mag - zeropoint)/2.5) / 10 **(-(2*mag -
 			zeropoint)/2.5)
 		ratio_out = lm_kwargs_mag1[1]['amp'] / lm_kwargs_mag2[1]['amp']
@@ -544,7 +559,7 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 		# generate COSMOSGalaxy image
 		cosmos = COSMOSCatalog(cosmology_parameters='planck18', 
 			source_parameters=self.source_parameters)
-		light_model_list, cosmos_kwargs = cosmos.draw_source(0)
+		light_model_list, cosmos_kwargs,_ = cosmos.draw_source(0)
 		light_model = LightModel(light_model_list)
 		complete_image_model = ImageModel(data_class=data_class,
 			psf_class=psf_class,lens_model_class=lens_model,
@@ -553,7 +568,7 @@ class COSMOSSersicTests(COSMOSCatalogTests):
 			kwargs_source=cosmos_kwargs)
 		
 		# generate COSMOSSersic image
-		light_model_list, cosmossersic_kwargs = self.c.draw_source(0)
+		light_model_list, cosmossersic_kwargs, _ = self.c.draw_source(0)
 		light_model = LightModel(light_model_list)
 		complete_image_model = ImageModel(data_class=data_class,
 			psf_class=psf_class,lens_model_class=lens_model,
@@ -597,7 +612,8 @@ class COSMOSSercicCatalogTests(COSMOSCatalogTests):
 		metadata = self.c.catalog[catalog_i]
 
 		# Test providing catalog_i
-		lm_list, lm_kwargs = self.c.draw_source(catalog_i)
+		lm_list, lm_kwargs, s_z_list = self.c.draw_source(catalog_i)
+		self.assertListEqual(s_z_list,[1.5])
 		self.assertEqual(lm_list[0],'SERSIC_ELLIPSE')
 
 		# Test providing no catalog_i
@@ -607,7 +623,7 @@ class COSMOSSercicCatalogTests(COSMOSCatalogTests):
 		# True
 		self.source_parameters['random_rotation'] = True
 		self.c.update_parameters(source_parameters=self.source_parameters)
-		_, lm_kwargs_rotated = self.c.draw_source(
+		_, lm_kwargs_rotated,_ = self.c.draw_source(
 			catalog_i=catalog_i)
 		self.assertNotEqual(lm_kwargs[0]['e1'], lm_kwargs_rotated[0]['e1'])
 		self.assertNotEqual(lm_kwargs[0]['e2'], lm_kwargs_rotated[0]['e2'])
@@ -651,14 +667,14 @@ class COSMOSExcludeCatalogTests(COSMOSCatalogTests):
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
 		new_sp = copy.deepcopy(self.source_parameters)
-		new_sp['min_apparent_mag'] = 22
+		new_sp['faintest_apparent_mag'] = 22
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		new_sp['min_apparent_mag'] = 22.5
+		new_sp['faintest_apparent_mag'] = 22.5
 		new_sp['minimum_size_in_pixels'] = 90
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
@@ -696,14 +712,14 @@ class COSMOSIncludeCatalogTests(COSMOSCatalogTests):
 		# Repeat the test with some cuts on apparent magnitude.
 		# Only the first two entries meet this requirement
 		new_sp = copy.deepcopy(self.source_parameters)
-		new_sp['min_apparent_mag'] = 22
+		new_sp['faintest_apparent_mag'] = 22
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)
 		self.assertEqual(np.min(samples),0)
 		self.assertEqual(np.max(samples),1)
 
 		# Now do the same but with a size cut
-		new_sp['min_apparent_mag'] = 22.5
+		new_sp['faintest_apparent_mag'] = 22.5
 		new_sp['minimum_size_in_pixels'] = 90
 		self.c.update_parameters(source_parameters=new_sp)
 		samples = self.c.sample_indices(n_galaxies)

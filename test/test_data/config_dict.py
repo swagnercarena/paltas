@@ -1,17 +1,16 @@
 # A test configuration dict
 
-from manada.Sampling import distributions
+from paltas.Sampling import distributions
 import numpy as np
-from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
-from manada.Substructure.los_dg19 import LOSDG19
-from manada.Substructure.subhalos_dg19 import SubhalosDG19
-from manada.MainDeflector.simple_deflectors import PEMDShear
-from manada.Sources.cosmos import COSMOSCatalog
-import manada
+from scipy.stats import uniform, norm, lognorm, multivariate_normal
+from paltas.Substructure.los_dg19 import LOSDG19
+from paltas.Substructure.subhalos_dg19 import SubhalosDG19
+from paltas.MainDeflector.simple_deflectors import PEMDShear
+from paltas.Sources.cosmos import COSMOSCatalog
 
 # Define a multivariate distribution we'll use
-mean = np.ones(2)
-cov = np.array([[1.0,0.7],[0.7,1.0]])
+mean = np.array([1.0,2e-3])
+cov = np.array([[1.0,7e-4],[7e-4,1e-6]])
 min_values = np.zeros(2)
 tmn = distributions.TruncatedMultivariateNormal(mean,cov,min_values,None)
 
@@ -28,8 +27,7 @@ mag_cut = 1.0
 output_ab_zeropoint = 25.127
 
 # Define the cosmos path
-root_path = manada.__path__[0][:-7]
-cosmos_folder = root_path + '/test/test_data/cosmos/'
+cosmos_folder = './test_data/cosmos/'
 
 config_dict = {
 	'subhalo':{
@@ -37,10 +35,10 @@ config_dict = {
 		'parameters':{
 			'sigma_sub':uniform(loc=0,scale=5e-4).rvs,
 			'shmf_plaw_index':-1.83,
-			'm_pivot': 1e8,'m_min': 1e9,'m_max': 1e10,
+			'm_pivot': 1e10,'m_min': 1e8,'m_max': 1e10,
 			'c_0':18,'conc_zeta':-0.2,'conc_beta':0.8,
-			'conc_m_ref': 1e8,'dex_scatter': 0.1, 'k1':0.88,
-			'k2':1.7
+			'conc_m_ref': 1e8,'dex_scatter': 0.1, 'k1':0.0,
+			'k2':0.0
 		}
 	},
 	'los':{
@@ -56,12 +54,12 @@ config_dict = {
 	'main_deflector':{
 		'class': PEMDShear,
 		'parameters':{
-			'M200': loguniform(a=1e11,b=5e13).rvs,
+			'M200': 1e13,
 			'z_lens': 0.5,
 			'gamma': lognorm(scale=2.01,s=0.1).rvs,
 			'theta_E': lognorm(scale=1.1,s=0.05).rvs,
 			'e1,e2': multivariate_normal(np.zeros(2),
-				np.array([[1,0.5],[0.5,1]])).rvs,
+				np.array([[0.03,0.015],[0.015,0.03]])).rvs,
 			'center_x': norm(loc=0.0,scale=0.16).rvs,
 			'center_y': norm(loc=0.0,scale=0.16).rvs,
 			'gamma1': norm(loc=0.0,scale=0.05).rvs,
@@ -72,12 +70,13 @@ config_dict = {
 	'source':{
 		'class': COSMOSCatalog,
 		'parameters':{
-			'z_source':1.5,'cosmos_folder':cosmos_folder,
-			'max_z':None,'minimum_size_in_pixels':None,'min_apparent_mag':None,
-			'smoothing_sigma':0.0,'random_rotation':True,
+			'z_source':1.5,
+			'cosmos_folder':cosmos_folder,'max_z':None,
+			'minimum_size_in_pixels':None,'faintest_apparent_mag':None,
+			'smoothing_sigma':0.0,'random_rotation':False,
+			'min_flux_radius':None,'output_ab_zeropoint':25.95,
 			'center_x':norm(loc=0.0,scale=0.16).rvs,
-			'center_y':norm(loc=0.0,scale=0.16).rvs,
-			'min_flux_radius':None,'output_ab_zeropoint':output_ab_zeropoint}
+			'center_y':norm(loc=0.0,scale=0.16).rvs}
 	},
 	'cosmology':{
 		'parameters':{

@@ -1,6 +1,6 @@
 import unittest
-from manada.Utils import power_law, cosmology_utils, hubble_utils
-from manada.Utils import lenstronomy_utils
+from paltas.Utils import power_law, cosmology_utils, hubble_utils
+from paltas.Utils import lenstronomy_utils
 from scipy.integrate import quad
 import numpy as np
 from colossus.cosmology import cosmology
@@ -534,19 +534,3 @@ class LenstronomyUtilsTests(unittest.TestCase):
 		# Make sure the helper image is not convolved
 		helper_image = psf_helper.psf_model(image)
 		np.testing.assert_almost_equal(helper_image,image)
-
-		# # Now do the same but with supersampling
-		# numpix = 32
-		# psf_parameters['point_source_supersampling_factor'] = 2
-		# kwargs_numerics = {'supersampling_factor':2,
-		# 	'supersampling_convolution':True,
-		# 	'point_source_supersampling_factor':2}
-		# psf_model = PSF(**psf_parameters)
-		# data_class = DataAPI(numpix=numpix,**kwargs_detector).data_class
-		# psf_helper = lenstronomy_utils.PSFHelper(data_class,psf_model,
-		# 	kwargs_numerics)
-		# helper_image = psf_helper.psf_model(image)
-		# scipy_image = fftconvolve(image,psf_pixel,mode='same')
-
-		# # Compare the outputs
-		# np.testing.assert_almost_equal(helper_image,scipy_image)

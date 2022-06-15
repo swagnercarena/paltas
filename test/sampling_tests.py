@@ -1,7 +1,7 @@
 import numpy as np
 import unittest
-from manada.Sampling.sampler import Sampler
-from manada.Sampling import distributions
+from paltas.Sampling.sampler import Sampler
+from paltas.Sampling import distributions
 from scipy.stats import uniform, norm, loguniform, lognorm, multivariate_normal
 from scipy.stats import truncnorm
 import warnings
@@ -261,6 +261,17 @@ class DistributionsTests(unittest.TestCase):
 			loc=0.8,scale=0.1).rvs)
 		kappa = dist()
 		self.assertTrue(kappa < 0)
+
+	def testDuplicate(self):
+		# test mapping w/ constants
+		dist = distributions.Duplicate(dist=1)
+		x1,x2 = dist()
+		self.assertTrue(x1==1 and x2==1)
+		# test mapping w/ distributions
+		dist = distributions.Duplicate(dist=uniform(loc=1,scale=1).rvs)
+		for _ in range(10):
+			x1,x2 = dist()
+			self.assertTrue(x1==x2)
 
 	def testDuplicateXY(self):
 		# test mapping w/ constants
