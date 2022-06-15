@@ -50,7 +50,7 @@ model_type = 'xresnet34'
 # A string specifying which optimizer to use
 optimizer = 'Adam'
 # Where to save the model weights
-model_weights = ('/scratch/users/sydney3/manada/model_weights/' + 
+model_weights = ('/scratch/users/sydney3/manada/model_weights/' +
 	'xresnet34_full_log.h5')
 model_weights_init = model_weights
 # The learning rate for the model
