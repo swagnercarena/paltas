@@ -108,6 +108,7 @@ def main():
 		successes += 1
 		pbar.update()
 
+	# Make sure the list has been cleared out.
 	assert not metadata_list
 	pbar.close()
 	print('Dataset generation complete. Acceptance rate: %.3f'%(args.n/tries))

@@ -5,10 +5,13 @@ Conduct hierarchical inference on a population of lenses.
 This module contains the tools to conduct hierarchical inference on our
 network posteriors.
 """
+import warnings
 import numpy as np
 from scipy import special
 import numba
 
+# Global error filters for python warnings.
+LINALGWARNING = True
 
 # The predicted samples need to be et as a global variable for the pooling to
 # be efficient when done by emcee. This will have shape (num_params,num_samps,
@@ -351,6 +354,7 @@ class ProbabilityClassAnalytical:
 
 		global mu_pred_array
 		global prec_pred_array
+		global LINALGWARNING
 
 		# Start with the prior on omega
 		lprior = log_p_omega(hyperparameters,self.eval_func_omega)
@@ -366,6 +370,10 @@ class ProbabilityClassAnalytical:
 			prec_omega = np.linalg.inv(cov_omega)
 		except np.linalg.LinAlgError:
 			# Singular covariance matrix
+			if LINALGWARNING:
+				warnings.warn('Singular covariance matrix',
+					category=RuntimeWarning)
+				LINALGWARNING = False
 			return -np.inf
 
 		try:
@@ -373,6 +381,10 @@ class ProbabilityClassAnalytical:
 				self.mu_omega_i,self.prec_omega_i,mu_omega,prec_omega)
 		except np.linalg.LinAlgError:
 			# Something else was singular, too bad
+			if LINALGWARNING:
+				warnings.warn('Singular covariance matrix',
+					category=RuntimeWarning)
+				LINALGWARNING = False
 			return -np.inf
 
 		# Return the likelihood and the prior combined

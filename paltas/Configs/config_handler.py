@@ -31,13 +31,11 @@ KWARGSNUMERICWARNING2 = False
 # Exclude these parameters from the image metadata. These are rarely sampled
 # and would bloat the metadata or make it hard to serialize.
 EXCLUDE_FROM_METADATA = (
-    # Long list of sources that were included
-    ('source_parameters', 'source_inclusion_list'),
-    # Big array denoting the PSF
-    ('psf_parameters', 'kernel_point_source'),
-    # Tiny list denoting drizzle pattern
-    # (allowing this would complicate check against lists entering metadata)
-    ('drizzle_parameters', 'offset_pattern'),
+	# Long list of sources that were included
+	('source_parameters', 'source_inclusion_list'),
+	# Tiny list denoting drizzle pattern
+	# (allowing this would complicate check against lists entering metadata)
+	('drizzle_parameters', 'offset_pattern'),
 	# Path to the COSMOS images. Pointless repeating setup-specific string.
 	('source_parameters', 'cosmos_folder'),
 )
