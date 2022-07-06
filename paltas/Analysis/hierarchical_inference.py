@@ -5,10 +5,13 @@ Conduct hierarchical inference on a population of lenses.
 This module contains the tools to conduct hierarchical inference on our
 network posteriors.
 """
+import warnings
 import numpy as np
 from scipy import special
 import numba
 
+# Global error filters for python warnings.
+LINALGWARNING = True
 
 # The predicted samples need to be et as a global variable for the pooling to
 # be efficient when done by emcee. This will have shape (num_params,num_samps,
@@ -108,11 +111,17 @@ def gaussian_product_analytical(mu_pred,prec_pred,mu_omega_i,prec_omega_i,
 	# Calculate the values of eta and the combined precision matrix
 	prec_comb = prec_pred+prec_omega-prec_omega_i
 
-	# This is not guaranteed to return a valid precision matrix. When it
-	# doesn't the analytical equation used here is wrong. In those cases
-	# return -np.inf
-	eigvals = np.linalg.eigvals(prec_comb.astype(np.complex128))
-	if (np.any(np.real(eigvals)<=0) or np.any(np.imag(eigvals)!=0)):
+	# prec_comb is not guaranteed to be a valid precision matrix.
+	# When it isn't, the analytical equation used here is wrong.
+	# In those cases, return -np.inf.
+	# To check the matrix is positive definite, we check that is symmetric
+	# and that its Cholesky decomposition exists
+	# (see https://stackoverflow.com/questions/16266720)
+	if not np.array_equal(prec_comb, prec_comb.T):
+		return -np.inf
+	try:
+		np.linalg.cholesky(prec_comb)
+	except Exception:  # LinAlgError, but numba can't match exceptions
 		return -np.inf
 
 	cov_comb = np.linalg.inv(prec_comb)
@@ -345,6 +354,7 @@ class ProbabilityClassAnalytical:
 
 		global mu_pred_array
 		global prec_pred_array
+		global LINALGWARNING
 
 		# Start with the prior on omega
 		lprior = log_p_omega(hyperparameters,self.eval_func_omega)
@@ -356,10 +366,26 @@ class ProbabilityClassAnalytical:
 		# Extract mu_omega and prec_omega from the provided hyperparameters
 		mu_omega = hyperparameters[:len(hyperparameters)//2]
 		cov_omega = np.diag(np.exp(hyperparameters[len(hyperparameters)//2:]*2))
-		prec_omega = np.linalg.inv(cov_omega)
+		try:
+			prec_omega = np.linalg.inv(cov_omega)
+		except np.linalg.LinAlgError:
+			# Singular covariance matrix
+			if LINALGWARNING:
+				warnings.warn('Singular covariance matrix',
+					category=RuntimeWarning)
+				LINALGWARNING = False
+			return -np.inf
 
-		like_ratio = self.log_integral_product(mu_pred_array,prec_pred_array,
-			self.mu_omega_i,self.prec_omega_i,mu_omega,prec_omega)
+		try:
+			like_ratio = self.log_integral_product(mu_pred_array,prec_pred_array,
+				self.mu_omega_i,self.prec_omega_i,mu_omega,prec_omega)
+		except np.linalg.LinAlgError:
+			# Something else was singular, too bad
+			if LINALGWARNING:
+				warnings.warn('Singular covariance matrix',
+					category=RuntimeWarning)
+				LINALGWARNING = False
+			return -np.inf
 
 		# Return the likelihood and the prior combined
 		return lprior + like_ratio

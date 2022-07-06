@@ -62,8 +62,8 @@ def main():
 		os.path.abspath(args.config_dict),
 		args.save_folder)
 
-	# Use a pandas dataframe to store the parameter values.
-	metadata_csv = pd.DataFrame()
+	# Gather metadata in a list, will be written to dataframe later
+	metadata_list = []
 	metadata_path = os.path.join(args.save_folder,'metadata.csv')
 
 	# Initialize our config handler
@@ -71,9 +71,9 @@ def main():
 
 	# Generate our images
 	pbar = tqdm(total=args.n)
-	nt = 0
+	successes = 0
 	tries = 0
-	while nt < args.n:
+	while successes < args.n:
 		# We always try
 		tries += 1
 
@@ -85,31 +85,31 @@ def main():
 			continue
 
 		# Save the image and the metadata
-		filename = os.path.join(args.save_folder, 'image_%07d' % nt)
+		filename = os.path.join(args.save_folder, 'image_%07d' % successes)
 		np.save(filename, image)
 		if args.save_png_too:
 			plt.imsave(filename + '.png', image)
 
-		metadata_csv = metadata_csv.append(metadata,ignore_index=True)
+		metadata_list.append(metadata)
 
-		# Write out the metadata every 20 images
-		if nt == 0:
+		# Write out the metadata every 20 images, and on the final write
+		if len(metadata_list) > 20 or successes == args.n - 1:
+			df = pd.DataFrame(metadata_list)
 			# Sort the keys lexographically to ensure consistent writes
-			metadata_csv = metadata_csv.reindex(sorted(metadata_csv.columns), axis=1)
-			metadata_csv.to_csv(metadata_path, index=None)
-			metadata_csv = pd.DataFrame()
-		elif nt%20 == 0:
-			metadata_csv = metadata_csv.reindex(sorted(metadata_csv.columns), axis=1)
-			metadata_csv.to_csv(metadata_path, index=None, mode='a',
-				header=None)
-			metadata_csv = pd.DataFrame()
+			df = df.reindex(sorted(df.columns), axis=1)
+			first_write = successes <= len(metadata_list)
+			df.to_csv(
+				metadata_path,
+				index=None,
+				mode='w' if first_write else 'a',
+				header=first_write)
+			metadata_list = []
 
-		nt += 1
+		successes += 1
 		pbar.update()
 
-	# Make sure anything left in the metadata_csv DataFrame is written out
-	metadata_csv = metadata_csv.reindex(sorted(metadata_csv.columns), axis=1)
-	metadata_csv.to_csv(metadata_path, index=None, mode='a',header=None)
+	# Make sure the list has been cleared out.
+	assert not metadata_list
 	pbar.close()
 	print('Dataset generation complete. Acceptance rate: %.3f'%(args.n/tries))
 
