@@ -6,6 +6,7 @@ Classes used to draw relevant parameters from paltas configuration files.
 """
 import os, sys, warnings, copy
 from importlib import import_module
+import numba
 import numpy as np
 from ..Sampling.sampler import Sampler
 from ..Sources.galaxy_catalog import GalaxyCatalog
@@ -24,8 +25,20 @@ import lenstronomy.Util.util as util
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.
 SERIALIZATIONWARNING = True
-KWARGSNUMERICWARNING1 = True
-KWARGSNUMERICWARNING2 = True
+KWARGSNUMERICWARNING1 = False
+KWARGSNUMERICWARNING2 = False
+
+# Exclude these parameters from the image metadata. These are rarely sampled
+# and would bloat the metadata or make it hard to serialize.
+EXCLUDE_FROM_METADATA = (
+	# Long list of sources that were included
+	('source_parameters', 'source_inclusion_list'),
+	# Tiny list denoting drizzle pattern
+	# (allowing this would complicate check against lists entering metadata)
+	('drizzle_parameters', 'offset_pattern'),
+	# Path to the COSMOS images. Pointless repeating setup-specific string.
+	('source_parameters', 'cosmos_folder'),
+)
 
 
 class ConfigHandler():
@@ -36,7 +49,7 @@ class ConfigHandler():
 		config_path (str): A path to the config file to parse.
 	"""
 
-	def __init__(self,config_path):
+	def __init__(self,config_path,):
 		# Get the dictionary from the provided .py file
 		config_dir, config_file = os.path.split(os.path.abspath(config_path))
 		sys.path.insert(0, config_dir)
@@ -44,9 +57,17 @@ class ConfigHandler():
 		self.config_module = import_module(config_name)
 		self.config_dict = self.config_module.config_dict
 
-		# Initialize the random seed provided with the config module
-		if hasattr(self.config_module,'seed'):
-			np.random.seed(self.config_module.seed)
+		# Get the random seed to use, or draw a random not-too-large one
+		# (so it is easy to copy-paste from metadata into config files)
+		# Max is 2**32 - 1, see _legacy_seeding in numpy/random/_mt19937.pyx
+		self.base_seed = getattr(
+			self.config_module,
+			'seed',
+			(np.random.randint(np.iinfo(np.int32).max,)))
+		# Make sure base_seed is a sequence, not a number
+		if isinstance(self.base_seed, (int, float)):
+			self.base_seed = (self.base_seed,)
+		self.reseed_counter = 0
 
 		# Set up our sampler and draw a sample for initialization
 		self.sampler = Sampler(self.config_dict)
@@ -281,15 +302,18 @@ class ConfigHandler():
 				# Make sure that lists and other objects that cannot be
 				# serialized well are not written out. Warn about this only
 				# once.
+				if (component, key) in EXCLUDE_FROM_METADATA:
+					continue
 				if isinstance(comp_value,bool):
 					metadata[component+'_'+key] = int(comp_value)
-				elif (isinstance(comp_value,str) or isinstance(comp_value,int) or
-					isinstance(comp_value,float)):
+				elif isinstance(comp_value, (str, int, float)) or comp_value is None:
 					metadata[component+'_'+key] = comp_value
 				elif SERIALIZATIONWARNING:
-					warnings.warn('One or more parameters in config_dict '
-						'cannot be serialized and will not be written to '
-						'metadata.csv',category=RuntimeWarning)
+					warnings.warn(
+						f'Parameter ({component}, {key}) in config_dict, '
+						'and possibly others, will not be written to '
+						'metadata.csv',
+						category=RuntimeWarning)
 					SERIALIZATIONWARNING = False
 
 		return metadata
@@ -637,6 +661,10 @@ class ConfigHandler():
 			calling the function repeatedly will return images of different
 			realizations of that population.
 		"""
+		# Generate a new random seed for each call to draw_image in order
+		# to ensure deterministic behavior
+		seed = self.reseed()
+
 		# Draw a new sample if requested
 		if new_sample:
 			self.draw_new_sample()
@@ -657,4 +685,37 @@ class ConfigHandler():
 			r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
 			image[r<=self.config_module.mask_radius] = 0
 
+		metadata['seed'] = seed
 		return image,metadata
+
+	def reseed(self):
+		"""Generates, sets, and returns a new random seed.
+
+		Returns:
+			(tuple): The tuple used to seed numpy.
+		"""
+		if self.reseed_counter == 0:
+			# Use the base seed; perhaps to reproduce one particular image
+			seed = self.base_seed
+		else:
+			# Append the counter to the base_seed tuple to form a new seed
+			seed = self.base_seed + (self.reseed_counter,)
+		# Seed numpy's random generator. Note this accepts tuples.
+		np.random.seed(seed)
+		self.reseed_counter += 1
+		# Seed numba's separate random generator
+		# Unfortunately it only accepts an integer argument
+		_set_numba_seed(np.random.randint(np.iinfo(np.int64).max))
+		return seed
+
+
+# Must be compiled in regular (non-object) mode, see note under
+# https://numba.pydata.org/numba-doc/0.22.1/reference/numpysupported.html#random
+@numba.njit
+def _set_numba_seed(seed):
+	"""Reseeds numba's random number generator
+
+	Args:
+		seed (int): The integer random seed to use for seeding numba.
+	"""
+	np.random.seed(seed)

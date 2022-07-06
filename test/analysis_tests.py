@@ -934,7 +934,7 @@ class ConvModelsTests(unittest.TestCase):
 		# Test that building the xresnet stack works with different input
 		# shapes.
 		# First try stides of 2 with a dimension size that is divisible by 2
-		x = tf.ones((1000,64,64,64))
+		x = tf.ones((8,64,64,64))
 		kernel_size = 3
 		strides = 2
 		conv_shortcut = False
@@ -943,13 +943,13 @@ class ConvModelsTests(unittest.TestCase):
 		filters = 64
 		out = Analysis.conv_models._xresnet_stack(x,filters,kernel_size,strides,
 			conv_shortcut,name,blocks)
-		self.assertTupleEqual((1000,32,32,64),tuple(out.shape))
+		self.assertTupleEqual((8,32,32,64),tuple(out.shape))
 
 		# Now repeat the same but with an odd dimension
-		x = tf.ones((1000,63,63,64))
+		x = tf.ones((8,63,63,64))
 		out = Analysis.conv_models._xresnet_stack(x,filters,kernel_size,strides,
 			conv_shortcut,name,blocks)
-		self.assertTupleEqual((1000,32,32,64),tuple(out.shape))
+		self.assertTupleEqual((8,32,32,64),tuple(out.shape))
 
 	def test_build_xresnet34(self):
 		# Testing every aspect of this will be tricky, so we'll just

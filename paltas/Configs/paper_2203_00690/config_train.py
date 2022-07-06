@@ -50,11 +50,8 @@ config_dict = {
 			'sigma_sub':norm(loc=2e-3,scale=1.1e-3).rvs,
 			'shmf_plaw_index':uniform(loc=-1.92,scale=0.1).rvs,
 			'm_pivot': 1e10,'m_min': 1e7,'m_max': 1e10,
-			'c_0':uniform(loc=16,scale=2).rvs,
-			'conc_zeta':uniform(loc=-0.3,scale=0.1).rvs,
-			'conc_beta':uniform(loc=0.55,scale=0.3).rvs,
+			# See cross_dict for mass-concentration parameters (c_0 etc)
 			'conc_m_ref': 1e8,
-			'dex_scatter': uniform(loc=0.1,scale=0.06).rvs,
 			'k1':0.0, 'k2':0.0
 		}
 	},
@@ -64,11 +61,8 @@ config_dict = {
 			'delta_los':norm(loc=1,scale=0.6).rvs,
 			'm_min':1e7,'m_max':1e10,'z_min':0.01,
 			'dz':0.01,'cone_angle':8.0,'r_min':0.5,'r_max':10.0,
-			'c_0':uniform(loc=16,scale=2).rvs,
-			'conc_zeta':uniform(loc=-0.3,scale=0.1).rvs,
-			'conc_beta':uniform(loc=0.55,scale=0.3).rvs,
+			# See cross_dict for mass-concentration parameters (c_0 etc)
 			'conc_m_ref': 1e8,
-			'dex_scatter': uniform(loc=0.1,scale=0.06).rvs,
 			'alpha_dz_factor':5.0
 		}
 	},
