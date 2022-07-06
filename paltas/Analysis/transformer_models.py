@@ -42,7 +42,7 @@ class EncoderLayer(layers.Layer):
 		self.dropout1 = layers.Dropout(dropout_rate,name=name+'_d1')
 		self.dropout2 = layers.Dropout(dropout_rate,name=name+'_d2')
 
-	def call(self,x,training=True,mask=None):
+	def call(self,x,training=True,mask=None):  # pragma: no cover
 		"""Implements a forward pass of the encoder layer.
 
 		Args:
@@ -104,7 +104,7 @@ class Encoder(layers.Layer):
 		# Initialize our dropout layer.
 		self.dropout = layers.Dropout(dropout_rate,name=name+'_dropout')
 
-	def call(self,x,training=False,mask=None):
+	def call(self,x,training=False,mask=None):  # pragma: no cover
 		"""Implements a forward pass of the encoder.
 
 		Args:
