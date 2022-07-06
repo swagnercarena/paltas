@@ -58,26 +58,14 @@ def main():
 	# The list of learning parameters to use
 	learning_params = config_module.learning_params
 	# Which parameters to put in log space
-	if hasattr(config_module,'log_learning_params'):
-		log_learning_params = config_module.log_learning_params
-	else:
-		log_learning_params = []
+	log_learning_params = getattr(config_module,'log_learning_params',[])
 	num_params = len(learning_params+log_learning_params)
 	# Which parameters to consider flipping
-	if hasattr(config_module,'flip_pairs'):
-		flip_pairs = config_module.flip_pairs
-	else:
-		flip_pairs = None
+	flip_pairs = getattr(config_module,'flip_pairs',None)
 	# Which parameters to weight
-	if hasattr(config_module,'weight_terms'):
-		weight_terms = config_module.weight_terms
-	else:
-		weight_terms = None
+	weight_terms = getattr(config_module,'weight_terms',None)
 	# Whether to train the full model or only the head
-	if hasattr(config_module,'train_only_head'):
-		train_only_head = config_module.train_only_head
-	else:
-		train_only_head = False
+	train_only_head = getattr(config_module,'train_only_head',False)
 	# A list to the paths of the fodlers containing the npy images
 	# for training
 	npy_folders_train = config_module.npy_folders_train
@@ -116,10 +104,7 @@ def main():
 	# Whether or not to apply a random rotation to the input image
 	random_rotation = config_module.random_rotation
 
-	if hasattr(config_module,'params_as_inputs'):
-		params_as_inputs = config_module.params_as_inputs
-	else:
-		params_as_inputs = []
+	params_as_inputs = getattr(config_module,'params_as_inputs',[])
 	all_params = params_as_inputs + learning_params
 
 	# Check for tf records for train and validation and prepare them

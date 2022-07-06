@@ -336,6 +336,15 @@ class DatasetGenerationTests(unittest.TestCase):
 			y_pred,rot_angle)
 		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
 
+		# Test the shear components
+		learning_params = ['main_deflector_parameters_gamma1',
+			'main_deflector_parameters_gamma2']
+		Analysis.dataset_generation.rotate_covariance_batch(learning_params,
+			cov_mats,rot_angle)
+		Analysis.dataset_generation.rotate_params_batch(learning_params,
+			y_pred,rot_angle)
+		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
+
 	def test_generate_tf_dataset(self):
 		# Test that build_tf_dataset has the correct batching behaviour and
 		# returns the same data contained in the npy files and csv.
