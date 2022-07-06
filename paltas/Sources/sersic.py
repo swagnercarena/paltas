@@ -254,7 +254,7 @@ class DoubleSersicData(SingleSersicSource):
 		# of half-light radius R_disk and a bulge of half-light
 		# ratio R_disk/r_disk_bluge.
 		def flux_fraction(R_disk):
-			# Deal with negative guesses. Just return the 0.5 (the return for
+			# Deal with negative guesses. Just return 0.5 (the return for
 			# R_disk of 0) plus R_disk.
 			if R_disk < 0:
 				return R_disk - 0.5

@@ -267,6 +267,12 @@ class DoubleSersicDataTests(SourceBaseTests):
 		R_bulge, R_disk = self.c.get_bulge_disk_half_light(R_total)
 		self.assertAlmostEqual(R_total,R_disk,places=2)
 
+		# Trigger some negative guesses for R_disk
+		self.c.update_parameters(source_parameters={'f_bulge':0.1})
+		self.c.update_parameters(source_parameters={'r_disk_bulge':-1})
+		R_total = self.c.get_total_half_light()
+		R_bulge, R_disk = self.c.get_bulge_disk_half_light(R_total)
+
 	def test_draw_source(self):
 		# Test that the parameters returned by draw source create
 		# lenstronomy light models that match our expectations
