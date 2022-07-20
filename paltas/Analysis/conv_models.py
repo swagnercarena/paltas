@@ -272,14 +272,17 @@ def build_xresnet34_fc_inputs(img_size,num_outputs,num_fc_inputs,
 
 	# Concatenate the redshifts to the xresnet output.
 	x = layers.Concatenate(axis=1,name='fc_concat')([xr_outputs,inputs_fc])
-	x = layers.Dense(256,use_bias=True,name='fc_dense1',trainable=trainable)(x)
 	x = layers.Activation('relu',name='fc_relu2')(x)
 	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='fc_bn1',trainable=trainable)(x)
-	x = layers.Dense(128,use_bias=True,name='fc_dense2',trainable=trainable)(x)
+		name='fc_bn1',trainable=True)(x)
+	x = layers.Dense(256,use_bias=True,name='fc_dense1',trainable=True)(x)
 	x = layers.Activation('relu',name='fc_relu3')(x)
 	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='fc_bn2',trainable=trainable)(x)
+		name='fc_bn2',trainable=True)(x)
+	x = layers.Dense(128,use_bias=True,name='fc_dense2',trainable=True)(x)
+	x = layers.Activation('relu',name='fc_relu4')(x)
+	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+		name='fc_bn3',trainable=True)(x)
 	outputs = layers.Dense(num_outputs,use_bias=True,name='fc_dense3')(x)
 
 	model = Model(inputs=[inputs_image,inputs_fc],outputs=outputs)

@@ -41,6 +41,14 @@ EXCLUDE_FROM_METADATA = (
 )
 
 
+class MagnificationError(Exception):
+	def __init__(self,mag_cut):
+		# Pass a useful message to base class constructor
+		message = 'Magnification cut of %.2f not met. '%(mag_cut)
+		message += 'If this is inteneded (i.e. in a loop) use try/except.'
+		super().__init__(message)
+
+
 class ConfigHandler():
 	"""Class that parses the configuration files to extract images and lenstronomy
 	configurations.
@@ -431,7 +439,7 @@ class ConfigHandler():
 			image and a metavalue dictionary with the corresponding sampled
 			values.
 		Notes:
-			Will return None,None if the produced image does not meet a cut.
+			Will raise an error if the produced image does not meet a cut.
 		"""
 		# Get the lenstronomy parameters and the sample
 		sample = self.get_current_sample()
@@ -496,7 +504,7 @@ class ConfigHandler():
 			mag = np.sum(image)-lens_light_total
 			mag /= source_light_total
 			if mag < self.mag_cut:
-				return None,None
+				raise MagnificationError(self.mag_cut)
 
 		# If noise is specified, add it.
 		if add_noise:
@@ -522,7 +530,7 @@ class ConfigHandler():
 			image and a metavalue dictionary with the corresponding sampled
 			values.
 		Notes:
-			Will return None,None if the produced image does not meet a cut.
+			Will return an error if the produced image does not meet a cut.
 			This function will fail if the drizzle parameters are not
 			present.
 		"""
@@ -573,10 +581,6 @@ class ConfigHandler():
 			apply_psf=False)
 		self.sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 		self.numpix = numpix_copy
-
-		# Deal with an image that does not pass a cut.
-		if image_ss is None:
-			return image_ss, metadata
 
 		# Grab the PSF supersampling factor if present.
 		if 'psf_supersample_factor' in self.sample['drizzle_parameters']:
@@ -674,24 +678,28 @@ class ConfigHandler():
 			self.draw_new_sample()
 
 		# Use the appropraite generation function
-		if self.do_drizzle:
-			image,metadata = self._draw_image_drizzle()
-		else:
-			# _draw_image_standard has a seperate add_noise parameter so
-			# it can be used by _draw_image_drizzle.
-			image,metadata = self._draw_image_standard(add_noise=self.add_noise)
+		try:
+			if self.do_drizzle:
+				image,metadata = self._draw_image_drizzle()
+			else:
+				# _draw_image_standard has a seperate add_noise parameter so
+				# it can be used by _draw_image_drizzle.
+				image,metadata = self._draw_image_standard(
+					add_noise=self.add_noise)
+		except MagnificationError:
+			# Magnification cut was not met, return None,None
+			return None, None
 
 		# Mask out an interior region of the image if requested
-		if hasattr(self.config_module,'mask_radius') and image is not None:
+		if hasattr(self.config_module,'mask_radius'):
 			kwargs_detector = self.get_current_sample()['detector_parameters']
 			x_grid, y_grid = util.make_grid(numPix=image.shape[0],
 				deltapix=kwargs_detector['pixel_scale'])
 			r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
 			image[r<=self.config_module.mask_radius] = 0
 
-		# Write seed to metadata if the image generation passed cuts.
-		if metadata is not None:
-			metadata['seed'] = seed
+		# Save the seed
+		metadata['seed'] = seed
 
 		return image,metadata
 

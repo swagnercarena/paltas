@@ -532,11 +532,10 @@ def generate_params_as_input_dataset(base_dataset,params_as_inputs,
 		values.
 	"""
 
-	# Which inputs do we need to pull out and which ones do we keep as
-	# learning parameters.
-	pai_indices = [all_params.index(param) for param in params_as_inputs]
-	pai_mask = np.ones(len(all_params),dtype=bool)
-	pai_mask[pai_indices] = False
+	# Set a boolean mask for the parameters we want to use as inputs and the
+	# parameters we want to use as outputs.
+	param_is_input = np.array([param in params_as_inputs for param in all_params])
+	param_is_output = ~param_is_input
 
 	def param_extractor(dataset):
 		# Iterate through the images and parameters in the dataset and
@@ -549,8 +548,8 @@ def generate_params_as_input_dataset(base_dataset,params_as_inputs,
 			if isinstance(all_param_batch,tf.Tensor):
 				all_param_batch = all_param_batch.numpy()
 
-			scalar_inputs = all_param_batch[:,pai_indices]
-			outputs_batch = all_param_batch[:,pai_mask]
+			scalar_inputs = all_param_batch[:,param_is_input]
+			outputs_batch = all_param_batch[:,param_is_output]
 
 			# Yield the inputs, which are the image and the scalar inputs, along
 			# with the parameters we want to learn.
