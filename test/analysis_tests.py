@@ -336,6 +336,15 @@ class DatasetGenerationTests(unittest.TestCase):
 			y_pred,rot_angle)
 		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
 
+		# Test the shear components
+		learning_params = ['main_deflector_parameters_gamma1',
+			'main_deflector_parameters_gamma2']
+		Analysis.dataset_generation.rotate_covariance_batch(learning_params,
+			cov_mats,rot_angle)
+		Analysis.dataset_generation.rotate_params_batch(learning_params,
+			y_pred,rot_angle)
+		np.testing.assert_almost_equal(np.cov(y_pred.T),cov_mats[0],decimal=1)
+
 	def test_generate_tf_dataset(self):
 		# Test that build_tf_dataset has the correct batching behaviour and
 		# returns the same data contained in the npy files and csv.
@@ -584,6 +593,85 @@ class DatasetGenerationTests(unittest.TestCase):
 				log_outputs[:,-1])
 			np.testing.assert_almost_equal(outputs[:,3]**2+outputs[:,4]**2,
 				log_outputs[:,2]**2+log_outputs[:,3]**2)
+
+		# Clean up the file now that we're done
+		os.remove(input_norm_path)
+		os.remove(tf_record_path)
+
+	def test_generate_params_as_input_dataset(self):
+		# Test with an artificial dataset as well as the outputs of a call
+		# to the other dataset generation functions.
+
+		# Create our simplistic base dataset
+		def artificial_dataset():
+			for _ in range(2):
+				images = np.ones((10,64,64,1))
+				values = np.repeat(np.arange(5).reshape((1,5)),5,axis=0)
+				yield images, values
+
+		# Set some arbitrary parameters
+		base_dataset = artificial_dataset()
+		all_params = ['a','b','c','d','e']
+		params_as_inputs = ['b','e']
+
+		# Generate our new dataset
+		dataset_params_inputs = (
+			Analysis.dataset_generation.generate_params_as_input_dataset(
+				base_dataset,params_as_inputs,all_params))
+
+		for inputs,output in dataset_params_inputs:
+			np.testing.assert_almost_equal(inputs[0],np.ones((10,64,64,1)))
+			np.testing.assert_almost_equal(inputs[1],np.repeat(
+				np.array([[1,4]]),5,axis=0))
+			np.testing.assert_almost_equal(output,np.repeat(
+				np.array([[0,2,3]]),5,axis=0))
+
+		# Now we can pass in a dataset coming from generate_tf_dataset.
+		all_params = ['subhalo_parameters_sigma_sub',
+			'los_parameters_delta_los','main_deflector_parameters_theta_E',
+			'main_deflector_parameters_center_x',
+			'main_deflector_parameters_center_y']
+		params_as_inputs = ['subhalo_parameters_sigma_sub']
+		metadata_path = self.fake_test_folder + 'metadata.csv'
+		tf_record_path = self.fake_test_folder + 'tf_record_test'
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		Analysis.dataset_generation.generate_tf_record(self.fake_test_folder,
+			all_params,metadata_path,tf_record_path)
+		metadata = pd.read_csv(metadata_path)
+		_ = Analysis.dataset_generation.normalize_outputs(metadata,
+			all_params,input_norm_path)
+		batch_size = 5
+		n_epochs = 1
+		norm_images = False
+		base_dataset = Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path,all_params,batch_size,n_epochs,
+			norm_images=norm_images,kwargs_detector=None)
+		dataset_params_inputs = (
+			Analysis.dataset_generation.generate_params_as_input_dataset(
+				base_dataset,params_as_inputs,all_params))
+		for batch in dataset_params_inputs:
+			self.assertListEqual(list(batch[0][0].shape),
+				[batch_size,64,64,1])
+			self.assertListEqual(list(batch[0][1].shape),
+				[batch_size,1])
+			self.assertListEqual(list(batch[1].shape),
+				[batch_size,4])
+
+		# Repeat the same but for the rotation dataset
+		rotated_dataset = (
+			Analysis.dataset_generation.generate_rotations_dataset(
+				tf_record_path,all_params,batch_size,n_epochs,
+				norm_images=norm_images,kwargs_detector=None))
+		dataset_params_inputs = (
+			Analysis.dataset_generation.generate_params_as_input_dataset(
+				rotated_dataset,params_as_inputs,all_params))
+		for batch in dataset_params_inputs:
+			self.assertListEqual(list(batch[0][0].shape),
+				[batch_size,64,64,1])
+			self.assertListEqual(list(batch[0][1].shape),
+				[batch_size,1])
+			self.assertListEqual(list(batch[1].shape),
+				[batch_size,4])
 
 		# Clean up the file now that we're done
 		os.remove(input_norm_path)
@@ -1011,6 +1099,64 @@ class ConvModelsTests(unittest.TestCase):
 		model = Analysis.conv_models.build_xresnet34(image_size,num_outputs,
 			train_only_head=True)
 		self.assertEqual(len(model.trainable_weights),2)
+
+	def test_build_xresnet34_fc_inputs(self):
+		# Confirm that the model behaves correctly with the new inputs.
+		img_size = (64,64,1)
+		num_outputs = 8
+		num_fc_inputs = 2
+		fc_model = Analysis.conv_models.build_xresnet34_fc_inputs(img_size,
+			num_outputs,num_fc_inputs)
+
+		# Check that the expected layers are present.
+		self.assertEqual(fc_model.get_layer('fc_dense1').input.shape[1],514)
+		self.assertEqual(fc_model.get_layer('fc_dense1').output.shape[1],256)
+
+		# Now check that the model takes in the expected input and is dependent
+		# on the fc inputs.
+		input_image = np.zeros((1,)+img_size)
+		input_fc = np.zeros((1,)+(num_fc_inputs,))
+		zero_out = fc_model([input_image,input_fc])
+		np.testing.assert_array_equal(zero_out,np.zeros((1,num_outputs)))
+
+		ones_out = fc_model([input_image,input_fc+1])
+		np.testing.assert_array_less(zero_out,np.abs(ones_out))
+
+
+class TransformerModelsTests(unittest.TestCase):
+
+	def test_build_population_transformer(self):
+		# Test that the build transformer behaves as expected.
+		num_outputs = 10
+		img_size = ((128,128,1))
+		max_n_images = 16
+		num_layers = 2
+		embedding_dim = 128
+		num_heads = 2
+		dff = 128
+		droput_rate = 0.1
+		batch_size = 4
+		conv_trainable = False
+
+		# Test that you can build the transformer and pass some inputs
+		# through it.
+		transformer = Analysis.transformer_models.build_population_transformer(
+			num_outputs,img_size,max_n_images,num_layers,embedding_dim,
+			num_heads,dff,droput_rate,conv_trainable=conv_trainable)
+		image_mask = np.ones((batch_size,max_n_images),dtype=bool)
+		image_mask[1,5:] = 0
+		image_mask[2,10:] = 0
+		image_mask = tf.convert_to_tensor(image_mask)
+		fake_input = tf.random.uniform((batch_size,max_n_images) + img_size)
+
+		out = transformer.predict([fake_input,image_mask])
+		self.assertTupleEqual(out.shape,(batch_size,num_outputs))
+		np.testing.assert_array_less(np.zeros(out.shape),np.abs(out))
+
+		# Check that masking all the inputs returns a zero output.
+		image_mask = tf.cast(tf.zeros((batch_size,max_n_images)),dtype=tf.bool)
+		out = transformer.predict([fake_input,image_mask])
+		np.testing.assert_array_equal(out,np.zeros(out.shape))
 
 
 class PosteriorFunctionsTests(unittest.TestCase):
@@ -1648,6 +1794,24 @@ class TrainModelTests(unittest.TestCase):
 		# Use a second config file that's a little different.
 		sys.argv = ['test','test_data/train_config2.py','--tensorboard_dir',
 			tensorboard_dir]
+		Analysis.train_model.main()
+
+		# Cleanup the files we don't want
+		os.remove('test_data/fake_model.h5')
+		os.remove('test_data/fake_train/norms.csv')
+		os.remove('test_data/fake_train/data.tfrecord')
+		tensorboard_train = glob.glob('test_data/train/*')
+		for f in tensorboard_train:
+			os.remove(f)
+		os.rmdir('test_data/train')
+		tensorboard_val = glob.glob('test_data/validation/*')
+		for f in tensorboard_val:
+			os.remove(f)
+		os.rmdir('test_data/validation')
+
+		# Use a config file that has some scalar inputs included.
+		sys.argv = ['test','test_data/train_config_pai.py',
+			'--tensorboard_dir',tensorboard_dir]
 		Analysis.train_model.main()
 
 		# Cleanup the files we don't want

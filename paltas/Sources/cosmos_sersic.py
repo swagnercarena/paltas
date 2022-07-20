@@ -7,6 +7,7 @@ distribution as the two sources for paltas.
 """
 from .cosmos import COSMOSCatalog
 from .sersic import SingleSersicSource
+from ..Utils.cosmology_utils import absolute_to_apparent
 
 
 class COSMOSSersic(COSMOSCatalog):
@@ -47,6 +48,12 @@ class COSMOSSersic(COSMOSCatalog):
 	- 	center_y_sersic - y-coordinate lens center for sersic in units of
 		arcseconds
 	- 	z_source - source redshift
+
+	Optional Parameters
+
+	-	source_absolute_magnitude - AB absolute magnitude of the source. The
+		light from the catalog galaxy will be rescaled to match this
+		magnitude.
 	"""
 
 	required_parameters = ('minimum_size_in_pixels','faintest_apparent_mag',
@@ -54,6 +61,7 @@ class COSMOSSersic(COSMOSCatalog):
 		'min_flux_radius','output_ab_zeropoint','z_source', 'mag_sersic',
 		'center_x','center_y','R_sersic', 'n_sersic','e1_sersic', 'e2_sersic',
 		'center_x_sersic','center_y_sersic')
+	optional_parameters = ('source_absolute_magnitude')
 
 	def draw_source(self, catalog_i=None, phi=None):
 		"""Creates lenstronomy kwargs for a COSMOS catalog image and a 
@@ -94,9 +102,11 @@ class COSMOSSersic(COSMOSCatalog):
 
 		# mag to amp conversion
 		sersic_kwargs_dict.pop('mag')
+		mag_apparent = absolute_to_apparent(self.source_parameters['mag_sersic'],
+			self.source_parameters['z_source'],self.cosmo)
 		sersic_kwargs_dict['amp'] = SingleSersicSource.mag_to_amplitude(
-			self.source_parameters['mag_sersic'],
-			self.source_parameters['output_ab_zeropoint'], sersic_kwargs_dict)
+			mag_apparent,self.source_parameters['output_ab_zeropoint'],
+			sersic_kwargs_dict)
 
 		kwargs_list.append(sersic_kwargs_dict)
 

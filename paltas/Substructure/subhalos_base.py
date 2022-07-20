@@ -62,7 +62,7 @@ class SubhalosBase():
 		"""Updated the class parameters
 
 		Args:
-			los_parameters (dict): A dictionary containing the type of
+			subhalo_parameters (dict): A dictionary containing the type of
 				los distribution and the value for each of its parameters.
 			main_deflector_parameters (dict): A dictionary containing the type
 				of main deflector and the value for each of its parameters.

@@ -79,3 +79,51 @@ def ddt(sample,cosmo):
 		z_max=z_source)
 	# convert from Mpc/h to Mpc 
 	return (1+z_lens) * D_d * D_s / (D_ds*cosmo.h)
+
+
+def absolute_to_apparent(mag_absolute,z_light,cosmo,
+	include_k_correction=True):
+	"""Converts from absolute magnitude to apparent magnitude.
+
+	Args:
+		mag_apparent (float): The absolute magnitude
+		z_light (float): The redshift of the light
+		cosmo (colossus.cosmology.Cosmology): An instance of the colossus
+			cosmology object
+		include_k_correction (bool): If true apply an approximate k
+			correction for a galaxy-like source.
+
+	Returns:
+		(float): The absolute magnitude of the light
+	"""
+	# Use the luminosity distance for the conversion
+	lum_dist = cosmo.luminosityDistance(z_light)
+	# Convert from Mpc/h to pc
+	lum_dist *= 1e6/cosmo.h
+
+	mag_apparent = mag_absolute + 5 *np.log10(lum_dist/10)
+
+	# Calculate the k_correction if requested
+	if include_k_correction:
+		mag_apparent += get_k_correction(z_light)
+
+	return mag_apparent
+
+
+def get_k_correction(z_light):
+	"""Get the k correction for a galaxy source of light at a given redshift.
+
+	Args:
+		z_light (float): The redshift of the light
+
+	Returns:
+		(float): The k correction such that m_apparent = M_absolute + DM +
+		K_corr.
+
+	Notes:
+		This code assumes the galaxy has a flat spectral wavelength density (and
+		therefore 1/nu^2 spectral frequency density) and that the bandpass used
+		for the absolute and apparent magntidue is the same.
+	"""
+
+	return 2.5 * np.log(1+z_light)

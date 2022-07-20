@@ -166,6 +166,9 @@ class SamplerTests(unittest.TestCase):
 
 class DistributionsTests(unittest.TestCase):
 
+	def setUp(self):
+		np.random.seed(3)
+
 	def testMultivariateLogNormal(self):
 		# Test that the values returned follow the expected statistics
 		mean = np.ones(3)
@@ -273,6 +276,20 @@ class DistributionsTests(unittest.TestCase):
 			x1,x2 = dist()
 			self.assertTrue(x1==x2)
 
+	def testDuplicateScatter(self):
+		# test mapping w/ constants
+		dist = distributions.DuplicateScatter(dist=1,scatter=0.01)
+		x1,x2 = dist()
+		self.assertTrue(x1==1 and x2!=1)
+		# Test multiple draws.
+		x2_list = []
+		for _ in range(1000):
+			x1,x2 = dist()
+			x2_list.append(x2)
+
+		self.assertAlmostEqual(np.mean(x2_list),1,places=2)
+		self.assertAlmostEqual(np.std(x2_list),0.01,places=3)
+
 	def testDuplicateXY(self):
 		# test mapping w/ constants
 		dist = distributions.DuplicateXY(x_dist=1,y_dist=2)
@@ -296,6 +313,19 @@ class DistributionsTests(unittest.TestCase):
 			z_lens,z_source = dist()
 			self.assertTrue(z_lens > 0.5 and z_source > 0.5)
 			self.assertTrue(z_source > z_lens)
+
+	def testRedshiftsLensLight(self):
+		# z_lens has min of 0.5
+		# z_source has min of 0, centered at 0.6
+		# check that z_source > 0.5 is enforced for multiple draws
+		dist = distributions.RedshiftsLensLight(
+			z_lens_min=0.5,z_lens_mean=1,z_lens_std=0.05,
+			z_source_min=0,z_source_mean=0.6,z_source_std=0.6)
+		for i in range(0,5):
+			z_lens,z_lens_light,z_source = dist()
+			self.assertTrue(z_lens > 0.5 and z_source > 0.5)
+			self.assertTrue(z_source > z_lens)
+			self.assertEqual(z_lens,z_lens_light)
 
 	def testMultipleValues(self):
 		# Test size of return

@@ -41,6 +41,14 @@ EXCLUDE_FROM_METADATA = (
 )
 
 
+class MagnificationError(Exception):
+	def __init__(self,mag_cut):
+		# Pass a useful message to base class constructor
+		message = 'Magnification cut of %.2f not met. '%(mag_cut)
+		message += 'If this is inteneded (i.e. in a loop) use try/except.'
+		super().__init__(message)
+
+
 class ConfigHandler():
 	"""Class that parses the configuration files to extract images and lenstronomy
 	configurations.
@@ -63,7 +71,7 @@ class ConfigHandler():
 		self.base_seed = getattr(
 			self.config_module,
 			'seed',
-			(np.random.randint(np.iinfo(np.int32).max,)))
+			(np.random.randint(np.iinfo(np.uint32).max,)))
 		# Make sure base_seed is a sequence, not a number
 		if isinstance(self.base_seed, (int, float)):
 			self.base_seed = (self.base_seed,)
@@ -115,7 +123,7 @@ class ConfigHandler():
 		self.source_class = self.config_dict['source']['class'](
 			sample['cosmology_parameters'],sample['source_parameters'])
 
-		# See if a magnitude cut was specified
+		# See if a magnification cut was specified
 		if hasattr(self.config_module, 'mag_cut'):
 			self.mag_cut = self.config_module.mag_cut
 		else:
@@ -431,7 +439,7 @@ class ConfigHandler():
 			image and a metavalue dictionary with the corresponding sampled
 			values.
 		Notes:
-			Will return None,None if the produced image does not meet a cut.
+			Will raise an error if the produced image does not meet a cut.
 		"""
 		# Get the lenstronomy parameters and the sample
 		sample = self.get_current_sample()
@@ -486,10 +494,17 @@ class ConfigHandler():
 
 		# Check for the magnification cut and apply it.
 		if self.mag_cut is not None:
-			mag = np.sum(image)/np.sum(source_light_model.total_flux(
+			# Evaluate the light that would have been in the image using
+			# the image model
+			lens_light_total = np.sum(image_model.lens_surface_brightness(
+				kwargs_params['kwargs_lens_light']))
+			source_light_total = np.sum(source_light_model.total_flux(
 				kwargs_params['kwargs_source']))
+
+			mag = np.sum(image)-lens_light_total
+			mag /= source_light_total
 			if mag < self.mag_cut:
-				return None,None
+				raise MagnificationError(self.mag_cut)
 
 		# If noise is specified, add it.
 		if add_noise:
@@ -510,15 +525,12 @@ class ConfigHandler():
 		"""Uses the current config sample to generate a drizzled image and the
 		associated metadata.
 
-		Args:
-			apply_psf (bool): If False, the psf will not be applied. Defaults
-				to true.
 		Returns:
 			(np.array,dict): A tuple containing a numpy array of the generated
 			image and a metavalue dictionary with the corresponding sampled
 			values.
 		Notes:
-			Will return None,None if the produced image does not meet a cut.
+			Will return an error if the produced image does not meet a cut.
 			This function will fail if the drizzle parameters are not
 			present.
 		"""
@@ -569,10 +581,6 @@ class ConfigHandler():
 			apply_psf=False)
 		self.sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 		self.numpix = numpix_copy
-
-		# Deal with an image that does not pass a cut.
-		if image_ss is None:
-			return image_ss, metadata
 
 		# Grab the PSF supersampling factor if present.
 		if 'psf_supersample_factor' in self.sample['drizzle_parameters']:
@@ -670,22 +678,29 @@ class ConfigHandler():
 			self.draw_new_sample()
 
 		# Use the appropraite generation function
-		if self.do_drizzle:
-			image,metadata = self._draw_image_drizzle()
-		else:
-			# _draw_image_standard has a seperate add_noise parameter so
-			# it can be used by _draw_image_drizzle.
-			image,metadata = self._draw_image_standard(add_noise=self.add_noise)
+		try:
+			if self.do_drizzle:
+				image,metadata = self._draw_image_drizzle()
+			else:
+				# _draw_image_standard has a seperate add_noise parameter so
+				# it can be used by _draw_image_drizzle.
+				image,metadata = self._draw_image_standard(
+					add_noise=self.add_noise)
+		except MagnificationError:
+			# Magnification cut was not met, return None,None
+			return None, None
 
 		# Mask out an interior region of the image if requested
-		if hasattr(self.config_module,'mask_radius') and image is not None:
+		if hasattr(self.config_module,'mask_radius'):
 			kwargs_detector = self.get_current_sample()['detector_parameters']
 			x_grid, y_grid = util.make_grid(numPix=image.shape[0],
 				deltapix=kwargs_detector['pixel_scale'])
 			r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
 			image[r<=self.config_module.mask_radius] = 0
 
+		# Save the seed
 		metadata['seed'] = seed
+
 		return image,metadata
 
 	def reseed(self):
@@ -705,7 +720,7 @@ class ConfigHandler():
 		self.reseed_counter += 1
 		# Seed numba's separate random generator
 		# Unfortunately it only accepts an integer argument
-		_set_numba_seed(np.random.randint(np.iinfo(np.int64).max))
+		_set_numba_seed(np.random.randint(np.iinfo(np.uint32).max))
 		return seed
 
 

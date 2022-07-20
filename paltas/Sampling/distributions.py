@@ -259,6 +259,33 @@ class Duplicate():
 		return samp,samp
 
 
+class DuplicateScatter(Duplicate):
+	"""Class that returns two copies of the same random draw with some
+	additional scatter on the second value.
+
+	Args:
+		dist (scipy.stats.rv_continuous.rvs or float): The distribution to
+			draw the sample from.
+		scatter (float): The additional scatter to add to the second draw
+			of the variable.
+	"""
+
+	def __init__(self,dist,scatter):
+		self.dist = dist
+		self.scatter = scatter
+
+	def __call__(self):
+		"""Returns two copies of the same sample with additional
+		scatter on the second sample.
+
+		Returns
+			(float,float): The two samples.
+		"""
+		# Get the samples from the super function and add the scatter.
+		samp,samp = super().__call__()
+		return samp,samp+np.random.randn()*self.scatter
+
+
 class DuplicateXY():
 	"""Class that returns two copies of x, y coordinates drawn from 
 		distributions
@@ -335,6 +362,31 @@ class RedshiftsTruncNorm():
 			self.z_source_std).rvs()
 
 		return z_lens,z_source
+
+
+class RedshiftsLensLight(RedshiftsTruncNorm):
+	"""Class that samples z_lens, z_lens_light, and z_source from truncated
+		normal distributions, forcing z_source > z_lens to be true and
+		z_lens_light = z_lens.
+
+	Args:
+		z_lens_min (float): minimum allowed lens redshift
+		z_lens_mean (float): lens redshift mean
+		z_lens_std (float): lens redshift standard deviation
+		z_source_min (float): minimum allowed source redshift
+		z_source_mean (float): source redshift mean
+		z_source_std (float): source redshift standard deviation
+	"""
+
+	def __call__(self):
+		"""Returns samples of redshifts, ensuring z_source > z_lens and
+		z_lens_light = z_lens.
+
+		Returns:
+			(float,float): z_lens,z_lens_light,z_source
+		"""
+		z_lens,z_source = super().__call__()
+		return z_lens,z_lens,z_source
 
 
 class MultipleValues():

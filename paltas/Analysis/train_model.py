@@ -58,26 +58,14 @@ def main():
 	# The list of learning parameters to use
 	learning_params = config_module.learning_params
 	# Which parameters to put in log space
-	if hasattr(config_module,'log_learning_params'):
-		log_learning_params = config_module.log_learning_params
-	else:
-		log_learning_params = []
+	log_learning_params = getattr(config_module,'log_learning_params',[])
 	num_params = len(learning_params+log_learning_params)
 	# Which parameters to consider flipping
-	if hasattr(config_module,'flip_pairs'):
-		flip_pairs = config_module.flip_pairs
-	else:
-		flip_pairs = None
+	flip_pairs = getattr(config_module,'flip_pairs',None)
 	# Which parameters to weight
-	if hasattr(config_module,'weight_terms'):
-		weight_terms = config_module.weight_terms
-	else:
-		weight_terms = None
+	weight_terms = getattr(config_module,'weight_terms',None)
 	# Whether to train the full model or only the head
-	if hasattr(config_module,'train_only_head'):
-		train_only_head = config_module.train_only_head
-	else:
-		train_only_head = False
+	train_only_head = getattr(config_module,'train_only_head',False)
 	# A list to the paths of the fodlers containing the npy images
 	# for training
 	npy_folders_train = config_module.npy_folders_train
@@ -116,8 +104,8 @@ def main():
 	# Whether or not to apply a random rotation to the input image
 	random_rotation = config_module.random_rotation
 
-	# Set the random seed for our network
-	# tf.random.set_seed(random_seed)
+	params_as_inputs = getattr(config_module,'params_as_inputs',[])
+	all_params = params_as_inputs + learning_params
 
 	# Check for tf records for train and validation and prepare them
 	# if needed
@@ -126,7 +114,7 @@ def main():
 		if not os.path.exists(tf_path):
 			print('Generating new TFRecord at %s'%(tf_path))
 			dataset_generation.generate_tf_record(npy_folders_train[i],
-				learning_params+log_learning_params,metadata_paths_train[i],
+				all_params+log_learning_params,metadata_paths_train[i],
 				tf_path)
 		else:
 			print('TFRecord found at %s'%(tf_path))
@@ -135,7 +123,7 @@ def main():
 	if not os.path.exists(tfr_val_path):
 		print('Generating new TFRecord at %s'%(tfr_val_path))
 		dataset_generation.generate_tf_record(npy_folder_val,
-			learning_params+log_learning_params,metadata_path_val,tfr_val_path)
+			all_params+log_learning_params,metadata_path_val,tfr_val_path)
 	else:
 		print('TFRecord found at %s'%(tfr_val_path))
 
@@ -143,7 +131,7 @@ def main():
 	if input_norm_path is not None:
 		print('Checking for normalization csv')
 		metadata = pd.read_csv(metadata_paths_train[0])
-		dataset_generation.normalize_outputs(metadata,learning_params,
+		dataset_generation.normalize_outputs(metadata,all_params,
 			input_norm_path,log_learning_params=log_learning_params)
 
 	# If no random rotations are required, the best tool is a tf dataset.
@@ -153,14 +141,14 @@ def main():
 	if random_rotation:
 		# Get a generator object that returns rotated images and parameters.
 		tf_dataset_t = dataset_generation.generate_rotations_dataset(
-			tfr_train_paths,learning_params,batch_size,n_epochs,
+			tfr_train_paths,all_params,batch_size,n_epochs,
 			norm_images=norm_images,input_norm_path=input_norm_path,
 			kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	else:
 		# Turn our tf records into tf datasets for training and validation
 		tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
-			learning_params,batch_size,n_epochs,norm_images=norm_images,
+			all_params,batch_size,n_epochs,norm_images=norm_images,
 			input_norm_path=input_norm_path,kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	# We shouldn't be adding random noise to validation images. They should
@@ -169,9 +157,16 @@ def main():
 		print('Make sure your validation images already have noise! Noise ' +
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
-		learning_params,min(batch_size,n_val_npy),1,norm_images=norm_images,
-		input_norm_path=input_norm_path,kwargs_detector=None,
-		log_learning_params=log_learning_params)
+		all_params,min(batch_size,n_val_npy),1,
+		norm_images=norm_images,input_norm_path=input_norm_path,
+		kwargs_detector=None,log_learning_params=log_learning_params)
+
+	# If some of the parameters need to be extracted as inputs, do that.
+	if params_as_inputs is not None:
+		tf_dataset_t = dataset_generation.generate_params_as_input_dataset(
+			tf_dataset_t,params_as_inputs,all_params+log_learning_params)
+		tf_dataset_v = dataset_generation.generate_params_as_input_dataset(
+			tf_dataset_v,params_as_inputs,all_params+log_learning_params)
 
 	print('Initializing the model')
 
@@ -192,9 +187,12 @@ def main():
 			loss_function))
 
 	# Load the model
-	if model_type == 'xresnet34':
+	if model_type == 'xresnet34' and params_as_inputs is None:
 		model = conv_models.build_xresnet34(img_size,num_outputs,
 			train_only_head=train_only_head)
+	elif model_type == 'xresnet34' and params_as_inputs is not None:
+		model = conv_models.build_xresnet34_fc_inputs(img_size,num_outputs,
+			len(params_as_inputs),train_only_head=False)
 	else:
 		raise ValueError('%s model not in the list of supported models'%(
 			model_type))

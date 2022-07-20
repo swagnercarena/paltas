@@ -107,8 +107,10 @@ class Sampler():
 				param_dict = full_param_dict[component+'_parameters']
 				# Warn the user the first time an overwrite happens
 				if param in param_dict and CROSSOBJECTWARNING:
-					warnings.warn('Parameter in cross dict specified elsewhere!'
-						+ ' Will be overwritten')
+					warnings.warn('Parameter %s in cross dict specified '%(param)
+						+ 'elsewhere! Will be overwritten. This warning only ' +
+						'flags once, but other parameters may also be ' +
+						'overwritten.')
 					CROSSOBJECTWARNING = False
 				full_param_dict[component+'_parameters'][param] = (
 					cross_dict[cross_param])

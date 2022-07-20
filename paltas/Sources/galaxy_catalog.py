@@ -7,6 +7,8 @@ source catalog into sources to be passed to lenstronomy.
 """
 import numpy as np
 from .source_base import SourceBase
+from ..Utils.cosmology_utils import absolute_to_apparent, get_k_correction
+from lenstronomy.Util.data_util import magnitude2cps
 
 
 class GalaxyCatalog(SourceBase):
@@ -19,9 +21,29 @@ class GalaxyCatalog(SourceBase):
 			dict with H0 and Om0 ( other parameters will be set to defaults).
 		source_parameters (dict): A dictionary containing all the parameters
 			needed to draw sources (in this case random_rotation).
+
+	Notes:
+
+	Required Parameters
+
+	- 	random_rotation - boolean dictating if COSMOS sources will be rotated
+		randomly when drawn
+	- 	output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- 	z_source - source redshift
+	- 	center_x - x-coordinate lens center for COSMOS source in units of
+		arcseconds
+	- 	center_y- y-coordinate lens center for COSMOS source in units of
+		arcseconds
+
+	Optional Parameters
+
+	-	source_absolute_magnitude - AB absolute magnitude of the source. The
+		light from the catalog galaxy will be rescaled to match this
+		magnitude.
 	"""
 	required_parameters = ('random_rotation','output_ab_zeropoint',
 		'z_source','center_x','center_y')
+	optional_parameters = ('source_absolute_magnitude')
 	# This parameter must be set by class inheriting GalaxyCatalog
 	ab_zeropoint = None
 
@@ -162,6 +184,18 @@ class GalaxyCatalog(SourceBase):
 
 		pixel_width *= self.z_scale_factor(metadata['z'], z_new)
 
+		# Apply the k correction to the image from the redshifting
+		self.k_correct_image(img,metadata['z'],z_new)
+
+		# If a desired absolute magnitude was specified, scale the image
+		# accordingly
+		if 'source_absolute_magnitude' in self.source_parameters:
+			mag_apparent = absolute_to_apparent(
+				self.source_parameters['source_absolute_magnitude'],
+				self.source_parameters['z_source'],self.cosmo)
+			self.normalize_to_mag(img,mag_apparent,
+				self.source_parameters['output_ab_zeropoint'],pixel_width)
+
 		# Convert to kwargs for lenstronomy
 		return (
 			['INTERPOL'],
@@ -172,6 +206,46 @@ class GalaxyCatalog(SourceBase):
 				phi_G=phi,
 				scale=pixel_width)],
 			[z_new])
+
+	@staticmethod
+	def k_correct_image(image,z_original,z_new):
+		"""Apply the k-correction to the image at the pixel level.
+
+		Args:
+			image (np.array): The image that needs to be k-corrected
+			z_original (float): The original redshift of the object
+			z_new (float): The new redshift of the object
+
+		Notes:
+			image will be changed in place
+		"""
+		# Calculate the k-correction for the change in redshift
+		mag_k_correct = get_k_correction(z_new) - get_k_correction(z_original)
+
+		# Apply the correction
+		image *= 10**(-mag_k_correct/2.5)
+
+	@staticmethod
+	def normalize_to_mag(image,mag_apparent,mag_zero_point,pixel_width):
+		"""Renormalizes and image so that it has the specified apparent
+		magnitude.
+
+		Args:
+			image (np.array): Image to be renormalized
+			mag_apparent (float): TThe desired apparent magnitude
+			mag_zero_point (float): The magnitude zero-point of the detector
+			pixel_width (float): The width of a pixel in arcseconds
+		Notes:
+			Image changed in place.
+		"""
+		# Get the total flux of the image
+		flux_total = np.sum(image) * pixel_width**2
+
+		# Get the cps of an image of the desired magnitude
+		flux_true = magnitude2cps(mag_apparent, mag_zero_point)
+
+		# Rescale the image so that both values match
+		image *= flux_true/flux_total
 
 	@staticmethod
 	def draw_phi():

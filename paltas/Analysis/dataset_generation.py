@@ -23,7 +23,7 @@ DEFAULTVALUEWARNING = True
 
 def normalize_outputs(metadata,learning_params,input_norm_path,
 	log_learning_params=None):
-	""" Normalize the outputs of the network
+	"""Normalize the outputs of the network
 
 	Args:
 		metadata(pd.DataFrame): A pandas object containing the metadata
@@ -81,7 +81,7 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 
 def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 	cov_mat=None):
-	""" Given NN outputs, undo the normalization step and return the parameters
+	"""Given NN outputs, undo the normalization step and return the parameters
 	in the original space
 
 	Args:
@@ -123,7 +123,7 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 
 
 def kwargs_detector_to_tf_noise(image,kwargs_detector):
-	""" Add noise to the tf tensor provided in agreement with kwargs_detector
+	"""Add noise to the tf tensor provided in agreement with kwargs_detector
 
 	Args:
 		image (tf.Tensor): A tensorflow tensor containing the image
@@ -152,7 +152,7 @@ def kwargs_detector_to_tf_noise(image,kwargs_detector):
 
 def generate_tf_record(npy_folder,learning_params,metadata_path,
 	tf_record_path):
-	""" Generate a TFRecord file from a directory of numpy files.
+	"""Generate a TFRecord file from a directory of numpy files.
 
 	Args:
 		root_path (str): The path to the folder containing the numpy files.
@@ -217,7 +217,7 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
 	log_learning_params=None,shuffle=True):
-	"""	Generate a TFDataset that a model can be trained with.
+	"""Generate a TFDataset that a model can be trained with.
 
 	Args:
 		tf_record_paths (str, or [str,...]) A string specifying the paths to
@@ -323,7 +323,7 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 
 
 def rotate_params_batch(learning_params,output,rot_angle):
-	""" Rotate a batch of lensing parameters according to a specified rotation
+	"""Rotate a batch of lensing parameters according to a specified rotation
 	angle.
 
 	Args:
@@ -364,7 +364,7 @@ def rotate_params_batch(learning_params,output,rot_angle):
 
 
 def rotate_covariance_batch(learning_params,coavriance_batch,rot_angle):
-	""" Rotate a batch of lensing parameters according to a specified rotation
+	"""Rotate a batch of covariance matrices according to a specified rotation
 	angle.
 
 	Args:
@@ -416,7 +416,7 @@ def rotate_covariance_batch(learning_params,coavriance_batch,rot_angle):
 
 
 def rotate_image_batch(image_batch,learning_params,output,rot_angle):
-	""" Rotate a batch of strong lensing images and the corresponding lensing
+	"""Rotate a batch of strong lensing images and the corresponding lensing
 	parameters
 
 	Args:
@@ -448,7 +448,7 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
 	log_learning_params=None,shuffle=True):
-	"""	Returns a generator that builds off of a TFDataset by adding random
+	"""Returns a generator that builds off of a TFDataset by adding random
 	rotations to the images and parameters.
 
 	Args:
@@ -511,3 +511,49 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 
 	# Return a rotation generator on our base dataset.
 	return rotation_generator(base_dataset)
+
+
+def generate_params_as_input_dataset(base_dataset,params_as_inputs,
+	all_params):
+	"""Generate a dataset where some of the lens parameters are treated as
+	inputs to the model.
+
+	Args:
+		base_dataset (generator): A generator that yields a tuple containing
+			the images and the parameters values.
+		params_as_inputs ([str,...]): A list of strings containing the
+			parameters that will be turned into inputs for the model.
+		all_params ([str,...]): A list of strings containing the parameters
+			that will be outputted by the generator.
+
+	Returns:
+		(generator): A generator that returns a tuple with the inputs (which
+		are the image and the scalar input values), and the outputs parameter
+		values.
+	"""
+
+	# Set a boolean mask for the parameters we want to use as inputs and the
+	# parameters we want to use as outputs.
+	param_is_input = np.array([param in params_as_inputs for param in all_params])
+	param_is_output = ~param_is_input
+
+	def param_extractor(dataset):
+		# Iterate through the images and parameters in the dataset and
+		# reorganize the parameters as needed.
+		for image_batch,all_param_batch in dataset:
+			# If the images or parameters are tensors, do the
+			# appropriate conversion.
+			if isinstance(image_batch,tf.Tensor):
+				image_batch = image_batch.numpy()
+			if isinstance(all_param_batch,tf.Tensor):
+				all_param_batch = all_param_batch.numpy()
+
+			scalar_inputs = all_param_batch[:,param_is_input]
+			outputs_batch = all_param_batch[:,param_is_output]
+
+			# Yield the inputs, which are the image and the scalar inputs, along
+			# with the parameters we want to learn.
+			yield [image_batch, scalar_inputs], outputs_batch
+
+	# Return the generator on the base dataset
+	return param_extractor(base_dataset)

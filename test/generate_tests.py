@@ -36,13 +36,15 @@ class GenerateTests(unittest.TestCase):
 	def test_main(self):
 		# Test that the main function makes some images
 		old_sys = copy.deepcopy(sys.argv)
+		n_generate = 21
 		output_folder = 'test_data/test_dataset'
-		sys.argv = ['test','test_data/config_dict.py',output_folder,'--n','10']
+		sys.argv = ['test','test_data/config_dict.py',output_folder,'--n',
+			str(n_generate),'--save_png_too']
 		generate.main()
 
 		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
 
-		self.assertEqual(len(image_file_list),10)
+		self.assertEqual(len(image_file_list),n_generate)
 
 		# Make sure all of the files are readable and have the correct size
 		# for the config
@@ -53,20 +55,21 @@ class GenerateTests(unittest.TestCase):
 
 		# Make sure the metadata makes sense
 		metadata = pd.read_csv(os.path.join(output_folder,'metadata.csv'))
-		self.assertEqual(len(metadata),10)
+		self.assertEqual(len(metadata),n_generate)
 		self.assertListEqual(list(
-			metadata['cosmology_parameters_cosmology_name']),['planck18']*10)
+			metadata['cosmology_parameters_cosmology_name']),
+			['planck18']*n_generate)
 		self.assertListEqual(list(
-			metadata['detector_parameters_pixel_scale']),[0.08]*10)
+			metadata['detector_parameters_pixel_scale']),[0.08]*n_generate)
 		self.assertListEqual(list(metadata['subhalo_parameters_c_0']),
-			[18.0]*10)
+			[18.0]*n_generate)
 		self.assertListEqual(list(metadata['main_deflector_parameters_z_lens']),
-			[0.5]*10)
+			[0.5]*n_generate)
 		self.assertListEqual(list(metadata['source_parameters_z_source']),
-			[1.5]*10)
+			[1.5]*n_generate)
 		self.assertGreater(np.std(metadata['source_parameters_catalog_i']),0)
 		self.assertListEqual(list(metadata['psf_parameters_fwhm']),
-			[0.1]*10)
+			[0.1]*n_generate)
 		# Check that the subhalo_parameters_sigma_sub are being drawn
 		self.assertGreater(np.std(metadata['los_parameters_delta_los']),
 			0.0)
@@ -79,6 +82,10 @@ class GenerateTests(unittest.TestCase):
 		os.remove(os.path.join(output_folder,'metadata.csv'))
 		os.remove(os.path.join(output_folder,'config_dict.py'))
 
+		# Remove the images
+		for i in range(n_generate):
+			os.remove(os.path.join(output_folder,'image_%07d.png' % i))
+
 		sys.argv = old_sys
 
 		# Also clean up the test cosmos cache
@@ -87,6 +94,7 @@ class GenerateTests(unittest.TestCase):
 		for i in range(10):
 			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(test_cosmo_folder+'npy_files')
+		os.rmdir(output_folder)
 
 	def test_main_drizzle(self):
 		# Test that the main function makes some images
@@ -147,3 +155,4 @@ class GenerateTests(unittest.TestCase):
 		for i in range(10):
 			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
 		os.rmdir(test_cosmo_folder+'npy_files')
+		os.rmdir(output_folder)

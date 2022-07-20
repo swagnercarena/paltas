@@ -7,3 +7,4 @@ from . import train_model
 from . import posterior_functions
 from . import hierarchical_inference
 from . import pdf_functions
+from . import transformer_models

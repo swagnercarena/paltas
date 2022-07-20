@@ -259,9 +259,8 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Check that the mag_cut works
 		self.c.add_noise =False
 		self.c.mag_cut = 1.2
-		image, metadata = self.c._draw_image_standard(self.c.add_noise)
-		self.assertTrue(image is None)
-		self.assertTrue(metadata is None)
+		with self.assertRaises(config_handler.MagnificationError):
+			image, metadata = self.c._draw_image_standard(self.c.add_noise)
 
 		# Now add a deflector and see if we get a ring
 		self.c.add_noise = False
@@ -279,6 +278,8 @@ class ConfigUtilsTests(unittest.TestCase):
 		image, metadata = self.c._draw_image_standard(self.c.add_noise)
 
 		# Check for magnification and check most light is not in center of image
+		self.c.source_class.k_correct_image(orig_image,orig_meta['z'],
+			self.c.sample['source_parameters']['z_source'])
 		self.assertGreater(np.sum(image),np.sum(orig_image))
 		self.assertGreater(np.mean(image[0:90,0:90]),
 			np.mean(image[90:110,90:110]))
@@ -418,9 +419,8 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Check that the mag_cut works
 		c_drizz.add_noise=False
 		c_drizz.mag_cut = 1.2
-		image, metadata = c_drizz._draw_image_drizzle()
-		self.assertTrue(image is None)
-		self.assertTrue(metadata is None)
+		with self.assertRaises(config_handler.MagnificationError):
+			image, metadata = c_drizz._draw_image_drizzle()
 
 		# Now add a deflector and see if we get a ring
 		c_drizz.sample['source_parameters']['z_source'] = 1.0
@@ -435,6 +435,8 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Check for magnification and check most light is not in
 		# center of image
 		self.assertTupleEqual((170,170),image.shape)
+		c_drizz.source_class.k_correct_image(orig_image,orig_meta['z'],
+			c_drizz.sample['source_parameters']['z_source'])
 		self.assertGreater(np.sum(image),np.sum(orig_image))
 		self.assertGreater(np.mean(image[0:80,0:80]),
 			np.mean(image[80:90,80:90]))
@@ -576,6 +578,12 @@ class ConfigUtilsTests(unittest.TestCase):
 		image_small,metadata = self.c.draw_image(new_sample=False)
 		self.assertEqual(metadata['main_deflector_parameters_theta_E'],0.1)
 		self.assertLess(np.sum(image_small),np.sum(image))
+
+		# Make sure that with an outrageous magnification cut you get None.
+		self.c.mag_cut = 1e100
+		image,metadata = self.c.draw_image(new_sample=True)
+		self.assertTrue(image is None)
+		self.assertTrue(metadata is None)
 
 	def test_draw_image_reproducible(self):
 		# Test we can reproduce generated images by setting appropriate
