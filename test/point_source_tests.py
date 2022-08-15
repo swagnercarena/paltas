@@ -63,7 +63,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.assertTrue('SOURCE_POSITION' in list_model)
 
 		# test that all needed parameters are in list_kwargs
-		params = ('ra_source', 'dec_source', 'point_amp')
+		params = ('ra_source', 'dec_source', 'source_amp')
 		for p in params:
 			self.assertTrue(p in list_kwargs[0].keys())
 
@@ -78,7 +78,8 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		source_kwargs = [{'amp':70, 'R_sersic':0.1, 'n_sersic':2.5,
 			'e1':0., 'e2':0., 'center_x':0.01, 'center_y':0.01}]
 
-		point_source_model = PointSource(list_ps_model)
+		point_source_model = PointSource(list_ps_model,
+            fixed_magnification_list=[True])
 
 		# define PSF class, data class
 		n_pixels = 64

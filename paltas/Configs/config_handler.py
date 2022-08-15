@@ -474,12 +474,14 @@ class ConfigHandler():
 		lens_light_model = LightModel(kwargs_model['lens_light_model_list'])
 
 		# Point source may need lens eqn solver kwargs
+        # Need to fix how fixed_magnification_list is handled
 		lens_equation_params = None
 		if 'lens_equation_solver_parameters' in sample.keys():
 			lens_equation_params = sample['lens_equation_solver_parameters']
 		point_source_model = PointSource(
 			kwargs_model['point_source_model_list'],lensModel=lens_model,
-			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params)
+			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params,
+            fixed_magnification_list=[True])
 
 		# Put it together into an image model
 		image_model = ImageModel(data_api.data_class,psf_model,

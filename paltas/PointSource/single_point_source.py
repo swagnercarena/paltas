@@ -59,7 +59,7 @@ class SinglePointSource(PointSourceBase):
 
 		# mag to amp conversion
 		# note: flux = amplitude for point source
-		point_source_kwargs['point_amp'] = magnitude2cps(
+		point_source_kwargs['source_amp'] = magnitude2cps(
 			self.point_source_parameters['magnitude'],
 			self.point_source_parameters['output_ab_zeropoint'])
 
