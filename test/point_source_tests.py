@@ -10,12 +10,14 @@ from lenstronomy.Data.imaging_data import ImageData
 from lenstronomy.Util.simulation_util import data_configure_simple
 from lenstronomy.Util.data_util import magnitude2cps
 from lenstronomy.Data.psf import PSF
+from paltas.Utils.cosmology_utils import absolute_to_apparent, get_cosmology
 
 
 class PointSourceBaseTests(unittest.TestCase):
 
 	def setUp(self):
-		self.c = PointSourceBase(point_source_parameters=dict())
+		self.c = PointSourceBase(cosmology_parameters='planck18',
+			point_source_parameters=dict())
 
 	def test_update_parameters(self):
 		# test passing None
@@ -38,10 +40,12 @@ class SinglePointSourceTests(PointSourceBaseTests):
 			y_point_source=0.001,
 			magnitude=22,
 			output_ab_zeropoint=25,
-			compute_time_delays=False
+			compute_time_delays=False,
+            z_point_source=3
 		)
-		self.c = SinglePointSource(
+		self.c = SinglePointSource(cosmology_parameters='planck18',
 			point_source_parameters=self.point_source_parameters)
+		self.cosmo = get_cosmology('planck18')
 
 	def test_check_parameterization(self):
 		# test that the base class actually checks for missing parameters
@@ -111,7 +115,9 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.assertTrue(np.sum(im_diff) > 0)
 
 		# make sure the flux is what we expect
-		flux_true = magnitude2cps(self.c.point_source_parameters['magnitude'],
+        mag_apparent = absolute_to_apparent(self.c.point_source_parameters['magnitude'],
+			self.c.point_source_parameters['z_point_source'],self.cosmo)
+		flux_true = magnitude2cps(mag_apparent,
 			self.c.point_source_parameters['output_ab_zeropoint'])
 		flux_image = np.sum(im_diff)
 		self.assertAlmostEqual(flux_true,flux_image)

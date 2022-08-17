@@ -7,9 +7,10 @@ build from. Because the steps for rendering a source can vary between different
 models, the required functions are very sparse.
 """
 import copy
+from ..Utils.cosmology_utils import get_cosmology
 
 
-class PointSourceBase:
+class PointSourceBase():
 	"""
 	Base class for producing lenstronomy PointSource arguments
 
@@ -23,7 +24,8 @@ class PointSourceBase:
 
 	required_parameters = tuple()
 
-	def __init__(self, point_source_parameters):
+	def __init__(self, cosmology_parameters, point_source_parameters):
+		self.cosmo = get_cosmology(cosmology_parameters)
 		self.point_source_parameters = copy.deepcopy(point_source_parameters)
 
 		# Check that all the required parameters are present
@@ -42,13 +44,15 @@ class PointSourceBase:
 			raise ValueError('Not all of the required parameters for the ' +
 				'parameterization are present.')
 
-	def update_parameters(self, point_source_parameters=None):
+	def update_parameters(self, cosmology_parameters=None, point_source_parameters=None):
 		"""Update the class parameters
 
 		Args:
 			point_source_parameters (dict): A dictionary containing all the 
 				parameters needed to draw point sources.
 		"""
+        if cosmology_parameters is not None: 
+            self.cosmo = get_cosmology(cosmology_parameters)
 		if point_source_parameters is not None:
 			self.point_source_parameters.update(point_source_parameters)
 

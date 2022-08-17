@@ -7,6 +7,7 @@ as the source for paltas.
 """
 from .point_source_base import PointSourceBase
 from lenstronomy.Util.data_util import magnitude2cps
+from ..Utils.cosmology_utils import absolute_to_apparent
 
 
 class SinglePointSource(PointSourceBase):
@@ -23,10 +24,10 @@ class SinglePointSource(PointSourceBase):
 	- 	magnitude - AB absolute magnitude of the point source
 	-	x_point_source - x-coordinate lens center in units of arcseconds
 	-	y_point_source - y-coordinate lens center in units of arcseconds
-	- 	z_lens - main deflector redshift
 	-	output_ab_zeropoint - AB magnitude zeropoint of the detector
 	- 	compute_time_delay - bool determining if time delays will be computed
 		and added to the returned kwargs
+    -   z_point_source - point source redshift
 
 	Optional Parameters
 
@@ -38,7 +39,7 @@ class SinglePointSource(PointSourceBase):
 	"""
 
 	required_parameters = ('x_point_source', 'y_point_source', 'magnitude',
-		'output_ab_zeropoint', 'compute_time_delays')
+		'output_ab_zeropoint', 'compute_time_delays', 'z_point_source')
 
 	def draw_point_source(self):
 		"""Return lenstronomy PointSource kwargs
@@ -57,10 +58,12 @@ class SinglePointSource(PointSourceBase):
 			point_source_kwargs['mag_pert'] = self.point_source_parameters[
 				'mag_pert']
 
-		# mag to amp conversion
+		# abs to apparent mag 
+		mag_apparent = absolute_to_apparent(self.point_source_parameters['magnitude'],
+			self.point_source_parameters['z_point_source'],self.cosmo)
+        # mag to amp conversion
 		# note: flux = amplitude for point source
-		point_source_kwargs['source_amp'] = magnitude2cps(
-			self.point_source_parameters['magnitude'],
+		point_source_kwargs['source_amp'] = magnitude2cps(mag_apparent,
 			self.point_source_parameters['output_ab_zeropoint'])
 
 		return ['SOURCE_POSITION'], [point_source_kwargs]
