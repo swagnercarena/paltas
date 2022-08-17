@@ -51,8 +51,8 @@ class PointSourceBase():
 			point_source_parameters (dict): A dictionary containing all the 
 				parameters needed to draw point sources.
 		"""
-        if cosmology_parameters is not None: 
-            self.cosmo = get_cosmology(cosmology_parameters)
+		if cosmology_parameters is not None: 
+			self.cosmo = get_cosmology(cosmology_parameters)
 		if point_source_parameters is not None:
 			self.point_source_parameters.update(point_source_parameters)
 

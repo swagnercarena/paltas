@@ -24,7 +24,7 @@ class PointSourceBaseTests(unittest.TestCase):
 		self.c.update_parameters(None)
 		self.assertDictEqual(self.c.point_source_parameters, dict())
 		# test passing an element that wasn't there yet
-		self.c.update_parameters({'radius':1.})
+		self.c.update_parameters(None,{'radius':1.})
 		self.assertDictEqual(self.c.point_source_parameters, {'radius':1.})
 
 	def test_draw_point_source(self):
@@ -38,7 +38,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.point_source_parameters=dict(
 			x_point_source=0.001,
 			y_point_source=0.001,
-			magnitude=22,
+			magnitude=11,
 			output_ab_zeropoint=25,
 			compute_time_delays=False,
             z_point_source=3
@@ -52,12 +52,13 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		failed_parameters = dict(x_point_source=0.001,y_point_source=0.001,
 			magnitude=22)
 		with self.assertRaises(ValueError):
-			SinglePointSource(point_source_parameters=failed_parameters)
+			SinglePointSource(cosmology_parameters='planck18',
+				point_source_parameters=failed_parameters)
 
 	def test_update_parameters(self):
 		# test a parameter originally set in setUp
 		self.point_source_parameters['magnitude'] = 10
-		self.c.update_parameters(self.point_source_parameters)
+		self.c.update_parameters(None,self.point_source_parameters)
 		self.assertEqual(self.c.point_source_parameters['magnitude'], 10)
 
 	def test_draw_point_source(self):
@@ -115,7 +116,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.assertTrue(np.sum(im_diff) > 0)
 
 		# make sure the flux is what we expect
-        mag_apparent = absolute_to_apparent(self.c.point_source_parameters['magnitude'],
+		mag_apparent = absolute_to_apparent(self.c.point_source_parameters['magnitude'],
 			self.c.point_source_parameters['z_point_source'],self.cosmo)
 		flux_true = magnitude2cps(mag_apparent,
 			self.c.point_source_parameters['output_ab_zeropoint'])
@@ -127,7 +128,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 
 		# test draw image with mag_pert
 		self.point_source_parameters['mag_pert'] = [1, 1, 1, 1, 1]
-		self.c.update_parameters(self.point_source_parameters)
+		self.c.update_parameters(None,self.point_source_parameters)
 		list_model, list_kwargs = self.c.draw_point_source()
 		# make sure mag_pert is passed to lenstronomy
 		self.assertTrue('mag_pert' in list_kwargs[0].keys())
