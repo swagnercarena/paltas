@@ -447,9 +447,12 @@ class ConfigHandler():
 		kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
 			new_sample=False)
 
-		# Get the psf and detector parameters from the sample
+		# Get the psf, detector, and pixel grid parameters from the sample
 		kwargs_psf = sample['psf_parameters']
 		kwargs_detector = sample['detector_parameters']
+		kwargs_pixel_grid = None
+		if 'pixel_grid_parameters' in sample.keys():
+			kwargs_pixel_grid = sample['pixel_grid_parameters']
 
 		# Build the psf model
 		if apply_psf:
@@ -458,22 +461,10 @@ class ConfigHandler():
 			psf_model = PSF(psf_type='NONE')
 
 		# Build the data and noise models we'll use.
-		data_api = DataAPI(numpix=self.numpix,**kwargs_detector)
-		# TODO: remove
-        # try building data_class a different way
-		from lenstronomy.Data.imaging_data import ImageData
-		import lenstronomy.Util.util as util
-		kwargs_data_model = data_api.kwargs_data
-		x_grid, y_grid, ra_at_xy_0, dec_at_xy_0, x_at_radec_0, y_at_radec_0, transform_pix2angle, transform_angle2pix = util.make_grid_with_coordtransform(
-			numPix=data_api.numpix, deltapix=data_api.pixel_scale, subgrid_res=1, center_ra=0., center_dec=-0., left_lower=False, inverse=True)
-		kwargs_data_model['ra_at_xy_0'] = ra_at_xy_0 + 0.02
-		kwargs_data_model['dec_at_xy_0'] = dec_at_xy_0 - 0.02
-		kwargs_data_model['transform_pix2angle'] = transform_pix2angle
-		data_class = ImageData(**kwargs_data_model)
-		
-        
+		data_api = DataAPI(numpix=self.numpix,
+			kwargs_pixel_grid=kwargs_pixel_grid,**kwargs_detector)
 		single_band = SingleBand(**kwargs_detector)
-
+		
 		# Pull the cosmology and source redshift
 		cosmo = get_cosmology(sample['cosmology_parameters'])
 
@@ -498,20 +489,9 @@ class ConfigHandler():
             fixed_magnification_list=[True])
 
 		# Put it together into an image model
-        # TODO: revert to data_api.data_class
-		image_model = ImageModel(data_class,psf_model,
+		image_model = ImageModel(data_api.data_class,psf_model,
 			lens_model,source_light_model,lens_light_model,
 			point_source_model,kwargs_numerics=self.kwargs_numerics)
-        
-		# TODO: remove
-		print('paltas:')
-		print(image_model.ImageNumerics._pixel_grid.map_coord2pix(-0.2603528,0.78988705))
-		print('x at radec0: ', image_model.ImageNumerics._pixel_grid._x_at_radec_0)
-		print('y at radec0: ', image_model.ImageNumerics._pixel_grid._y_at_radec_0)
-		print('ra at xy0: ', image_model.ImageNumerics._pixel_grid._ra_at_xy_0)
-		print('dec at xy0: ', image_model.ImageNumerics._pixel_grid._dec_at_xy_0)
-		print('paltas source amp: ', kwargs_params['kwargs_ps'][0]['source_amp'])
-		print(kwargs_params['kwargs_source'])
 
 		# Generate our image
 		image = image_model.image(kwargs_params['kwargs_lens'],
