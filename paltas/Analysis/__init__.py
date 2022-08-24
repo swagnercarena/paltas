@@ -8,3 +8,4 @@ from . import posterior_functions
 from . import hierarchical_inference
 from . import pdf_functions
 from . import transformer_models
+from . import gaussian_inference
