@@ -33,47 +33,64 @@ def parse_args():
 	"""
 	# Initialize the parser and the possible inputs
 	parser = argparse.ArgumentParser()
-	parser.add_argument('config_dict', help='Path to paltas configuration dict')
+	parser.add_argument('config_path', help='Path to paltas configuration file')
 	parser.add_argument('save_folder', help='Folder to save images to')
 	parser.add_argument('--n', default=1, dest='n', type=int,
 		help='Size of dataset to generate (default 1)')
 	parser.add_argument('--save_png_too', action='store_true',
 		help='Also save a PNG for each image, for debugging')
 	parser.add_argument('--tf_record', action='store_true',
-		help='Generate the tf record for the training set.')
+		help='Generate the tf record for the dataset.')
 	args = parser.parse_args()
 	return args
 
 
 def main():
-	"""Generates the strong lensing images by drawing parameters values from
-	the provided configuration dictionary.
-	"""
 	# Get the user provided arguments
 	args = parse_args()
 
+	generate_from_config(
+		config_path=args.config_path,
+		save_folder=args.save_folder,
+		n=args.n,
+		save_png_too=args.save_png_too,
+		tf_record=args.tf_record)
+
+
+def generate_from_config(config_path, save_folder, n=1, save_png_too=False, tf_record=False):
+	"""Generates the strong lensing images by drawing parameters values from
+	the provided configuration dictionary.
+
+	Arguments:
+	 - config_dict: Path to paltas configuration file
+	 - save_folder: Folder to save images to
+	 - n: Size of dataset to generate (default 1)
+	 - save_png_too: if True, also save a PNG for each image for debugging
+	 - tf_record: if True, generate the tfrecord for the dataset
+	"""
+
 	# Make the directory if not already there
-	if not os.path.exists(args.save_folder):
-		os.makedirs(args.save_folder)
-	print("Save folder path: {:s}".format(args.save_folder))
+	if not os.path.exists(save_folder):
+		os.makedirs(save_folder)
+	print("Save folder path: {:s}".format(save_folder))
 
 	# Copy out config dict
 	shutil.copy(
-		os.path.abspath(args.config_dict),
-		args.save_folder)
+		os.path.abspath(config_path),
+		save_folder)
 
 	# Gather metadata in a list, will be written to dataframe later
 	metadata_list = []
-	metadata_path = os.path.join(args.save_folder,'metadata.csv')
+	metadata_path = os.path.join(save_folder,'metadata.csv')
 
 	# Initialize our config handler
-	config_handler = ConfigHandler(args.config_dict)
+	config_handler = ConfigHandler(config_path)
 
 	# Generate our images
-	pbar = tqdm(total=args.n)
+	pbar = tqdm(total=n)
 	successes = 0
 	tries = 0
-	while successes < args.n:
+	while successes < n:
 		# We always try
 		tries += 1
 
@@ -85,15 +102,15 @@ def main():
 			continue
 
 		# Save the image and the metadata
-		filename = os.path.join(args.save_folder, 'image_%07d' % successes)
+		filename = os.path.join(save_folder, 'image_%07d' % successes)
 		np.save(filename, image)
-		if args.save_png_too:
+		if save_png_too:
 			plt.imsave(filename + '.png', image)
 
 		metadata_list.append(metadata)
 
 		# Write out the metadata every 20 images, and on the final write
-		if len(metadata_list) > 20 or successes == args.n - 1:
+		if len(metadata_list) > 20 or successes == n - 1:
 			df = pd.DataFrame(metadata_list)
 			# Sort the keys lexographically to ensure consistent writes
 			df = df.reindex(sorted(df.columns), axis=1)
@@ -111,16 +128,16 @@ def main():
 	# Make sure the list has been cleared out.
 	assert not metadata_list
 	pbar.close()
-	print('Dataset generation complete. Acceptance rate: %.3f'%(args.n/tries))
+	print('Dataset generation complete. Acceptance rate: %.3f'%(n/tries))
 
 	# Generate tf record if requested. Save all the parameters and use default
 	# filename data.tfrecord
-	if args.tf_record:
+	if tf_record:
 		# Delayed import, triggers tensorflow import
 		from paltas.Analysis import dataset_generation
 
 		# The path to save the TFRecord to.
-		tf_record_path = os.path.join(args.save_folder,'data.tfrecord')
+		tf_record_path = os.path.join(save_folder,'data.tfrecord')
 		# Generate the list of learning parameters. Only save learning
 		# parameters with associated float values.
 		learning_params = []
@@ -129,7 +146,7 @@ def main():
 				isinstance(metadata[key],int)):
 				learning_params.append(key)
 		# Generate the TFRecord
-		dataset_generation.generate_tf_record(args.save_folder,learning_params,
+		dataset_generation.generate_tf_record(save_folder,learning_params,
 			metadata_path,tf_record_path)
 
 
