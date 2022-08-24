@@ -1361,16 +1361,16 @@ class ProbabilityClassTests(unittest.TestCase):
 		# Try setting the samples with predict_samps_hier_input
 		prob_class.set_samples(predict_samps_hier_input=predict_samps_hier_input)
 		self.assertFalse(
-			Analysis.hierarchical_inference.predict_samps_hier is None)
+			prob_class.predict_samps_hier is None)
 		np.testing.assert_almost_equal(prob_class.p_samps_omega_i,
 			np.sum(predict_samps_hier_input,axis=0))
 
 		# Try setting the samples with predict_samps_input
 		prob_class.set_samples(predict_samps_input=predict_samps_input)
 		self.assertFalse(
-			Analysis.hierarchical_inference.predict_samps_hier is None)
+			prob_class.predict_samps_hier is None)
 		np.testing.assert_array_equal(
-			Analysis.hierarchical_inference.predict_samps_hier,
+			prob_class.predict_samps_hier,
 			predict_samps_hier_input)
 		np.testing.assert_almost_equal(prob_class.p_samps_omega_i,
 			np.sum(predict_samps_hier_input,axis=0))
@@ -1449,8 +1449,8 @@ class ProbabilityClassAnalyticalTests(unittest.TestCase):
 
 		# Try setting the predictions
 		prob_class.set_predictions(mu_pred_array_input,prec_pred_array_input)
-		self.assertFalse(Analysis.hierarchical_inference.mu_pred_array is None)
-		self.assertFalse(Analysis.hierarchical_inference.prec_pred_array is None)
+		self.assertFalse(prob_class.mu_pred_array is None)
+		self.assertFalse(prob_class.prec_pred_array is None)
 
 	def test_log_integral_product(self):
 		# Make sure that the log integral product just sums the log of each
@@ -1551,10 +1551,8 @@ class ProbabilityClassEnsembleTests(unittest.TestCase):
 
 		# Try setting the predictions
 		prob_class.set_predictions(mu_pred_array_input,prec_pred_array_input)
-		self.assertFalse(
-			Analysis.hierarchical_inference.mu_pred_array_ensemble is None)
-		self.assertFalse(
-			Analysis.hierarchical_inference.prec_pred_array_ensemble is None)
+		self.assertFalse(prob_class.mu_pred_array_ensemble is None)
+		self.assertFalse(prob_class.prec_pred_array_ensemble is None)
 
 	def test_log_integral_product(self):
 		# Make sure that the log integral product just sums the log of each
