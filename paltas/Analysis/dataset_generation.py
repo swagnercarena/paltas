@@ -80,7 +80,7 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 
 
 def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
-	cov_mat=None):
+	cov_mat=None, prec_mat=None):
 	"""Given NN outputs, undo the normalization step and return the parameters
 	in the original space
 
@@ -95,7 +95,10 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 			n_params) containing the standard deviation estimate for each
 			parameter.
 		cov_mat (np.array): A numpy array with dimensions (batch_size,n_params,
-			n_params) containing the covariance matrix estiamtes for each
+			n_params) containing the covariance matrix estimates for each
+			image.
+		prec_mat (np.array): A numpy array with dimensions (batch_size,n_params,
+			n_params) containing the precision matrix estimates for each
 			image.
 
 	Notes:
@@ -120,6 +123,11 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 		if cov_mat is not None:
 			cov_mat[:,lpi,:] *= param_std
 			cov_mat[:,:,lpi] *= param_std
+
+		# If provided we want to correct the precision matrix
+		if prec_mat is not None:
+			prec_mat[:,lpi,:] /= param_std
+			prec_mat[:,:,lpi] /= param_std
 
 
 def kwargs_detector_to_tf_noise(image,kwargs_detector):

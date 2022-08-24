@@ -137,9 +137,10 @@ class DatasetGenerationTests(unittest.TestCase):
 
 		mean = np.array([[1,2]]*2,dtype=np.float)
 		cov_mat = np.array([[[1,0.9],[0.9,1]]]*2)
+		prec_mat = np.linalg.inv(cov_mat)
 
 		Analysis.dataset_generation.unnormalize_outputs(input_norm_path,
-			learning_params,mean,cov_mat=cov_mat)
+			learning_params,mean,cov_mat=cov_mat,prec_mat=prec_mat)
 
 		mean_corrected = np.array([[1*norm_dict['std'][learning_params[0]]+
 			norm_dict['mean'][learning_params[0]],
@@ -152,9 +153,11 @@ class DatasetGenerationTests(unittest.TestCase):
 			[0.9*norm_dict['std'][learning_params[0]]
 			*norm_dict['std'][learning_params[1]],
 			1*norm_dict['std'][learning_params[1]]**2]]]*2)
+		prec_corrected = np.linalg.inv(cov_corrected)
 
 		np.testing.assert_almost_equal(mean,mean_corrected)
 		np.testing.assert_almost_equal(cov_mat,cov_corrected)
+		np.testing.assert_almost_equal(prec_mat,prec_corrected)
 
 		# Get rid of the file we made
 		os.remove(input_norm_path)
