@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env pyhon
 """
 Generate simulated strong lensing images using the classes and parameters of
 an input configuration dictionary.
