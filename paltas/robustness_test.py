@@ -10,7 +10,7 @@ import paltas
 import paltas.Analysis
 
 config_header = """\
-from paltas.Configs.paper_2203_00690.config_test_10 import *
+from paltas.Configs.paper_2203_00690.config_val import *
 config_dict = copy.deepcopy(config_dict)
 """
 
@@ -36,7 +36,7 @@ def robustness_test(
 
     This script will:    
      - Creates a configuration that differes by one parameter value
-        from a reference config (paper_2203_00690.config_test_10).
+        from a reference config (paper_2203_00690.config_val).
      - Generates and saves test set images with that config
      - Runs a neural network over that config, saving results
      - Runs Bayesian MCMC and asymptotic frequentist hierarchical inference,
