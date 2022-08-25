@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import argparse
 from pathlib import Path
+import random
 import shutil
+import string
 
 import numpy as np
 import paltas
@@ -62,6 +64,7 @@ def robustness_test(
         x.mkdir(exist_ok=True)
         
     param_name = param_code.replace('/', '_')
+    # Can't have dots in the dataset name, not legal python module name
     dataset_name = f"{param_name}:{param_value}"
 
     # Create config
@@ -70,10 +73,16 @@ def robustness_test(
         + "\nconfig_dict['" 
         + param_code.replace('/', "']['") + f"'] = {param_value}")
     # Write it to a .py file
-    config_fn = config_folder / f"{dataset_name}.py"
+    # Note we can't use the dataset name as the config name;
+    # the param value may contain nasty characters like .
+    # (which python will see as a module separator)
+    config_name = (
+        param_name
+        + '_'
+        + ''.join(random.choices(string.ascii_lowercase, k=8)))
+    config_fn = config_folder / f"{config_name}.py"
     with open(config_fn, mode='w') as f:
         f.write(config)
-    
 
     # Generate images
     print(f"Generating images from {config_fn}\n\n")
