@@ -54,14 +54,21 @@ class Sampler():
 		# Iterate through the keys in the draw_dict and populate the values of
 		# param_dict correctly.
 		for key in sorted(draw_dict):
+
+			value = draw_dict[key]
+			if callable(value):
+				# Sampling function: call to draw
+				draw = value()
+			else:
+				# Fixed value
+				draw = value
+
 			# If the key implies that multiple parameters will be drawn from
 			# the distribution, draw the value and then iterate through the
 			# parameters.
 			if ',' in key:
 				# Get the parameters, removing whitespace
 				params = key.replace(' ','').split(',')
-				# Draw the values
-				draw = draw_dict[key]()
 				# Check for consistency
 				if len(params) != len(draw):
 					raise ValueError('Parameters of length %d do'%(len(params))
@@ -69,12 +76,8 @@ class Sampler():
 				# Populate the keys
 				for i, param in enumerate(params):
 					param_dict[param] = draw[i]
-			# If it's a univariate function just call it.
-			elif callable(draw_dict[key]):
-				param_dict[key] = draw_dict[key]()
-			# If it's a fixed value just populate it.
 			else:
-				param_dict[key] = draw_dict[key]
+				param_dict[key] = draw
 
 		return param_dict
 
