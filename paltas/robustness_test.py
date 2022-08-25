@@ -76,10 +76,7 @@ def robustness_test(
     # Note we can't use the dataset name as the config name;
     # the param value may contain nasty characters like .
     # (which python will see as a module separator)
-    config_name = (
-        param_name
-        + '_'
-        + ''.join(random.choices(string.ascii_lowercase, k=8)))
+    config_name = ''.join(random.choices(string.ascii_lowercase, k=16))
     config_fn = config_folder / f"{config_name}.py"
     with open(config_fn, mode='w') as f:
         f.write(config)
@@ -117,7 +114,7 @@ def robustness_test(
     bayes_summary, chain = inf.bayesian_mcmc(n_samples=n_mcmc_samples)
 
     # Combine results into one dataframe
-    summary = freq_summary[['param', 'truth']]
+    summary = freq_summary[['param', 'truth']].copy()
     for df, code in ((freq_summary, 'maxlh'), (bayes_summary, 'mcmc')):
         summary[f'{code}_fit'] = df['fit']
         summary[f'{code}_fit_unc'] = df['fit_unc']

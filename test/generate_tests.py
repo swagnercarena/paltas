@@ -28,7 +28,7 @@ class GenerateTests(unittest.TestCase):
 		sys.argv = ['test','config_dict.py','save_folder',
 			'--n','1000']
 		args = generate.parse_args()
-		self.assertEqual(args.config_dict,'config_dict.py')
+		self.assertEqual(args.config_path,'config_dict.py')
 		self.assertEqual(args.save_folder,'save_folder')
 		self.assertEqual(args.n,1000)
 		sys.argv = old_sys

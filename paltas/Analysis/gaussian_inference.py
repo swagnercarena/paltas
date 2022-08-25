@@ -496,12 +496,13 @@ def run_network_on(
 		Path(model_path),
 		custom_objects=dict(loss=None))
 
-	# Model with the fully-connected head removed
-	# (for our model, that's just one layer)
-	# TODO: if architecure changes, have to change the index here
-	model_conv = tf.keras.Model(
-		inputs=model.input,
-		outputs=model.get_layer(index=-2).output)
+	if save_penultimate:
+		# Model with the fully-connected head removed
+		# (for our model, that's just one layer)
+		# TODO: if architecure changes, have to change the index here
+		model_conv = tf.keras.Model(
+			inputs=model.input,
+			outputs=model.get_layer(index=-2).output)
 	
 	# Extract training and test/population mean and cov
 	training_population_mean, training_population_cov = extract_mu_cov(
@@ -536,7 +537,6 @@ def run_network_on(
 
 	# Finally! Actually run the network over the images
 	result = model.predict(test_dataset)
-
 
 	if save_penultimate:
 		# Run the model again, saving the output of the penultimate layer

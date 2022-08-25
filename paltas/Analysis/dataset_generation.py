@@ -10,7 +10,8 @@ tensorflow.
 import numpy as np
 import tensorflow as tf
 import pandas as pd
-import glob, os
+import os
+from pathlib import Path
 from tqdm import tqdm
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 import warnings
@@ -171,8 +172,9 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 		tf_record_path (str): The path to which the TFRecord will be saved
 	"""
 	# Pull the list of numpy filepaths from the directory
-	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
-	npy_file_list = list(sorted(npy_file_list))
+	# Path().glob > glob.glob(os.path.join) for dirs with funny chars
+	npy_file_list = Path(npy_folder).glob('image_*.npy')
+	npy_file_list = list(sorted([str(x) for x in npy_file_list]))
 	# Open label csv
 	metadata = pd.read_csv(metadata_path, index_col=None)
 
