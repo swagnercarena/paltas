@@ -312,8 +312,7 @@ class GaussianInference:
 			initial_walker_scatter=1e-3,
 			n_samples=int(1e4),
 			n_burnin=int(1e3),
-			n_walkers=40,
-			chains_path='chains.h5'):
+			n_walkers=40):
 		"""Return MCMC inference results
 
 		Arguments:
@@ -322,7 +321,6 @@ class GaussianInference:
 		 - n_samples: Number of MCMC samples to use (excluding burn-in)
 		 - n_burnin: Number of burn-in samples to use
 		 - n_walkers: Number of walkers to use
-		 - chains_path: path in which to store sample chain as HDF5.
 
 		Returns tuple with:
 		 - DataFrame with summary of results
@@ -344,17 +342,10 @@ class GaussianInference:
 				-cur_state_sigmas,
 				cur_state_sigmas)
 
-		# Delete previous chains and start backend
-		chains_path = Path(chains_path)
-		if chains_path.exists():
-			chains_path.unlink()
-		backend = emcee.backends.HDFBackend(chains_path)
-
 		sampler = emcee.EnsembleSampler(
 			n_walkers,
 			ndim,
-			self.log_posterior,
-			backend=backend)
+			self.log_posterior)
 		sampler.run_mcmc(cur_state, n_burnin + n_samples, progress=True)
 		chain = sampler.chain[:,n_burnin:,:].reshape((-1,ndim))
 
