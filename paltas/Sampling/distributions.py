@@ -403,15 +403,15 @@ class RedshiftsPointSource(RedshiftsTruncNorm):
 		z_source_std (float): source redshift standard deviation
 	"""
 
-	def __call__(self):
-		"""Returns samples of redshifts, ensuring z_source > z_lens and
-		z_lens_light = z_lens.
+    def __call__(self):
+        """Returns samples of redshifts, ensuring z_source > z_lens and
+        z_lens_light = z_lens.
 
 		Returns:
 			(float,float): z_lens,z_lens_light,z_source
 		"""
-		z_lens,z_source = super().__call__()
-		return z_lens,z_lens,z_source,z_source
+        z_lens,z_source = super().__call__()
+        return z_lens,z_lens,z_source,z_source
 
 
 class MultipleValues():
