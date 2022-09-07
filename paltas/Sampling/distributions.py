@@ -388,6 +388,31 @@ class RedshiftsLensLight(RedshiftsTruncNorm):
 		z_lens,z_source = super().__call__()
 		return z_lens,z_lens,z_source
 
+    
+class RedshiftsPointSource(RedshiftsTruncNorm):
+    """Class that samples z_lens, z_lens_light, z_source, and z_point_source 
+        from truncated normal distributions, forcing z_source > z_lens to be 
+        true and z_lens_light = z_lens, z_source = z_point_source
+
+	Args:
+		z_lens_min (float): minimum allowed lens redshift
+		z_lens_mean (float): lens redshift mean
+		z_lens_std (float): lens redshift standard deviation
+		z_source_min (float): minimum allowed source redshift
+		z_source_mean (float): source redshift mean
+		z_source_std (float): source redshift standard deviation
+	"""
+
+	def __call__(self):
+		"""Returns samples of redshifts, ensuring z_source > z_lens and
+		z_lens_light = z_lens.
+
+		Returns:
+			(float,float): z_lens,z_lens_light,z_source
+		"""
+		z_lens,z_source = super().__call__()
+		return z_lens,z_lens,z_source,z_source
+
 
 class MultipleValues():
 	"""Class to call dist.rvs(size=num)
