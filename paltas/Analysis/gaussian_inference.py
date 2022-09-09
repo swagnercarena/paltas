@@ -94,7 +94,7 @@ class GaussianInference:
 			population_cov=None,
 			test_config_path=None,
 			log_sigma=False,
-			select_parameters=DEFAULT_PARAMETERS,
+			select_parameters=MARCH_2022_PARAMETERS,
 			all_parameters=MARCH_2022_PARAMETERS,
 			training_population_mean=None,
 			training_population_cov=None,

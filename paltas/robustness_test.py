@@ -5,20 +5,21 @@ import random
 import shutil
 import string
 
-import numpy as np
-import paltas
-import paltas.Analysis
 
 config_header = """\
-from paltas.Configs.paper_2203_00690.config_val import *
+import sys
+sys.path.append('{CONFIG_PATH}')
+from {CONFIG_NAME} import *
+
 config_dict = copy.deepcopy(config_dict)
 """
 
 
 def robustness_test(
-        param_code: str, 
-        param_value, 
-        n_images=5, 
+        param_code: str,
+        param_value,
+        n_images=5,
+        config_path=None,
         model_path='./xresnet34_full_marg_1_final.h5',
         norm_path='./norms.csv',
         n_mcmc_samples=int(1e3)):
@@ -29,6 +30,8 @@ def robustness_test(
         e.g. subhalo/parameters/sigma_sub
      - param_value: value you wish the parameter to take
      - n_images: images to generate
+     - config_path: path to paltas config py file for base settings
+        Defaults to paper_2203_00690.config_val
      - model_path: path to neural network h5 file
      - norm_path: path to norms.css file
      - n_mcmc_samples: number of MCMC samples to do 
@@ -36,7 +39,7 @@ def robustness_test(
 
     This script will:    
      - Creates a configuration that differes by one parameter value
-        from a reference config (paper_2203_00690.config_val).
+        from the reference config.
      - Generates and saves test set images with that config
      - Runs a neural network over that config, saving results
      - Runs Bayesian MCMC and asymptotic frequentist hierarchical inference,
@@ -48,6 +51,17 @@ def robustness_test(
      - Network outputs: robustness_test_results/DATASET_NAME_network_outputs.npz
      - Inference: robustness_test_results/DATASET_NAME_inference_results.npz
     """
+    # Delayed imports, to make sure --help calls finish quickly
+    import numpy as np
+    import paltas
+    import paltas.Analysis
+
+    # Use default validation set config if no config given
+    if config_path is None:
+        config_path = (
+            paltas.Analysis.gaussian_inference.DEFAULT_TRAINING_SET.parent
+            / 'config_val.py')
+    config_path = Path(config_path)
     
     # Check we have the network and norms.csv.
     # (and if not, crash now before expensive image generation)
@@ -69,7 +83,9 @@ def robustness_test(
 
     # Create config
     config = (
-        config_header 
+        config_header.format(
+            CONFIG_PATH=str(config_path.parent),
+            CONFIG_NAME=config_path.name.split('.')[0])
         + "\nconfig_dict['" 
         + param_code.replace('/', "']['") + f"'] = {param_value}")
     # Write it to a .py file
@@ -141,6 +157,7 @@ if __name__ == '__main__':
     parser.add_argument("param_code", type=str)
     parser.add_argument("param_value", type=str)
     parser.add_argument("--n_images", type=int, default=5)
+    parser.add_argument("--config_path", type=str, default=None)
     parser.add_argument(
         "--model_path",
         type=str, 
@@ -158,6 +175,7 @@ if __name__ == '__main__':
         args.param_code, 
         args.param_value,
         n_images=args.n_images,
+        config_path=args.config_path,
         model_path=args.model_path,
         norm_path=args.norm_path,
         n_mcmc_samples=args.n_mcmc_samples)
