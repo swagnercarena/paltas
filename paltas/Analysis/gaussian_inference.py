@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.optimize import minimize
 from scipy import stats
 import tensorflow as tf
+from tqdm import tqdm
 
 import paltas
 import paltas.Analysis
@@ -427,11 +428,6 @@ def cov_to_std(cov):
 	return std_errs, corr
 
 
-def symmetrize_batch(x):
-	"""Return symmetrized version of an array of matrices"""
-	return (x.transpose((0, 2, 1)) + x)/2
-
-
 def run_network_on(
 		folder, 
 		norm_path=Path('norms.csv'),
@@ -439,11 +435,14 @@ def run_network_on(
 		model_path=Path('xresnet34_full_marg_1_final.h5'), 
 		train_config_path=DEFAULT_TRAINING_SET,
 		batch_size=50,
+		n_rotations=1,
 		regenerate_tfrecord=False,
 		overwrite=False,
+		return_result=False,
+		output_filename='network_results.npz',
 		save_penultimate=True):
 	"""Run a neural network over a folder with image data.
-	Will create network_outputs.npz in that folder.
+	Creates output_filename with return values in that folder.
 
 	Arguments:
 	 - folder: path to folder with images, metadata, etc.
@@ -451,11 +450,14 @@ def run_network_on(
 	 - model_path: path to h5 of the neural network
 	 - train_config_path: path to the dataset used to train
 	 	the network.
-	 - batch_size: batch size. Should divide dataset.
+	 - batch_size: batch size.
+	 - n_rotations: if > 1, average point estimates (not covariances)
+	 	over rotations of the image, uniform(0, 360, n_rotations)
 	 - regenerate_tfrecord: If True, regererates tfrecord file
 	 	even if it is already present.
 	 - overwrite: If True, first delete existing network_outputs.npz
 	 	if present
+	 - return_result: If True, also returns stuff saved to the npz
 	 - save_penultimate: if True, runs the model twice; the second time
 	 	just to save the output of the penultimate layer.
 	"""
@@ -463,7 +465,7 @@ def run_network_on(
 	# Check input/output folders
 	folder = Path(folder)
 	assert folder.exists()
-	output_path = folder / 'network_outputs.npz'
+	output_path = folder / output_filename
 	if output_path.exists():
 		if overwrite:
 			output_path.unlink()
@@ -483,10 +485,7 @@ def run_network_on(
 	# just in case things get mixed around again
 	df['dataset_name'] = folder.name
 	df['image_i'] = np.arange(len(df))
-	
-	if not len(df) % batch_size == 0:
-		raise ValueError(f"Choose a batch size that divides the dataset of {len(df)} images")
-	
+		
 	# Load normalization / parameter names and order
 	norm_df = pd.read_csv(norm_path)
 	learning_params = norm_df.parameter.values.tolist()
@@ -525,8 +524,6 @@ def run_network_on(
 	test_dataset = paltas.Analysis.dataset_generation.generate_tf_dataset(
 		tf_record_path=str(tfr_path),
 		learning_params=learning_params,
-		# We assumed the dataset is divisible by the batch size,
-		# so no danger of things wrapping around.
 		batch_size=batch_size,
 		n_epochs=1,
 		norm_images=True,
@@ -535,8 +532,65 @@ def run_network_on(
 		log_learning_params=None,
 		shuffle=False)
 
-	# Finally! Actually run the network over the images
-	result = model.predict(test_dataset)
+	if n_rotations == 0:
+		# Should do the same as n_rotations=1, retained for testing.
+		image_mean, image_prec = _predict(model, test_dataset, learning_params)
+		image_cov = np.linalg.inv(image_prec)
+
+		# Convert to physical units. Modifies image_xxx variables in-place
+		paltas.Analysis.dataset_generation.unnormalize_outputs(
+			input_norm_path=norm_path,
+			learning_params=learning_params,
+			mean=image_mean,
+			cov_mat=image_cov,
+			prec_mat=image_prec,
+		)
+
+	else:
+		# Compute predictions over several angles
+		# (note we skip 2 pi since it's equivalent to zero)
+		means, covs = [], []
+		for angle in tqdm(np.linspace(0, 2 * np.pi, n_rotations + 1)[:-1], 
+						desc='Running neural net over different rotations'):
+			# Get predictions on rotated dataset
+			_mean, _prec = _predict(
+				model, 
+				_rotation_generator(test_dataset, learning_params, angle), 
+				learning_params)
+
+			# Recover covariance: rotation of precision matrix not yet coded
+			_cov = np.linalg.inv(_prec)
+
+			# Convert to physical units. Modifies image_xxx variables in-place
+			# NB: must do this before back-rotation!
+			paltas.Analysis.dataset_generation.unnormalize_outputs(
+				input_norm_path=norm_path,
+				learning_params=learning_params,
+				mean=_mean,
+				cov_mat=_cov,
+			)
+
+			# Rotate back to original frame. Modifies in-place
+			paltas.Analysis.dataset_generation.rotate_params_batch(
+				learning_params, _mean, -angle)
+			paltas.Analysis.dataset_generation.rotate_covariance_batch(
+				learning_params, _cov, -angle)
+
+			means.append(_mean)
+			covs.append(_cov)
+
+		# Average predictions obtained from different rotation angles
+		image_mean = np.mean(means, axis=0)
+		# Paltas paper says: image coverages are not averaged, so don't do
+		# image_cov = np.mean(covs, axis=0)
+		image_cov = covs[0]
+		image_prec = np.linalg.inv(image_cov)
+	
+	# Enforce symmetry on the precision and covariance matrices.
+	# Floating-point errors can spoil this and make the entire inference
+	# return -inf. Fun!
+	image_cov = symmetrize_batch(image_cov)
+	image_prec = symmetrize_batch(image_prec)
 
 	if save_penultimate:
 		# Run the model again, saving the output of the penultimate layer
@@ -545,33 +599,8 @@ def run_network_on(
 	else:
 		conv_outputs = None
 
-	# Parse the result
-	# For diagonal loss, change to:
-	# loss = paltas.Analysis.loss_functions.DiagonalCovarianceLoss(
-	# ...
-	# y_pred, log_var_pred = [x.numpy() for x in loss.convert_output(result)]
-	loss = paltas.Analysis.loss_functions.FullCovarianceLoss(
-		len(learning_params), flip_pairs=None, weight_terms=None)
-	image_mean, image_prec, _ = [x.numpy() for x in loss.convert_output(result)]
-	image_cov = np.linalg.inv(image_prec)
-	# The function below modifies image_mean, image_cov and image_prec in-place
-	paltas.Analysis.dataset_generation.unnormalize_outputs(
-		input_norm_path=norm_path,
-		learning_params=learning_params,
-		mean=image_mean,
-		cov_mat=image_cov,
-		prec_mat=image_prec,
-	)
-
-	# Enforce symmetry on the precision and covariance matrices;
-	# Floating-point errors can spoil this and make the entire inference
-	# return -inf. Fun!
-	image_cov = symmetrize_batch(image_cov)
-	image_prec = symmetrize_batch(image_prec)
-	
 	# Save everything needed for inference to a big npz
-	np.savez_compressed(
-		output_path,
+	result = dict(
 		image_mean=image_mean, 
 		image_cov=image_cov,
 		image_prec=image_prec,
@@ -588,3 +617,39 @@ def run_network_on(
 		metadata=df.to_records(index=False),
 		model_name=Path(model_path).name,
 	)
+
+	np.savez_compressed(output_path, **result)
+	if return_result:
+		return result
+
+
+def _predict(model, dataset, learning_params):
+	# Finally! Actually run the network over the images
+	result = model.predict(dataset)
+
+	# Parse the result
+	# For diagonal loss, change to:
+	# loss = paltas.Analysis.loss_functions.DiagonalCovarianceLoss(
+	# ...
+	# y_pred, log_var_pred = [x.numpy() for x in loss.convert_output(result)]
+	loss = paltas.Analysis.loss_functions.FullCovarianceLoss(
+		len(learning_params), flip_pairs=None, weight_terms=None)
+	image_mean, image_prec, _ = [x.numpy() for x in loss.convert_output(result)]
+	return image_mean, image_prec
+
+def _rotation_generator(dataset, learning_params, angle):
+	for images, truths in dataset:
+		images = images.numpy()
+		truths = truths.numpy()
+		images = paltas.Analysis.dataset_generation.rotate_image_batch(
+			images,
+			learning_params,
+			# NB truths is changed in-place!
+			truths,
+			angle)
+		yield images, truths
+
+
+def symmetrize_batch(x):
+	"""Return symmetrized version of an array of matrices"""
+	return (x.transpose((0, 2, 1)) + x)/2

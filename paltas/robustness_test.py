@@ -19,6 +19,7 @@ def robustness_test(
         param_code: str,
         param_value,
         n_images=5,
+        n_rotations=0,
         config_path=None,
         model_path='./xresnet34_full_marg_1_final.h5',
         norm_path='./norms.csv',
@@ -30,6 +31,8 @@ def robustness_test(
         e.g. subhalo/parameters/sigma_sub
      - param_value: value you wish the parameter to take
      - n_images: images to generate
+     - n_rotations: average network predictions over n_rotations image
+        rotations.
      - config_path: path to paltas config py file for base settings
         Defaults to paper_2203_00690.config_val
      - model_path: path to neural network h5 file
@@ -118,6 +121,7 @@ def robustness_test(
         norm_path=norm_path,
         model_path=model_path,
         batch_size=min(n_images, 50),
+        n_rotations=n_rotations,
         save_penultimate=False)
     shutil.copy(
         src=dataset_folder / 'network_outputs.npz',
@@ -157,6 +161,7 @@ if __name__ == '__main__':
     parser.add_argument("param_code", type=str)
     parser.add_argument("param_value", type=str)
     parser.add_argument("--n_images", type=int, default=5)
+    parser.add_argument("--n_rotations", type=int, default=0)
     parser.add_argument("--config_path", type=str, default=None)
     parser.add_argument(
         "--model_path",
@@ -175,6 +180,7 @@ if __name__ == '__main__':
         args.param_code, 
         args.param_value,
         n_images=args.n_images,
+        n_rotations=args.n_rotations,
         config_path=args.config_path,
         model_path=args.model_path,
         norm_path=args.norm_path,
