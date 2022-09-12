@@ -578,11 +578,16 @@ def run_network_on(
 
 			means.append(_mean)
 			covs.append(_cov)
+		means, covs = np.array(means), np.array(covs)
 
 		# Average predictions obtained from different rotation angles
 		image_mean = np.mean(means, axis=0)
-		# Paltas paper says: image coverages are not averaged, so don't do
-		# image_cov = np.mean(covs, axis=0)
+		# Paltas paper says: covariances, and image predictions for x_lens and 
+		# y_lens, are not averaged over rotations.
+		for param in (mdef + 'center_x', mdef + 'center_y'):
+			if param in learning_params:
+				i = learning_params.index(param)
+				image_mean[:,i] = means[0,:,i]
 		image_cov = covs[0]
 		image_prec = np.linalg.inv(image_cov)
 	

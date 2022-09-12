@@ -19,7 +19,7 @@ def robustness_test(
         param_code: str,
         param_value,
         n_images=5,
-        n_rotations=0,
+        n_rotations=100,
         config_path=None,
         model_path='./xresnet34_full_marg_1_final.h5',
         norm_path='./norms.csv',
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     parser.add_argument("param_code", type=str)
     parser.add_argument("param_value", type=str)
     parser.add_argument("--n_images", type=int, default=5)
-    parser.add_argument("--n_rotations", type=int, default=0)
+    parser.add_argument("--n_rotations", type=int, default=100)
     parser.add_argument("--config_path", type=str, default=None)
     parser.add_argument(
         "--model_path",
