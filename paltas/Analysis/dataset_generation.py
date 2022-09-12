@@ -80,7 +80,7 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 	return norm_dict
 
 
-def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
+def unnormalize_outputs(input_norm_path,learning_params,mean=None,standard_dev=None,
 	cov_mat=None, prec_mat=None):
 	"""Given NN outputs, undo the normalization step and return the parameters
 	in the original space
@@ -112,9 +112,10 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 		param_mean = norm_dict['mean'][param]
 		param_std = norm_dict['std'][param]
 
-		# We always want to correct the mean
-		mean[:,lpi] *= param_std
-		mean[:,lpi] += param_mean
+		# If provided we want to correct the mean
+		if mean is not None:
+			mean[:,lpi] *= param_std
+			mean[:,lpi] += param_mean
 
 		# If provided we want to correct the standard deviation
 		if standard_dev is not None:
@@ -443,7 +444,7 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 		(np.array): A numpy array containing the rotated images.
 
 	Notes:
-		output is changed in place.
+		output is changed in place -- image_batch is not!!
 	"""
 
 	# Rotate the image
