@@ -43,7 +43,8 @@ class GalaxyCatalog(SourceBase):
 	"""
 	required_parameters = ('random_rotation','output_ab_zeropoint',
 		'z_source','center_x','center_y')
-	optional_parameters = ('source_absolute_magnitude')
+	optional_parameters = ('source_absolute_magnitude', 
+		'pixel_width_multiplier',)
 	# This parameter must be set by class inheriting GalaxyCatalog
 	ab_zeropoint = None
 
@@ -183,6 +184,9 @@ class GalaxyCatalog(SourceBase):
 			self.__class__.ab_zeropoint)/2.5)
 
 		pixel_width *= self.z_scale_factor(metadata['z'], z_new)
+
+		# Option to artificially make sources bigger or smaller
+		pixel_width *= self.source_parameters.get('pixel_width_multiplier', 1)
 
 		# Apply the k correction to the image from the redshifting
 		self.k_correct_image(img,metadata['z'],z_new)
