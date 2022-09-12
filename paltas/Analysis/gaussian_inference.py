@@ -439,7 +439,7 @@ def run_network_on(
 		regenerate_tfrecord=False,
 		overwrite=False,
 		return_result=False,
-		output_filename='network_results.npz',
+		output_filename='network_outputs.npz',
 		save_penultimate=True):
 	"""Run a neural network over a folder with image data.
 	Creates output_filename with return values in that folder.
