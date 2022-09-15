@@ -1,14 +1,11 @@
 #!/usr/bin/env python
-import argparse
 from pathlib import Path
 import random
 import re
 import shutil
 import string
-import inspect
 
-import docstring_parser
-
+from Utils.cli_maker import make_cli
 
 config_header = """\
 import sys
@@ -180,47 +177,4 @@ def robustness_test(
 
 
 if __name__ == '__main__':
-    main_f = robustness_test
-
-    # Get the signature, will get argument names and types later
-    signature = inspect.signature(main_f).parameters
-    pname_list = list(signature.keys())
-    first_pname, other_pnames = pname_list[0], pname_list[1:]
-
-    # Parse the docstring to get the argument types
-    doc = docstring_parser.parse(main_f.__doc__)
-    descs = {x.arg_name: x.description for x in doc.params}
-
-    # Auto-generate and runthe argparse parser
-    # There are libraries that do this, but I haven't found one that parses
-    # the docstring for argument descriptions.
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=doc.short_description + "\n\n" + doc.long_description)
-    for pname, param in signature.items():
-        has_default = (param.default != param.empty)
-        parser.add_argument(
-            ('--' if has_default else '') + pname,
-            nargs='*' if param.kind == param.VAR_POSITIONAL else 1,
-            help=descs[pname],
-            type=param.annotation if has_default else None,
-            default=param.default if has_default else tuple())
-
-    args = parser.parse_args()
-
-    # If there is an *args we need to call the main function differently
-    var_pos_name, = [
-            pname for pname, param in signature.items() 
-            if param.kind == param.VAR_POSITIONAL
-        ][:1] or (None,)
-    if var_pos_name:
-        var_pos = getattr(args, var_pos_name)
-        if not var_pos:
-            var_pos = tuple()
-        main_f(
-            *var_pos,
-            **{pname: getattr(args, pname) 
-               for pname in signature.keys()
-               if pname != var_pos_name})
-    else:
-        main_f(**vars(args))
+    make_cli(robustness_test)

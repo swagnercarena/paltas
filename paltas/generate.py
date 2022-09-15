@@ -15,60 +15,26 @@ The parameters will be pulled from config.py and the images will be saved in
 save_folder. If save_folder doesn't exist it will be created.
 """
 import numpy as np
-import argparse, os
+import os
 import shutil
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
 from paltas.Configs.config_handler import ConfigHandler
 
-
-def parse_args():
-	"""Parse the input arguments by the user
-
-	Returns:
-		(argparse.Namespace): An instance of the Namespace object with the
-		users provided values.
-
-	"""
-	# Initialize the parser and the possible inputs
-	parser = argparse.ArgumentParser()
-	parser.add_argument('config_path', help='Path to paltas configuration file')
-	parser.add_argument('save_folder', help='Folder to save images to')
-	parser.add_argument('--n', default=1, dest='n', type=int,
-		help='Size of dataset to generate (default 1)')
-	parser.add_argument('--save_png_too', action='store_true',
-		help='Also save a PNG for each image, for debugging')
-	parser.add_argument('--tf_record', action='store_true',
-		help='Generate the tf record for the dataset.')
-	args = parser.parse_args()
-	return args
-
-
-def main():
-	# Get the user provided arguments
-	args = parse_args()
-
-	generate_from_config(
-		config_path=args.config_path,
-		save_folder=args.save_folder,
-		n=args.n,
-		save_png_too=args.save_png_too,
-		tf_record=args.tf_record)
+from Utils.cli_maker import make_cli
 
 
 def generate_from_config(config_path, save_folder, n=1, save_png_too=False, tf_record=False):
-	"""Generates the strong lensing images by drawing parameters values from
-	the provided configuration dictionary.
+	"""Generate simulated strong lensing images
 
-	Arguments:
-	 - config_dict: Path to paltas configuration file
-	 - save_folder: Folder to save images to
-	 - n: Size of dataset to generate (default 1)
-	 - save_png_too: if True, also save a PNG for each image for debugging
-	 - tf_record: if True, generate the tfrecord for the dataset
+	Args:
+		config_path: Path to paltas configuration file
+		save_folder: Folder to save images to
+		n: Size of dataset to generate (default 1)
+		save_png_too: if True, also save a PNG for each image for debugging
+		tf_record: if True, generate the tfrecord for the dataset
 	"""
-
 	# Make the directory if not already there
 	if not os.path.exists(save_folder):
 		os.makedirs(save_folder)
@@ -151,4 +117,4 @@ def generate_from_config(config_path, save_folder, n=1, save_png_too=False, tf_r
 
 
 if __name__ == '__main__':
-	main()
+	make_cli(generate_from_config)
