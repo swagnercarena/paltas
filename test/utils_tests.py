@@ -1,6 +1,7 @@
+import copy
 import unittest
 from paltas.Utils import power_law, cosmology_utils, hubble_utils
-from paltas.Utils import lenstronomy_utils
+from paltas.Utils import lenstronomy_utils, cli_maker
 from scipy.integrate import quad
 import numpy as np
 from colossus.cosmology import cosmology
@@ -9,6 +10,7 @@ from astropy.wcs import wcs
 from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.data_api import DataAPI
 from scipy.signal import fftconvolve
+import sys
 
 
 class PowerLawTests(unittest.TestCase):
@@ -565,3 +567,26 @@ class LenstronomyUtilsTests(unittest.TestCase):
 		# Make sure the helper image is not convolved
 		helper_image = psf_helper.psf_model(image)
 		np.testing.assert_almost_equal(helper_image,image)
+
+
+class CLIMakerTests(unittest.TestCase):
+
+	def test_cli_maker(self):
+		got = dict()
+
+		def f(*args, a:int=12, b:str='hi', c:bool=False):
+			"""Stores the arguments you give it in got"""
+			got.update(args=args, a=a, b=b, c=c)
+
+		# Check that the argument parser works as intended
+		# We have to modify the sys.argv input which is bad practice
+		# outside of a test
+		old_sys = copy.deepcopy(sys.argv)
+		sys.argv = ['test','foo','bar','--a','42', '--c']
+		cli_maker.make_cli(f)
+		self.assertEqual(got['args'], ('foo', 'bar'))
+		self.assertEqual(got['a'], 42)
+		self.assertEqual(got['b'], 'hi')
+		self.assertEqual(got['c'], True)
+
+		sys.argv = old_sys

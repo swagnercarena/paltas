@@ -20,27 +20,15 @@ class GenerateTests(unittest.TestCase):
 		# Set the random seed so we don't run into trouble
 		np.random.seed(20)
 
-	def test_parse_args(self):
-		# Check that the argument parser works as intended
-		# We have to modify the sys.argv input which is bad practice
-		# outside of a test
-		old_sys = copy.deepcopy(sys.argv)
-		sys.argv = ['test','config_dict.py','save_folder',
-			'--n','1000']
-		args = generate.parse_args()
-		self.assertEqual(args.config_path,'config_dict.py')
-		self.assertEqual(args.save_folder,'save_folder')
-		self.assertEqual(args.n,1000)
-		sys.argv = old_sys
-
 	def test_main(self):
 		# Test that the main function makes some images
-		old_sys = copy.deepcopy(sys.argv)
-		n_generate = 21
 		output_folder = 'test_data/test_dataset'
-		sys.argv = ['test','test_data/config_dict.py',output_folder,'--n',
-			str(n_generate),'--save_png_too']
-		generate.main()
+		n_generate = 21
+		generate.generate_from_config(
+			config_path='test_data/config_dict.py',
+			save_folder=output_folder,
+			n=n_generate,
+			save_png_too=True)
 
 		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
 
@@ -86,8 +74,6 @@ class GenerateTests(unittest.TestCase):
 		for i in range(n_generate):
 			os.remove(os.path.join(output_folder,'image_%07d.png' % i))
 
-		sys.argv = old_sys
-
 		# Also clean up the test cosmos cache
 		test_cosmo_folder = 'test_data/cosmos/'
 		os.remove(test_cosmo_folder+'paltas_catalog.npy')
@@ -98,13 +84,12 @@ class GenerateTests(unittest.TestCase):
 
 	def test_main_drizzle(self):
 		# Test that the main function makes some images
-		old_sys = copy.deepcopy(sys.argv)
 		output_folder = 'test_data/test_dataset'
-		sys.argv = ['test','test_data/config_dict_drizz.py',output_folder,
-			'--n','10']
-		if tensorflow_installed:
-			sys.argv.append('--tf_record')
-		generate.main()
+		generate.generate_from_config(
+			config_path='test_data/config_dict_drizz.py',
+			save_folder=output_folder,
+			n=10,
+			tf_record=tensorflow_installed)
 
 		image_file_list = glob.glob(os.path.join(output_folder,'image_*.npy'))
 
@@ -146,8 +131,6 @@ class GenerateTests(unittest.TestCase):
 		os.remove(os.path.join(output_folder,'config_dict_drizz.py'))
 		if tensorflow_installed:
 			os.remove(os.path.join(output_folder,'data.tfrecord'))
-
-		sys.argv = old_sys
 
 		# Also clean up the test cosmos cache
 		test_cosmo_folder = 'test_data/cosmos/'

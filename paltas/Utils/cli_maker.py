@@ -26,7 +26,7 @@ def make_cli(main_f):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=desc)
     for pname, param in signature.items():
-        kwargs = dict(help=descs[pname])
+        kwargs = dict(help=descs.get(pname, None))
         has_default = param.default != param.empty
         if has_default and param.annotation is bool:
             # Flag argument. Note true/false inversion, gotta love argparse
