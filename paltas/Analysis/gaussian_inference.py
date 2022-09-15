@@ -72,7 +72,11 @@ class GaussianInference:
 		Other arguments will be passed to GaussianInference.__init__,
 		overriding values from the npz if desired.
 		"""
-		with np.load(npz_path) as npz:
+		with np.load(npz_path, allow_pickle=True) as npz:
+			if 'image_prec' not in npz and 'image_cov' in npz:
+				npz = dict(npz)
+				npz['image_prec'] = np.linalg.inv(npz['image_cov'])
+
 			kwargs_new = dict(
 				y_pred=npz['image_mean'][:],
 				prec_pred=npz['image_prec'][:],
@@ -99,6 +103,7 @@ class GaussianInference:
 			all_parameters=MARCH_2022_PARAMETERS,
 			training_population_mean=None,
 			training_population_cov=None,
+			n_images=None,
 			):
 		"""Infer means and (uncorrelated) standard deviations / sigmas
 			of a lens population.
@@ -130,6 +135,7 @@ class GaussianInference:
 		 	of training set. Defaults to March 2022 paper settings.
 		 - training_population_cov: (n_params, n_params) array with
 		 	population_cov of training set. Defaults to March 2022 paper.
+		 - n_images: if specified, use only the first n_images images.
 		"""
 		# Get mean/cov of the training data (interim prior)
 		if training_population_mean is None:
@@ -148,6 +154,12 @@ class GaussianInference:
 				prec_pred = np.linalg.inv(cov_pred)
 			else:
 				raise ValueError("Provide prec_pred or cov_pred")
+		prec_pred = symmetrize_batch(prec_pred)
+
+		# Down-select images (if needed)
+		if n_images is not None:
+			y_pred = y_pred[:n_images,...]
+			prec_pred = prec_pred[:n_images,...]
 
 		# Get indices of parameters to select
 		select_is = [
@@ -203,30 +215,29 @@ class GaussianInference:
 			mu_pred_array_input=y_pred,
 			prec_pred_array_input=prec_pred)
 
-		if log_sigma:
-			# Paltas' posterior always takes log(sigma) parameters,
-			# so the hyperprior will be uniform in log(sigma) ...
-			log_posterior = prob_class.log_post_omega
-		else:
-			# ... unless we wrap the posterior with a coordinate transform.
-			def log_posterior(x):
-				# Don't want to modify input in-place
-				x = x.copy()
-				# We got sigmas, but paltas expects log sigmas
-				sigmas = x[n_params:]
-				if sigmas.min() <= 0:
-					# No need to ask Paltas, impossible
-					return -np.inf
-				x[n_params:] = np.log(sigmas)
-				return prob_class.log_post_omega(x)
-
 		# Store attributes we need later
+		self.prob_class = prob_class
 		self.log_sigma = log_sigma
 		self.params = params
 		self.n_params = n_params
 		self.true_hyperparameters = true_hyperparameters
-		self.log_posterior = log_posterior
 		self.positive_is = positive_is
+
+	def log_posterior(self, x):
+		if self.log_sigma:
+			# Paltas' posterior always takes log(sigma) parameters,
+			# so the hyperprior will be uniform in log(sigma) ...
+			return self.prob_class.log_post_omega(x)
+		else:
+			# Don't want to modify input in-place
+			x = x.copy()
+			# We got sigmas, but paltas expects log sigmas
+			sigmas = x[self.n_params:]
+			if sigmas.min() <= 0:
+				# No need to ask Paltas, impossible
+				return -np.inf
+			x[self.n_params:] = np.log(sigmas)
+			return self.prob_class.log_post_omega(x)
 
 	def _summary_df(self):
 		sigma_prefix = 'log_std' if self.log_sigma else 'std'
@@ -313,7 +324,8 @@ class GaussianInference:
 			initial_walker_scatter=1e-3,
 			n_samples=int(1e4),
 			n_burnin=int(1e3),
-			n_walkers=40):
+			n_walkers=40,
+			**kwargs):
 		"""Return MCMC inference results
 
 		Arguments:
@@ -322,6 +334,7 @@ class GaussianInference:
 		 - n_samples: Number of MCMC samples to use (excluding burn-in)
 		 - n_burnin: Number of burn-in samples to use
 		 - n_walkers: Number of walkers to use
+		Other arguments passed to emcee.EnsembleSampler
 
 		Returns tuple with:
 		 - DataFrame with summary of results
@@ -346,7 +359,8 @@ class GaussianInference:
 		sampler = emcee.EnsembleSampler(
 			n_walkers,
 			ndim,
-			self.log_posterior)
+			self.log_posterior,
+			**kwargs)
 		sampler.run_mcmc(cur_state, n_burnin + n_samples, progress=True)
 		chain = sampler.chain[:,n_burnin:,:].reshape((-1,ndim))
 
