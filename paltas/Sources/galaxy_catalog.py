@@ -44,7 +44,7 @@ class GalaxyCatalog(SourceBase):
 	required_parameters = ('random_rotation','output_ab_zeropoint',
 		'z_source','center_x','center_y')
 	optional_parameters = ('source_absolute_magnitude', 
-		'pixel_width_multiplier',)
+		'pixel_width_multiplier', 'brightness_multiplier')
 	# This parameter must be set by class inheriting GalaxyCatalog
 	ab_zeropoint = None
 
@@ -182,10 +182,12 @@ class GalaxyCatalog(SourceBase):
 		# take into account the color of the object!
 		img *= 10**((self.source_parameters['output_ab_zeropoint']-
 			self.__class__.ab_zeropoint)/2.5)
+		img *= self.source_parameters.get('brightness_multiplier', 1)
 
 		pixel_width *= self.z_scale_factor(metadata['z'], z_new)
 
 		# Option to artificially make sources bigger or smaller
+		# (with constant surface brightness, so changing total flux)
 		pixel_width *= self.source_parameters.get('pixel_width_multiplier', 1)
 
 		# Apply the k correction to the image from the redshifting
