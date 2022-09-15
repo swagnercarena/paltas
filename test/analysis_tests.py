@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import glob
-from paltas import Analysis
+from paltas import Analysis, robustness_test
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.LightModel.light_model import LightModel
@@ -1829,3 +1829,22 @@ class TrainModelTests(unittest.TestCase):
 		os.rmdir('test_data/validation')
 
 		sys.argv = old_sys
+
+
+class EndToEndTests(unittest.TestCase):
+
+	def setUp(self):
+		np.random.seed(20)
+
+	def test_main(self):
+		# Run a robustness test (without substructure, to be quick)
+		df = robustness_test.robustness_test(
+			'subhalo/parameters/sigma_sub', 0,
+			'los/parameters/delta_los', 0,
+			'main_deflector/parameters/theta_E', 0.8,
+			n_images=10,
+			cleanup_results=True)
+		df = df.set_index('param')
+		fit_theta_E = df.loc['mean_main_deflector_parameters_theta_E'].mcmc_fit
+		self.assertGreater(fit_theta_E, 0.7)
+		self.assertLess(fit_theta_E, 0.9)
