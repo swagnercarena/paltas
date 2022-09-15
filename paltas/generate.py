@@ -22,7 +22,7 @@ from tqdm import tqdm
 import pandas as pd
 from paltas.Configs.config_handler import ConfigHandler
 
-from Utils.cli_maker import make_cli
+from .Utils.cli_maker import make_cli
 
 
 def generate_from_config(config_path, save_folder, n=1, save_png_too=False, tf_record=False):

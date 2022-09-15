@@ -2,10 +2,12 @@
 from pathlib import Path
 import random
 import re
+import requests
 import shutil
 import string
+import os
 
-from Utils.cli_maker import make_cli
+from .Utils.cli_maker import make_cli
 
 config_header = """\
 import sys
@@ -21,9 +23,10 @@ def robustness_test(
         n_images: int = 5,
         n_rotations: int = 32,
         config_path: str = None,
-        model_path: str = './xresnet34_full_marg_1_final.h5',
-        norm_path: str = './norms.csv',
-        n_mcmc_samples: int = 1000):
+        model_path: str = None,
+        norm_path: str = None,
+        n_mcmc_samples: int = 1000,
+        cleanup_results: bool=False):
     """Run an end-to-end test of paltas image generation and analysis.
 
     This script will:    
@@ -48,12 +51,16 @@ def robustness_test(
         n_images: number of images to generate
         n_rotations: average network predictions over n_rotations image
             rotations.
-        config_path: path to paltas config py file for base settings
+        config_path: path to paltas config py file for base settings.
             Defaults to paper_2203_00690.config_val
-        model_path: path to neural network h5 file
-        norm_path: path to norms.css file
+        model_path: path to neural network h5 file. If not provided,
+            use xresnet34_full_final.h5 in current dir; download as-needed.
+        norm_path: path to norms.csv file. Defaults to norms.csv from
+            the paper_2203_00690 folder.
         n_mcmc_samples: number of MCMC samples to do 
             (excluding 1k burn-in samples)
+        cleanup_results: delete all created files after a successful run.
+            Will only delete robustness_test_xxx folder if they are empty.
     """
     # Delayed imports, to make sure --help calls finish quickly
     import numpy as np
@@ -61,16 +68,26 @@ def robustness_test(
     import paltas.Analysis
 
     # Use default validation set config if no config given
+    paper_dir = paltas.Analysis.gaussian_inference.DEFAULT_TRAINING_SET.parent
     if config_path is None:
-        config_path = (
-            paltas.Analysis.gaussian_inference.DEFAULT_TRAINING_SET.parent
-            / 'config_val.py')
+        config_path = paper_dir / 'config_val.py'
     config_path = Path(config_path)
 
-    # Check we have the network and norms.csv.
-    # (and if not, crash now before expensive image generation)
+    # Check we have the network, download if nothing provided
+    if not model_path:
+        model_path = Path('xresnet34_full_final.h5')
+        if not model_path.exists():
+            print("Downloading network from zenodo. 86MB, maybe 30sec?")
+            # Download the paper network. Takes ~30sec with decent connection
+            url = 'https://zenodo.org/record/6326743/files/' + str(model_path)
+            with requests.get(url, stream=True) as r:
+                with open(url.split('/')[-1], 'wb') as f:
+                    shutil.copyfileobj(r.raw, f)
     if not Path(model_path).exists():
-        raise FileNotFoundError(f"Model h5 file {model_path} not found")
+        raise FileNotFoundError(f"h5 file {model_path} not found")
+
+    if norm_path is None:
+        norm_path = paper_dir / 'norms.csv'
     if not Path(norm_path).exists():
         raise FileNotFoundError(f"Norms csv file {norm_path} not found")
     
@@ -106,9 +123,7 @@ def robustness_test(
     dataset_name = (
         dataset_name[:92]
         + '_' 
-        + ''.join(random.choices(string.ascii_lowercase, k=8))
-    )
-    
+        + ''.join(random.choices(string.ascii_lowercase, k=8)))
 
     # Create config and write it to a .py file
     config = config_header.format(
@@ -145,9 +160,10 @@ def robustness_test(
         batch_size=min(n_images, 50),
         n_rotations=n_rotations,
         save_penultimate=False)
+    network_outputs_fn = results_folder / f"{dataset_name}_network_outputs.npz"
     shutil.copy(
         src=dataset_folder / 'network_outputs.npz',
-        dst=results_folder / f"{dataset_name}_network_outputs.npz")
+        dst=network_outputs_fn)
 
     # Run inference
     print(f"\n\nRunning final inference\n\n")
@@ -162,8 +178,9 @@ def robustness_test(
         summary[f'{code}_fit_unc'] = df['fit_unc']
 
     # Save and print inference results
+    inference_results_fn = results_folder / f"{dataset_name}_inference_results.npz"
     np.savez(
-        results_folder / f"{dataset_name}_inference_results.npz",
+        inference_results_fn,
         summary=summary.to_records(),
         freq_cov=freq_cov,
         chain=chain)
@@ -174,6 +191,20 @@ def robustness_test(
     except ImportError:
         print(summary)
         print("\n\nFor prettier result prints, pip install tabulate.")
+
+    if cleanup_results:
+        # Remove files we just made
+        shutil.rmtree(dataset_folder)
+        for fn in [inference_results_fn, network_outputs_fn, config_fn]:
+            os.remove(fn)
+        # Cleanup base folders if they are empty
+        for base_folder in [config_folder, images_base_folder, results_folder]:
+            contents = os.listdir(base_folder)
+            print(base_folder, contents)
+            if contents in ([], ['__pycache__']):
+                shutil.rmtree(base_folder)
+
+    return summary
 
 
 if __name__ == '__main__':

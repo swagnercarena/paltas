@@ -9,11 +9,10 @@ def make_cli(main_f):
 
     Docstring and type annotations determine argument parsing and help message.
     """
-    # Get the signature, will get argument names and types later
+    # Get the signature, used for getting argument names and types
     signature = inspect.signature(main_f).parameters
-    pname_list = list(signature.keys())
 
-    # Parse the docstring to get the argument types
+    # Parse the docstring to get the argument descriptions
     doc = docstring_parser.parse(main_f.__doc__)
     descs = {x.arg_name: x.description for x in doc.params}
 
@@ -27,13 +26,25 @@ def make_cli(main_f):
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=desc)
     for pname, param in signature.items():
-        has_default = (param.default != param.empty)
-        parser.add_argument(
-            ('--' if has_default else '') + pname,
-            nargs='*' if param.kind == param.VAR_POSITIONAL else None,
-            help=descs[pname],
-            type=param.annotation if has_default else None,
-            default=param.default if has_default else tuple())
+        kwargs = dict(help=descs[pname])
+        has_default = param.default != param.empty
+        if has_default and param.annotation is bool:
+            # Flag argument. Note true/false inversion, gotta love argparse
+            if param.default is True:
+                kwargs['action'] = 'store_false'
+            elif param.default is False:
+                kwargs['action'] = 'store_true'
+            else:
+                raise ValueError("flag args should default to true or false")
+        else:
+            # Regular argument
+            if has_default:
+                kwargs['default'] = param.default
+            if param.annotation != param.empty:
+                kwargs['type'] = param.annotation
+            if param.kind == param.VAR_POSITIONAL:
+                kwargs['nargs'] = '*'
+        parser.add_argument(('--' if has_default else '') + pname, **kwargs)
 
     args = parser.parse_args()
 
