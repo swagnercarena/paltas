@@ -25,3 +25,6 @@ lib64
 
 # COSMOS images
 datasets/cosmos
+
+# Network that may be downloaded during testing
+test/xresnet34_full_final.h5

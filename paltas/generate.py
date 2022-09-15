@@ -1,4 +1,4 @@
-#!/usr/bin/env pyhon
+#!/usr/bin/env python
 """
 Generate simulated strong lensing images using the classes and parameters of
 an input configuration dictionary.
