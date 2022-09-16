@@ -7,7 +7,8 @@ import shutil
 import string
 import os
 
-from .Utils.cli_maker import make_cli
+import numpy as np
+from paltas.Utils.cli_maker import make_cli
 
 config_header = """\
 import sys
@@ -62,9 +63,7 @@ def robustness_test(
         cleanup_results: delete all created files after a successful run.
             Will only delete robustness_test_xxx folder if they are empty.
     """
-    # Delayed imports, to make sure --help calls finish quickly
-    import numpy as np
-    import paltas
+    # Delayed import to speed up --help call
     import paltas.Analysis
 
     # Use default validation set config if no config given
