@@ -38,10 +38,20 @@ class SingleSersicSource(SourceBase):
 	- center_x - x-coordinate source center in units of arcseconds
 	- center_y - y-coordinate source center in units of arcseconds
 	- z_source - source redshift
+
+	Optional Parameters
+
+	-	source_absolute_magnitude - AB absolute magnitude of the source. The
+		light from the catalog galaxy will be rescaled to match this
+		magnitude.
+	-   include_k_correction - whether to do k corrections. If omitted,
+		assumed True.
 	"""
 
 	required_parameters = ('magnitude','output_ab_zeropoint','R_sersic',
 		'n_sersic','e1','e2','center_x','center_y','z_source')
+
+	optional_parameters = ('include_k_correction',)
 
 	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
@@ -62,8 +72,11 @@ class SingleSersicSource(SourceBase):
 
 		# mag to amp conversion
 		sersic_params.pop('magnitude')
-		mag_apparent = absolute_to_apparent(self.source_parameters['magnitude'],
-			self.source_parameters['z_source'],self.cosmo)
+		mag_apparent = absolute_to_apparent(
+			self.source_parameters['magnitude'],
+			self.source_parameters['z_source'],
+			self.cosmo,
+			include_k_correction=self.source_parameters.get('include_k_correction', True))
 		sersic_params['amp'] = SingleSersicSource.mag_to_amplitude(
 			mag_apparent,self.source_parameters['output_ab_zeropoint'],
 			sersic_params)

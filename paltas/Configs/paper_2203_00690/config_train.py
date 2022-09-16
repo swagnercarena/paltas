@@ -97,7 +97,10 @@ config_dict = {
 					names=['catalog_i'])['catalog_i'].to_numpy(),
 				pd.read_csv(
 					os.path.join(root_path,'paltas/Sources/val_galaxies.csv'),
-					names=['catalog_i'])['catalog_i'].to_numpy())}
+					names=['catalog_i'])['catalog_i'].to_numpy()),
+			# Paper studies and networks did not k-correct source light
+			# (and included no lens light)
+			'include_k_corrections': False}
 	},
 	'cosmology':{
 		'parameters':{
