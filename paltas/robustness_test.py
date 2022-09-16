@@ -11,11 +11,12 @@ import numpy as np
 from paltas.Utils.cli_maker import make_cli
 
 config_header = """\
+from copy import deepcopy
 import sys
 sys.path.append('{CONFIG_PATH}')
 from {CONFIG_NAME} import *
 
-config_dict = copy.deepcopy(config_dict)
+config_dict = deepcopy(config_dict)
 """
 
 

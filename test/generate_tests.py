@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import unittest
-import sys, glob, copy, os
+import glob, os
 from paltas import generate
 
 try:
@@ -74,13 +74,9 @@ class GenerateTests(unittest.TestCase):
 		for i in range(n_generate):
 			os.remove(os.path.join(output_folder,'image_%07d.png' % i))
 
-		# Also clean up the test cosmos cache
-		test_cosmo_folder = 'test_data/cosmos/'
-		os.remove(test_cosmo_folder+'paltas_catalog.npy')
-		for i in range(10):
-			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
-		os.rmdir(test_cosmo_folder+'npy_files')
+		cleanup_cosmos_cache()
 		os.rmdir(output_folder)
+
 
 	def test_main_drizzle(self):
 		# Test that the main function makes some images
@@ -132,10 +128,14 @@ class GenerateTests(unittest.TestCase):
 		if tensorflow_installed:
 			os.remove(os.path.join(output_folder,'data.tfrecord'))
 
-		# Also clean up the test cosmos cache
-		test_cosmo_folder = 'test_data/cosmos/'
-		os.remove(test_cosmo_folder+'paltas_catalog.npy')
-		for i in range(10):
-			os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
-		os.rmdir(test_cosmo_folder+'npy_files')
+		cleanup_cosmos_cache()
 		os.rmdir(output_folder)
+
+
+def cleanup_cosmos_cache():
+	"""Clean up the test cosmos cache"""
+	test_cosmo_folder = 'test_data/cosmos/'
+	os.remove(test_cosmo_folder+'paltas_catalog.npy')
+	for i in range(10):
+		os.remove(test_cosmo_folder+'npy_files/img_%d.npy'%(i))
+	os.rmdir(test_cosmo_folder+'npy_files')

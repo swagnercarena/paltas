@@ -18,6 +18,8 @@ from scipy import special
 from scipy.stats import truncnorm, lognorm, multivariate_normal
 from scipy.integrate import dblquad
 
+from generate_tests import cleanup_cosmos_cache
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -1842,9 +1844,17 @@ class EndToEndTests(unittest.TestCase):
 			'subhalo/parameters/sigma_sub', 0,
 			'los/parameters/delta_los', 0,
 			'main_deflector/parameters/theta_E', 0.8,
+			# Use mini-COSMOS dataset, do not select val galaxies (not in it)
+			'source/parameters/cosmos_folder', '"test_data/cosmos"',
+			'source/class', 'paltas.Sources.cosmos.COSMOSCatalog',
+			# Actually mini-COSMOS is a poor selection, all galaxies fail cuts..
+			# .. so relax (one of) the cuts
+			'source/parameters/faintest_apparent_mag', None,
 			n_images=10,
 			cleanup_results=True)
 		df = df.set_index('param')
 		fit_theta_E = df.loc['mean_main_deflector_parameters_theta_E'].mcmc_fit
 		self.assertGreater(fit_theta_E, 0.7)
 		self.assertLess(fit_theta_E, 0.9)
+
+		cleanup_cosmos_cache()
