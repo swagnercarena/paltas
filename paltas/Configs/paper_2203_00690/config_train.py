@@ -39,7 +39,7 @@ cosmos_folder = root_path + r'/datasets/cosmos/COSMOS_23.5_training_sample/'
 # Load the empirical psf. Grab a psf from the middle of the first chip.
 # Degrade to account for the 4x supersample
 hdul = fits.open(os.path.join(root_path,
-	'datasets/hst_psf/emp_psf_f814w.fits'))
+	'paltas/Utils/hst_psf/emp_psf_f814w.fits'))
 # Don't leave any 0 values in the psf.
 psf_pix_map = degrade_kernel(hdul[0].data[17]-np.min(hdul[0].data[17]),2)
 
