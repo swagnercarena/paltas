@@ -1179,7 +1179,7 @@ class PosteriorFunctionsTests(unittest.TestCase):
 
 		y_pred = np.random.normal(size=(batch_size,num_params))
 		y_true = np.random.normal(size=(batch_size,num_params))
-		std_pred = np.random.normal(size=(batch_size,num_params))
+		std_pred = np.abs(np.random.normal(size=(batch_size,num_params)))
 
 		Analysis.posterior_functions.plot_coverage(y_pred,y_true,std_pred,
 			parameter_names,block=False)
