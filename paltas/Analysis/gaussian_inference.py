@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 import paltas
 import paltas.Analysis
+from paltas.Configs.config_handler import load_config_module
 
 # Mappings from short to long parameter names and back
 mdef = 'main_deflector_parameters_'
@@ -384,20 +385,20 @@ def extract_mu_cov(config_path, params):
 		else:
 			raise ValueError(f"{config_path} has multiple python files")
 
-	ch = paltas.Configs.config_handler.ConfigHandler(config_path)
+	config_dict = load_config_module(config_path).config_dict
 
 	# Frst extract the mean and std of all possible parameters
 	# Most are mean deflector parameters ...
 	mean_std = {
 		pname: _get_mean_std(
-			ch.config_dict['main_deflector']['parameters'][short_names[pname]],
+			config_dict['main_deflector']['parameters'][short_names[pname]],
 			short_names[pname])
 		for pname in params if pname.startswith('main_deflector')
 	}
 	# ... except for sigma_sub
 	# TODO: other subhalo params!
 	mean_std[long_names['sigma_sub']] = _get_mean_std(
-		ch.config_dict['subhalo']['parameters']['sigma_sub'],
+		config_dict['subhalo']['parameters']['sigma_sub'],
 		'sigma_sub')
 
 	# Produce mean vector / cov matrix in the right order
