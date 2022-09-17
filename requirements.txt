@@ -10,3 +10,4 @@ numba>=0.52.0
 matplotlib>=3.3.3
 pyyaml
 docstring_parser
+numdifftools
