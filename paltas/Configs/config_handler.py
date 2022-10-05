@@ -68,7 +68,6 @@ class LenstronomyInputs:
 		)
 
 	def add_lenses(self, models, model_kwargs, redshifts):
-		print("Adding lenses", models)
 		self.kwargs_model['lens_model_list'] += models
 		self.kwargs_params['kwargs_lens'] += model_kwargs
 		self.kwargs_model['lens_redshift_list']+= redshifts
