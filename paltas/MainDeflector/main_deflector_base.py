@@ -6,11 +6,12 @@ This module contains the base class that all the main deflector classes will
 build from. Because the steps for rendering a main deflector can vary between
 different models, the required functions are very sparse.
 """
+import paltas
 from ..Utils.cosmology_utils import get_cosmology
 import copy
 
 
-class MainDeflectorBase():
+class MainDeflectorBase(paltas.BaseComponent):
 	"""Base class for rendering the main halo.
 
 	Args:
@@ -84,3 +85,6 @@ class MainDeflectorBase():
 			redshift for each component.
 		"""
 		raise NotImplementedError
+
+	def draw(self, result, **kwargs):
+		result.add_lenses(*self.draw_main_deflector())

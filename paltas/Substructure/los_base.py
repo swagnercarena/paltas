@@ -9,8 +9,10 @@ models, the required functions are very sparse.
 from ..Utils.cosmology_utils import get_cosmology
 import copy
 
+import paltas
 
-class LOSBase():
+
+class LOSBase(paltas.BaseComponent):
 	"""Base class for rendering the los of a main halo.
 
 	Args:
@@ -107,8 +109,15 @@ class LOSBase():
 				interpolation maps.
 
 		Returns:
-			(tuple): A tuple of two lists: the first is the interpolation
+			(tuple): A tuple of three lists: the first is the interpolation
 			profile type for each redshift slice and the second is the
-			lenstronomy kwargs for that profile.
+			lenstronomy kwargs for each profile, and the third is a list of 
+			redshift values for each profile.
 		"""
 		raise NotImplementedError
+
+
+	def draw(self, result, *, kwargs_numerics, numpix, **kwargs):
+		result.add_lenses(*self.draw_los())
+		result.add_lenses(*self.calculate_average_alpha(
+			numpix * kwargs_numerics['supersampling_factor']))

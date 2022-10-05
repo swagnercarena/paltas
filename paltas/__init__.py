@@ -4,6 +4,7 @@ __version__ = '0.1.1'
 
 # Analysis is not imported by default because it required tensorflow.
 
+from .core import *
 from . import Configs
 from . import Sampling
 from . import Sources

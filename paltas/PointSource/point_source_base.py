@@ -8,8 +8,10 @@ models, the required functions are very sparse.
 """
 import copy
 
+import paltas
 
-class PointSourceBase:
+
+class PointSourceBase(paltas.BaseComponent):
 	"""
 	Base class for producing lenstronomy PointSource arguments
 
@@ -60,3 +62,6 @@ class PointSourceBase:
 			a list containing the model kwargs dictionaries.
 		"""
 		raise NotImplementedError
+
+	def draw(self, result, **kwargs):
+		result.add_point_sources(*self.draw_point_source())
