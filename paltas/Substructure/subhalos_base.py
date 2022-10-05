@@ -9,8 +9,10 @@ models, the required functions are very sparse.
 from ..Utils.cosmology_utils import get_cosmology
 import copy
 
+import paltas
 
-class SubhalosBase():
+
+class SubhalosBase(paltas.BaseComponent):
 	""" Base class for rendering the subhalos of a main halo.
 
 	Args:
@@ -97,3 +99,6 @@ class SubhalosBase():
 			that subhalo, and the third is the redshift for each subhalo.
 		"""
 		raise NotImplementedError
+
+	def draw(self, result, **kwargs):
+		result.add_lenses(*self.draw_subhalos())

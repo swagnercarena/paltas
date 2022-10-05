@@ -9,7 +9,6 @@ from importlib import import_module
 import numba
 import numpy as np
 from ..Sampling.sampler import Sampler
-from ..Sources.galaxy_catalog import GalaxyCatalog
 from ..Utils.cosmology_utils import get_cosmology, ddt
 from ..Utils.hubble_utils import hubblify
 from ..Utils.lenstronomy_utils import PSFHelper
@@ -47,6 +46,45 @@ class MagnificationError(Exception):
 		message = 'Magnification cut of %.2f not met. '%(mag_cut)
 		message += 'If this is inteneded (i.e. in a loop) use try/except.'
 		super().__init__(message)
+
+
+class LenstronomyInputs:
+	"""Utility class for gathering lenstronomy inputs"""
+
+	def __init__(self):
+		self.kwargs_model = dict(
+			lens_model_list=[],
+			lens_redshift_list=[],
+			lens_light_model_list=[],
+			point_source_model_list=[],
+			source_light_model_list=[],
+			source_redshift_list=[]
+		)
+		self.kwargs_params = dict(
+			kwargs_lens=[],
+			kwargs_lens_light=[],
+			kwargs_ps=[],
+			kwargs_source=[]
+		)
+
+	def add_lenses(self, models, model_kwargs, redshifts):
+		print("Adding lenses", models)
+		self.kwargs_model['lens_model_list'] += models
+		self.kwargs_params['kwargs_lens'] += model_kwargs
+		self.kwargs_model['lens_redshift_list']+= redshifts
+
+	def add_sources(self, models, model_kwargs, redshifts):
+		self.kwargs_model['source_light_model_list'] += models
+		self.kwargs_params['kwargs_source'] += model_kwargs
+		self.kwargs_model['source_redshift_list'] += redshifts
+
+	def add_point_sources(self, models, model_kwargs):
+		self.kwargs_model['point_source_model_list'] += models
+		self.kwargs_params['kwargs_ps'] += model_kwargs
+
+	def add_lens_light(self, models, model_kwargs, redshifts=None):
+		self.kwargs_model['lens_light_model_list'] += models
+		self.kwargs_params['kwargs_lens_light'] += model_kwargs
 
 
 class ConfigHandler():
@@ -89,39 +127,25 @@ class ConfigHandler():
 		# Get the numerical kwargs numpix from the config
 		self.kwargs_numerics = self.config_module.kwargs_numerics
 		self.numpix = self.config_module.numpix
+		self.do_drizzle = 'drizzle' in self.config_dict
 
 		# Set up the paltas objects we'll use
-		self.los_class = None
-		self.subhalo_class = None
-		self.main_deflector_class = None
-		self.lens_light_class = None
-		self.point_source_class = None
-		self.do_drizzle = False
-		if 'los' in self.config_dict:
-			self.los_class = self.config_dict['los']['class'](
-				sample['los_parameters'],sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-		if 'subhalo' in self.config_dict:
-			self.subhalo_class = self.config_dict['subhalo']['class'](
-				sample['subhalo_parameters'],sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-		if 'main_deflector' in self.config_dict:
-			self.main_deflector_class = (
-				self.config_dict['main_deflector']['class'](
-					sample['main_deflector_parameters'],
-					sample['cosmology_parameters']))
-		if 'drizzle' in self.config_dict:
-			self.do_drizzle = True
-		if 'lens_light' in self.config_dict:
-			self.lens_light_class = self.config_dict['lens_light']['class'](
-				sample['cosmology_parameters'], sample['lens_light_parameters'])
-		if 'point_source' in self.config_dict:
-			self.point_source_class = self.config_dict['point_source']['class'](
-				sample['point_source_parameters'])
-
-		# We always need a source class
-		self.source_class = self.config_dict['source']['class'](
-			sample['cosmology_parameters'],sample['source_parameters'])
+		for model_name in [
+				'los', 'subhalo', 'main_deflector',
+				'lens_light', 'point_source', 'source']:
+			attr_name = model_name + '_class'
+			if model_name in self.config_dict:
+				model_class = self.config_dict[model_name]['class']
+				if model_name == 'lens_light':
+					# Special case, crooked path to initializing a source model
+					model_instance = model_class(
+						cosmology_parameters=sample['cosmology_parameters'], 
+						source_parameters=sample['lens_light_parameters'])
+				else:
+					model_instance = model_class.init_from_sample(sample)
+			else:
+				model_instance = None
+			setattr(self, attr_name, model_instance)
 
 		# See if a magnification cut was specified
 		if hasattr(self.config_module, 'mag_cut'):
@@ -176,101 +200,30 @@ class ConfigHandler():
 			self.draw_new_sample()
 		sample = self.get_current_sample()
 
-		# Populate the list of models and kwargs lenstronomy needs
-		complete_lens_model_list = []
-		complete_lens_model_kwargs = []
-		complete_z_list = []
-		lens_light_model_list = []
-		lens_light_kwargs_list = []
-		point_source_model_list = []
-		point_source_kwargs_list = []
-		source_model_list = []
-		source_kwargs_list = []
-		source_redshift_list = []
+		# Collect all the lenstronomy inputs
+		result = LenstronomyInputs()
+		for model in [
+				self.los_class, self.subhalo_class, self.main_deflector_class, 
+				self.lens_light_class, self.point_source_class, 
+				self.source_class]:
+			if model is None:
+				continue
+			model.update_from_sample(sample)
+			model.draw(
+				result,
+				# For recording metadata
+				sample=sample,
+				# For calculate_average_alpha
+				numpix=self.numpix, 
+				kwargs_numerics=self.kwargs_numerics,
+				# Lens light and sources go into different buckets
+				lens_light=model == self.lens_light_class)
 
-		# For each lensing object that's present, add them to the model and
-		# kwargs list
-		if self.los_class is not None:
-			self.los_class.update_parameters(
-				sample['los_parameters'],sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-			los_model_list, los_kwargs_list, los_z_list = (
-				self.los_class.draw_los())
-			interp_model_list, interp_kwargs_list, interp_z_list = (
-				self.los_class.calculate_average_alpha(self.numpix*
-					self.kwargs_numerics['supersampling_factor']))
-			complete_lens_model_list += los_model_list + interp_model_list
-			complete_lens_model_kwargs += los_kwargs_list + interp_kwargs_list
-			complete_z_list += los_z_list + interp_z_list
-		if self.subhalo_class is not None:
-			self.subhalo_class.update_parameters(
-				sample['subhalo_parameters'],
-				sample['main_deflector_parameters'],
-				sample['source_parameters'],sample['cosmology_parameters'])
-			sub_model_list, sub_kwargs_list, sub_z_list = (
-				self.subhalo_class.draw_subhalos())
-			complete_lens_model_list += sub_model_list
-			complete_lens_model_kwargs += sub_kwargs_list
-			complete_z_list += sub_z_list
-		if self.main_deflector_class is not None:
-			self.main_deflector_class.update_parameters(
-				sample['main_deflector_parameters'],sample['cosmology_parameters'])
-			main_model_list, main_kwargs_list, main_z_list = (
-				self.main_deflector_class.draw_main_deflector())
-			complete_lens_model_list += main_model_list
-			complete_lens_model_kwargs += main_kwargs_list
-			complete_z_list += main_z_list
-		if self.lens_light_class is not None:
-			self.lens_light_class.update_parameters(
-				cosmology_parameters=sample['cosmology_parameters'],
-				source_parameters=sample['lens_light_parameters'])
-			lens_light_model_list, lens_light_kwargs_list, _ = (
-				self.lens_light_class.draw_source())
-		if self.point_source_class is not None:
-			self.point_source_class.update_parameters(
-				sample['point_source_parameters'])
-			point_source_model_list,point_source_kwargs_list = (
-				self.point_source_class.draw_point_source())
+		kwargs_model, kwargs_params = result.kwargs_model, result.kwargs_params
 
-		# Now get the model and kwargs from the source class (which must
-		# always be present.)
-		self.source_class.update_parameters(
-			cosmology_parameters=sample['cosmology_parameters'],
-			source_parameters=sample['source_parameters'])
-
-		# For catalog objects we also want to save the catalog index
-		# and the (possibly randomized) additional rotation angle. We will
-		# therefore push these back into the sample object.
-		if isinstance(self.source_class,GalaxyCatalog):
-			catalog_i, phi = self.source_class.fill_catalog_i_phi_defaults()
-			source_model_list, source_kwargs_list, source_redshift_list = (
-				self.source_class.draw_source(catalog_i=catalog_i, phi=phi))
-			sample['source_parameters']['catalog_i'] = catalog_i
-			sample['source_parameters']['phi'] = phi
-		else:
-			source_model_list, source_kwargs_list, source_redshift_list = (
-				self.source_class.draw_source())
-
-		# Check to see if we need multiplane
-		multi_plane = False
-		if (len(np.unique(source_redshift_list))>1 or
-			len(np.unique(complete_z_list))>1):
-			multi_plane = True
-
-		# Package all of the lists into a model and parameters dictionary.
-		kwargs_model = {}
-		kwargs_params = {}
-		kwargs_model['lens_model_list'] = complete_lens_model_list
-		kwargs_params['kwargs_lens'] = complete_lens_model_kwargs
-		kwargs_model['lens_redshift_list'] = complete_z_list
-		kwargs_model['lens_light_model_list'] = lens_light_model_list
-		kwargs_params['kwargs_lens_light'] = lens_light_kwargs_list
-		kwargs_model['point_source_model_list'] = point_source_model_list
-		kwargs_params['kwargs_ps'] = point_source_kwargs_list
-		kwargs_model['source_light_model_list'] = source_model_list
-		kwargs_params['kwargs_source'] = source_kwargs_list
-		kwargs_model['source_redshift_list'] = source_redshift_list
-		kwargs_model['multi_plane'] = multi_plane
+		kwargs_model['multi_plane'] = (
+			len(np.unique(kwargs_model['lens_redshift_list'])) > 1
+			or len(np.unique(kwargs_model['source_redshift_list'])) > 1)
 
 		# The source convention is definied by the source parameters. This is
 		# also what the lens model classes use when setting their parameters.

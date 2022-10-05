@@ -9,8 +9,10 @@ models, the required functions are very sparse.
 import copy
 from ..Utils.cosmology_utils import get_cosmology
 
+import paltas
 
-class SourceBase():
+
+class SourceBase(paltas.BaseComponent):
 	"""
 	Base class for producing lenstronomy LightModel arguments
 
@@ -71,3 +73,9 @@ class SourceBase():
 			be None.
 		"""
 		raise NotImplementedError
+
+	def draw(self, result, lens_light=False, **kwargs):
+		if lens_light:
+			result.add_lens_light(*self.draw_source())
+		else:
+			result.add_sources(*self.draw_source())
