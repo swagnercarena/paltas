@@ -8,7 +8,7 @@ subhalo distributions into masses, concentrations, and positions for those
 NFW subhalos.
 """
 from .subhalos_base import SubhalosBase
-from . import nfw_functions
+from . import nfw_functions, dg19_utils
 import numba
 import numpy as np
 from ..Utils import power_law, cosmology_utils
@@ -138,31 +138,11 @@ class SubhalosDG19(SubhalosBase):
 		Returns:
 			(np.array): The concentration for each halo.
 		"""
-		# Get the concentration parameters
-		c_0 = self.subhalo_parameters['c_0']
-		zeta = self.subhalo_parameters['conc_zeta']
-		beta = self.subhalo_parameters['conc_beta']
-		m_ref = self.subhalo_parameters['conc_m_ref']
-		dex_scatter = self.subhalo_parameters['dex_scatter']
-
-		# The peak calculation is done by colossus. The cosmology must have
-		# already been set. Note these functions expect M_sun/h units (which
-		# you get by multiplying by h
-		# https://www.astro.ljmu.ac.uk/~ikb/research/h-units.html)
-		h = self.cosmo.h
-		peak_heights = peaks.peakHeight(m_200*h,z)
-		peak_height_ref = peaks.peakHeight(m_ref*h,0)
-
-		# Now get the concentrations and add scatter
-		concentrations = c_0*(1+z)**(zeta)*(peak_heights/peak_height_ref)**(
-			-beta)
-		if isinstance(concentrations,np.ndarray):
-			conc_scatter = np.random.randn(len(concentrations))*dex_scatter
-		elif isinstance(concentrations,float):
-			conc_scatter = np.random.randn()*dex_scatter
-		concentrations = 10**(np.log10(concentrations)+conc_scatter)
-
-		return concentrations
+		return dg19_utils.mass_concentration(
+			parameter_dict=self.subhalo_parameters,
+			cosmo=self.cosmo,
+			z=z,
+			m_200=m_200)
 
 	@staticmethod
 	def rejection_sampling(r_samps,r_200,r_3E):

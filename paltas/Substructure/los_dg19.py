@@ -12,7 +12,7 @@ import numpy as np
 from colossus.lss import peaks, bias
 from ..Utils import power_law, cosmology_utils
 import functools
-from . import nfw_functions
+from . import nfw_functions, dg19_utils
 import lenstronomy.Util.util as util
 from lenstronomy.LensModel.Profiles.nfw import NFW
 from scipy.signal import fftconvolve
@@ -345,31 +345,12 @@ class LOSDG19(LOSBase):
 		Returns:
 			(np.array): The concentration for each halo.
 		"""
-		# Get the concentration parameters
-		c_0 = self.los_parameters['c_0']
-		zeta = self.los_parameters['conc_zeta']
-		beta = self.los_parameters['conc_beta']
-		m_ref = self.los_parameters['conc_m_ref']
-		dex_scatter = self.los_parameters['dex_scatter']*scatter_mult
-
-		# The peak calculation is done by colossus. The cosmology must have
-		# already been set. Note these functions expect M_sun/h units (which
-		# you get by multiplying by h
-		# https://www.astro.ljmu.ac.uk/~ikb/research/h-units.html)
-		h = self.cosmo.h
-		peak_heights = peaks.peakHeight(m_200*h,z)
-		peak_height_ref = peaks.peakHeight(m_ref*h,0)
-
-		# Now get the concentrations and add scatter
-		concentrations = c_0*(1+z)**(zeta)*(peak_heights/peak_height_ref)**(
-			-beta)
-		if isinstance(concentrations,np.ndarray):
-			conc_scatter = np.random.randn(len(concentrations))*dex_scatter
-		elif isinstance(concentrations,float):
-			conc_scatter = np.random.randn()*dex_scatter
-		concentrations = 10**(np.log10(concentrations)+conc_scatter)
-
-		return concentrations
+		return dg19_utils.mass_concentration(
+			parameter_dict=self.los_parameters,
+			cosmo=self.cosmo,
+			z=z,
+			m_200=m_200,
+			scatter_mult=scatter_mult)
 
 	def convert_to_lenstronomy(self,z,z_masses,z_cart_pos):
 		"""Converts the subhalo masses and position to truncated NFW profiles
