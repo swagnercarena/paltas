@@ -7,12 +7,14 @@ This module contains the functions needed to turn the parameters of NFW
 subhalo distributions into masses, concentrations, and positions for those
 NFW subhalos.
 """
-from .subhalos_base import SubhalosBase
-from . import nfw_functions, dg19_utils
 import numba
 import numpy as np
+
+import paltas
+
+from .subhalos_base import SubhalosBase
+from . import nfw_functions, dg19_utils
 from ..Utils import power_law, cosmology_utils
-from colossus.halo.concentration import peaks
 
 
 class SubhalosDG19(SubhalosBase):
@@ -340,28 +342,137 @@ class SubhalosDG19(SubhalosBase):
 			returned redshift list is not necessary unless the output is
 			being combined with los substructure.
 		"""
-		# Initialize the lists that will contain our mass profile types and
-		# assosciated kwargs. If no subhalos are drawn, these will remain empty
-		subhalo_model_list = []
-		subhalo_kwargs_list = []
+		# Stupid wrapper for compatibility with the test suite
+		from paltas.Configs.config_handler import LenstronomyInputs
+		result = LenstronomyInputs()
+		self.draw(result)
+		return result['lens_model_list'], result['kwargs_lens'], result['lens_redshift_list']
 
+	def draw(self, result, **kwargs):
 		# Distribute subhalos according to https://arxiv.org/pdf/1909.02573.pdf
 		# DG_19 assumes NFWs distributed throughout the main deflector.
 		# For these NFWs we need positions, masses, and concentrations that
 		# we will then translate to Lenstronomy parameters.
 		subhalo_masses = self.draw_nfw_masses()
 
-		# It is possible for there to be no subhalos. In that regime
-		# just return empty lists
+		# If we have no subhalos, we have nothing to add to the results
 		if subhalo_masses.size == 0:
-			return (subhalo_model_list, subhalo_kwargs_list, [])
+			return
 
 		subhalo_cart_pos = self.sample_cored_nfw(len(subhalo_masses))
 		model_list, kwargs_list = self.convert_to_lenstronomy(
 			subhalo_masses,subhalo_cart_pos)
-		subhalo_model_list += model_list
-		subhalo_kwargs_list += kwargs_list
-		subhalo_z_list = [self.main_deflector_parameters['z_lens']]*len(
-			subhalo_masses)
+		redshift_list = [self.main_deflector_parameters['z_lens']] * len(subhalo_masses)
 
-		return (subhalo_model_list, subhalo_kwargs_list, subhalo_z_list)
+		add_galaxies_in_subhalos(
+			result, subhalo_masses, kwargs_list, 
+			subhalo_redshifts=redshift_list,
+			subhalo_parameters=self.subhalo_parameters,
+			source_parameters=self.source_parameters,
+			cosmo=self.cosmo)
+
+		result.add_lenses(
+			models=model_list, 
+			model_kwargs=kwargs_list,
+			redshifts=redshift_list)
+
+
+def add_galaxies_in_subhalos(
+		result, subhalo_masses, subhalo_kwargs, subhalo_redshifts, 
+		subhalo_parameters: dict, source_parameters: dict, 
+		cosmo, 
+		tidal_stripping=True,
+		_print_max=True):
+
+	model_list = []
+	kwargs_list = []
+	ghc_config = {
+		param_name[len('ghc_'):]: value 
+		for param_name, value in subhalo_parameters.items()
+		if param_name.startswith('ghc_')}
+
+	max_subhalo_i = np.argmax(subhalo_masses)
+
+	for subhalo_i, (mass, subh, redshift) in enumerate(zip(
+			subhalo_masses, subhalo_kwargs, subhalo_redshifts)):
+		# Do not paint galaxies onto subhalos below a threshold
+		# (by default, add no galaxies in subhalos)
+		if mass < ghc_config.get('m_min', np.inf):
+			continue
+
+		sersic_params = dict(
+			# Center the galaxy in the subhalo
+			center_x=subh['center_x'], 
+			center_y=subh['center_y'],
+			# ~1 seems reasonable, see ApJ 874:29, 2019
+			n_sersic=ghc_config.get('sersic_index', 1),
+		)
+
+		if tidal_stripping:
+			# Convert M200 to MPeak based on figure B1 of ApJ 915:116
+			# Cotroborated by p.3 of ApJ 917 7: difference is roughly a factor 2
+			mass *= 2 * 10**(0.2 * np.random.randn())
+
+		# Convert halo mass to stellar mass
+		# Power law indices to roughly match Figure 4 of ApJ 915:116
+		ghc_reference_mass = ghc_config.get('reference_mass', 6e6)
+		ghc_plaw_index = ghc_config.get('plaw_index', 2)
+		ghc_scatter_dex = ghc_config.get('scatter_dex', 0.5)   # Eyeball
+		mass_stars = (mass / ghc_reference_mass)**ghc_plaw_index
+		mass_stars *= 10**(ghc_scatter_dex * np.random.randn())
+
+		# Stellar mass (/Msun) to luminosity (/Lsun)
+		# See Figure 7 of Wei Du et al 2020 AJ 159 138
+		# and note F81W is very very roughly i, or maybe z, so
+		# log10([M/Msun]/ [L/Lsun]) ~ 0.4 +- 0.2
+		ghc_gamma_star = ghc_config.get('gamma_star', 0.4)
+		ghc_gamma_star_scatter = ghc_config.get('gamma_star_scatter', 0.2)
+		luminosity = mass_stars / 10**(
+			ghc_gamma_star + ghc_gamma_star_scatter * np.random.randn())
+
+		# Luminosty (/Lsun) to absolute magnitude
+		# Using the bolometric magnitude here, seems reasonably since gamma*
+		# doesn't depend much on color?
+		mag_absolute = ghc_config.get('mabs_sun', 4.74) - 2.5 * np.log10(luminosity)
+
+		# Absolute magnitude to half-light radius
+		ghc_rhalf_m_c = ghc_config.get('rhalf_mag_c', 15.886)
+		ghc_rhalf_m_a = ghc_config.get('rhalf_mag_a', -0.312)
+		ghc_rhalf_m_dex = ghc_config.get('rhalf_scatter_dex', 0.4)
+		rhalf_physical_parsec = ghc_rhalf_m_c * np.exp(ghc_rhalf_m_a * mag_absolute)
+		rhalf_physical_parsec *= 10**(ghc_rhalf_m_dex * np.random.randn())
+
+		# angle in radians ~= r_physical / d_angulardiam
+		radian_to_arcsec = 3600 * 180/np.pi
+		sersic_params['R_sersic'] = radian_to_arcsec * rhalf_physical_parsec / (
+			# Get Mpc/h from cosmosis, want pc -> * 1e6/h
+			cosmo.angularDiameterDistance(redshift)
+			* 1e6/cosmo.h)
+
+		# Convert the magnitude to lenstronomy's arcane "amp" parameter
+		# Some duplication with SingleSersicSource here
+		mag_apparent = cosmology_utils.absolute_to_apparent(
+			mag_absolute=mag_absolute,
+			z_light=redshift,
+			cosmo=cosmo,
+			include_k_correction=source_parameters.get('include_k_corrections', True))
+		sersic_params['amp'] = paltas.Sources.sersic.SingleSersicSource.mag_to_amplitude(
+			mag_apparent,
+			source_parameters['output_ab_zeropoint'],
+			sersic_params) * ghc_config.get('luminosity_multiplier', 1)
+
+		if _print_max and subhalo_i == max_subhalo_i:
+			print(
+				f"Halo mass {mass:.3g},\tmstar {mass_stars:.3g},\t"
+				f"Mabs {mag_absolute:.3g},\trhalf {rhalf_physical_parsec:.3g},\t"
+				f"mapp {mag_apparent:.3g}, "
+				f"y(really x) {subh['center_y']:.2f}, " 
+				f"x(really y) {subh['center_x']:.2f}")
+
+		model_list.append('SERSIC')
+		kwargs_list.append(sersic_params)
+		
+	result.add_lens_light(
+		models=model_list,
+		model_kwargs=kwargs_list
+	)
