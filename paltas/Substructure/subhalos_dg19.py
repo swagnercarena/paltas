@@ -123,8 +123,12 @@ class SubhalosDG19(SubhalosBase):
 		# all we have to do is sample from a power law).
 		norm = f_host*dA*sigma_sub*m_pivot**(-shmf_plaw_index-1)
 
-		# Draw from our power law and return the masses.
+		# Draw from our power law
 		masses = power_law.power_law_draw(m_min,m_max,shmf_plaw_index,norm)
+
+		# Reject halos probabilistically based on half-mode suppression 
+		masses = dg19_utils.halfmode_suppression(masses, self.subhalo_parameters)
+
 		return masses
 
 	def mass_concentration(self,z,m_200):

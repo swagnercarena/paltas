@@ -295,8 +295,12 @@ class LOSDG19(LOSBase):
 		halo_boost = self.two_halo_boost(z,z_lens,dz,lens_m200,r_max,r_min)
 		pl_norm *= dV * halo_boost * delta_los
 
-		# Draw from our power law and return the masses.
+		# Draw from our power law
 		masses = power_law.power_law_draw(m_min,m_max,pl_slope,pl_norm)
+
+		# Reject halos probabilistically based on half-mode suppression 
+		masses = dg19_utils.halfmode_suppression(masses, self.los_parameters)
+
 		return masses
 
 	def sample_los_pos(self,z,n_los):

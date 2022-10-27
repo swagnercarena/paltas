@@ -1,3 +1,4 @@
+import warnings
 from colossus.lss import peaks, bias
 import numpy as np
 
@@ -46,3 +47,24 @@ def mass_concentration(parameter_dict, cosmo, z, m_200, scatter_mult=1.):
 	concentrations = 10**(np.log10(concentrations)+conc_scatter)
 
 	return concentrations
+
+
+def halfmode_suppression(masses, param_dict):
+	m_hm = param_dict.get('halfmode_mass', 0)
+
+	if m_hm == 0 or not len(masses):
+		# No suppression / pure cold dark matter
+		return masses
+
+	# Get shape parameters controlling half-mode suppression
+	# These are fit to simulation, see discussion in Nadler et al. ApJ 917:7 
+	alpha = param_dict.get('halfmode_alpha', 1)
+	beta = param_dict.get('halfmode_beta', 1)
+	gamma = param_dict.get('halfmode_gamma', -1.3)
+
+	p_keep = (1 + (alpha * m_hm / masses)**beta) ** gamma
+	if not (0 <= p_keep.min() <= p_keep.max() <= 1):
+		warnings.warn("Strange values in p_keep... will be clipped")
+	p_keep = p_keep.clip(0, 1)
+
+	return masses[np.random.rand(len(masses)) < p_keep]
