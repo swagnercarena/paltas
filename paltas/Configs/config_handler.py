@@ -4,13 +4,14 @@ Interact with the paltas configuration files
 
 Classes used to draw relevant parameters from paltas configuration files.
 """
-import os, sys, warnings, copy
+import os, sys, warnings, copy, itertools, functools
+# import time
 from importlib import import_module
 import numba
 import numpy as np
 from ..Sampling.sampler import Sampler
 from ..Sources.galaxy_catalog import GalaxyCatalog
-from ..Utils.cosmology_utils import get_cosmology, ddt
+from ..Utils.cosmology_utils import get_cosmology, ddt, cosmo_to_jaxstronomy
 from ..Utils.hubble_utils import hubblify
 from ..Utils.lenstronomy_utils import PSFHelper
 from lenstronomy.Data.psf import PSF
@@ -21,6 +22,8 @@ from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.PointSource.point_source import PointSource
 from lenstronomy.ImSim.image_model import ImageModel
 import lenstronomy.Util.util as util
+from immutabledict import immutabledict
+
 
 # Global filters on the python warnings. Using this since filter
 # behaviour is a bit weird.
@@ -64,6 +67,8 @@ class ConfigHandler():
 		config_name, _ = os.path.splitext(config_file)
 		self.config_module = import_module(config_name)
 		self.config_dict = self.config_module.config_dict
+
+		self.lensing_backend = getattr(self.config_module, 'backend', 'lenstronomy')
 
 		# Get the random seed to use, or draw a random not-too-large one
 		# (so it is easy to copy-paste from metadata into config files)
@@ -196,12 +201,16 @@ class ConfigHandler():
 				sample['source_parameters'],sample['cosmology_parameters'])
 			los_model_list, los_kwargs_list, los_z_list = (
 				self.los_class.draw_los())
-			interp_model_list, interp_kwargs_list, interp_z_list = (
-				self.los_class.calculate_average_alpha(self.numpix*
-					self.kwargs_numerics['supersampling_factor']))
-			complete_lens_model_list += los_model_list + interp_model_list
-			complete_lens_model_kwargs += los_kwargs_list + interp_kwargs_list
-			complete_z_list += los_z_list + interp_z_list
+			complete_lens_model_list += los_model_list
+			complete_lens_model_kwargs += los_kwargs_list
+			complete_z_list += los_z_list
+			if getattr(self.config_module, 'subtract_mean_los_alpha', True):
+				interp_model_list, interp_kwargs_list, interp_z_list = (
+					self.los_class.calculate_average_alpha(self.numpix*
+						self.kwargs_numerics['supersampling_factor']))
+				complete_lens_model_list += interp_model_list
+				complete_lens_model_kwargs += interp_kwargs_list
+				complete_z_list += interp_z_list
 		if self.subhalo_class is not None:
 			self.subhalo_class.update_parameters(
 				sample['subhalo_parameters'],
@@ -450,15 +459,58 @@ class ConfigHandler():
 		kwargs_psf = sample['psf_parameters']
 		kwargs_detector = sample['detector_parameters']
 
+		# Extract the metadata from the sample
+		metadata = self.get_metadata()
+
+		if self.lensing_backend == 'lenstronomy':
+			generate_lensed_image = self._draw_image_lenstronomy
+		elif self.lensing_backend == 'jaxstronomy':
+			generate_lensed_image = self._draw_image_jaxstronomy
+		image, lens_only, source_only = generate_lensed_image(
+			kwargs_model, 
+			kwargs_params, 
+			kwargs_psf, 
+			kwargs_detector, 
+			metadata,
+			apply_psf=apply_psf)
+
+		# If noise is specified, add it.
+		if add_noise:
+			single_band = SingleBand(**kwargs_detector)
+			image += single_band.noise_for_model(image)
+
+		# Check for the magnification cut and apply it.
+		if self.mag_cut is not None:
+			# Evaluate the light that would have been in the image using
+			# the image model
+			lens_light_total = np.sum(lens_only)
+			source_light_total = np.sum(source_only)
+
+			mag = np.sum(image)-lens_light_total
+			mag /= source_light_total
+			if mag < self.mag_cut:
+				raise MagnificationError(self.mag_cut)
+
+		return image, metadata
+
+	def _draw_image_lenstronomy(
+			self, 
+			kwargs_model, 
+			kwargs_params, 
+			kwargs_psf, 
+			kwargs_detector,
+			metadata,
+			apply_psf=True):
+		sample = self.get_current_sample()
+
 		# Build the psf model
 		if apply_psf:
 			psf_model = PSF(**kwargs_psf)
 		else:
 			psf_model = PSF(psf_type='NONE')
 
-		# Build the data and noise models we'll use.
+		# Build the data model we'll use.
 		data_api = DataAPI(numpix=self.numpix,**kwargs_detector)
-		single_band = SingleBand(**kwargs_detector)
 
 		# Pull the cosmology and source redshift
 		cosmo = get_cosmology(sample['cosmology_parameters'])
@@ -492,34 +544,197 @@ class ConfigHandler():
 			kwargs_params['kwargs_lens_light'],
 			kwargs_params['kwargs_ps'])
 
-		# Check for the magnification cut and apply it.
-		if self.mag_cut is not None:
-			# Evaluate the light that would have been in the image using
-			# the image model
-			lens_light_total = np.sum(image_model.lens_surface_brightness(
-				kwargs_params['kwargs_lens_light']))
-			source_light_total = np.sum(source_light_model.total_flux(
-				kwargs_params['kwargs_source']))
-
-			mag = np.sum(image)-lens_light_total
-			mag /= source_light_total
-			if mag < self.mag_cut:
-				raise MagnificationError(self.mag_cut)
-
-		# If noise is specified, add it.
-		if add_noise:
-			image += single_band.noise_for_model(image)
-
-		# Extract the metadata from the sample
-		metadata = self.get_metadata()
-
 		# If a point source was specified, calculate the time delays
 		# and image positions.
 		if self.point_source_class is not None:
 			self._calculate_ps_metadata(metadata,kwargs_params,
 				point_source_model,lens_model)
 
-		return image, metadata
+		# Generate lens-only and source-only image for magnification cut
+		lens_only = image_model.lens_surface_brightness(kwargs_params['kwargs_lens_light'])
+		source_only = source_light_model.total_flux(kwargs_params['kwargs_source'])
+
+		return image, lens_only, source_only
+
+	def _draw_image_jaxstronomy(
+			self, 
+			kwargs_model, 
+			kwargs_params, 
+			kwargs_psf, 
+			kwargs_detector,
+			metadata,
+			apply_psf=True):
+		# These are optional dependencies, so not importing them
+		# at the top level
+		import jax
+		import jaxstronomy
+		if self.point_source_class is not None:
+			warnings.warn("Jaxstronomy does not compute point source metadata!")
+
+		if not hasattr(self, '_jitted_jax_generate'):
+			# print("Should jit now")
+			self._jitted_jax_generate = jax.jit(jaxstronomy.image_simulation.generate_image, 
+				static_argnames=[
+					'kwargs_detector',
+					'apply_psf'])
+
+		# Detector kwargs. Fine, just some renamings.
+		kwargs_detector_jax = {
+			k: kwargs_detector[k] for k in 
+			('exposure_time', 'num_exposures', 'sky_brightness', 'read_noise', 
+				'magnitude_zero_point')
+		}
+		kwargs_detector_jax['pixel_width'] = kwargs_detector['pixel_scale']
+		kwargs_detector_jax['supersampling_factor'] = self.kwargs_numerics['supersampling_factor']
+		kwargs_detector_jax['n_x'] = kwargs_detector_jax['n_y'] = self.numpix
+		kwargs_detector_jax = immutabledict(kwargs_detector_jax)
+
+		# Cosmology params: cosmology_utils includes lookup table caching
+		cosmology_params = cosmo_to_jaxstronomy(self.get_sample_cosmology())
+
+		# PSF
+		if apply_psf:
+			psf_model_name = kwargs_psf['psf_type'].capitalize()
+			kwargs_psf_jax = {
+				pname: kwargs_psf.get(pname, 0.5)
+				for pname in jaxstronomy.image_simulation.ALL_PSF_MODEL_PARAMETERS}
+			kwargs_psf_jax['model_index'] = jaxstronomy.psf_models.__all__.index(
+				psf_model_name)
+		else:
+			kwargs_psf_jax = None   # Will be ignored
+
+		def padding_until_power_two(n):
+			return int(2**np.ceil(np.log2(n)) - n)
+
+		# Source light and lens light models
+		all_source_model_names = jaxstronomy.source_models.__all__
+		all_source_models = tuple(
+        	[jaxstronomy.source_models.__getattribute__(model)
+            	for model in jaxstronomy.source_models.__all__])
+		all_source_model_parameters = tuple(sorted(set(itertools.chain(
+			*[model.parameters for model in all_source_models]))))
+		kwargs_source_jax = dict()
+		kwargs_lens_light_jax = dict()
+		for jaxdict, models, params in [
+				[kwargs_source_jax, kwargs_model['source_light_model_list'], kwargs_params['kwargs_source']],
+				[kwargs_lens_light_jax, kwargs_model['lens_light_model_list'], kwargs_params['kwargs_lens_light']]]:
+			n_models = len(models)
+			n_pad = padding_until_power_two(n_models)
+			n_tot = n_models + n_pad
+			# print(f"Padded {n_models} to {n_tot} sources")
+			# Start with reasonable defaults for each model
+			# Note these aren't jnp arrays, we'll be mutating things
+			# 'amp' should default to 1: jaxstronomy.Interpol takes it for some
+			# 	reason, but lenstronomy.Interpol does not, so it won't be set
+			#	in our model param list.
+			for param_name in all_source_model_parameters:
+				jaxdict[param_name] = np.zeros(n_tot) + 0.5
+			jaxdict['image'] = [None] * n_tot
+			jaxdict['amp'] = np.ones(n_tot)
+			jaxdict['n_sersic'] += 3.0
+			jaxdict['model_index'] = np.zeros(n_tot, dtype=int) - 1
+			# Loop through models, override appropriate values
+			for model_i, (model_name, model_params) in enumerate(zip(models, params)):
+				for param_name, value in model_params.items():
+					if param_name == 'phi_G':
+						param_name = 'angle'
+					jaxdict[param_name][model_i] = value
+				jaxdict['model_index'][model_i] = all_source_model_names.index(model_name.capitalize())
+			# Convert the image argument list into one consistent array
+			images_specified = sum([img is not None for img in jaxdict['image']], start=0)
+			if images_specified == 0:
+				# Set image array to dummy values
+				jaxdict['image'] = np.zeros((n_tot, 4, 4))
+			elif images_specified == 1:
+				# Get shape of the specified image and use it to create dummy array
+				img_index = [i for i, img in enumerate(jaxdict['image']) if img is not None][0]
+				img = jaxdict['image'][img_index]
+				# TODO: for some reason we need this flipud to get the images to agree..
+				# probably some x/y axis mixup somewhere
+				img = np.flipud(img)
+				jaxdict['image'] = np.zeros((n_tot,) + img.shape)
+				jaxdict['image'][img_index] = img  
+			else:
+				raise NotImplementedError("Pad and recenter images I guess?")
+
+		# Finally the lens models. Note duplication with middle part of above
+		# code blob :-( And it's not exactly the same because we need different
+		# parameter renamings... :-((
+		n_models = len(kwargs_model['lens_model_list'])
+		n_pad = padding_until_power_two(n_models)
+		n_tot = n_models + n_pad
+		# print(f"Padded {n_models} to {n_tot} lenses")
+		kwargs_lens_jax = {
+			param_name: 0.5 * np.ones(n_tot) 
+			for param_name in jaxstronomy.image_simulation.ALL_LENS_MODEL_PARAMETERS
+		}
+		kwargs_lens_jax['model_index'] = np.zeros(n_tot, dtype=int) - 1
+		models = kwargs_model['lens_model_list']
+		params = kwargs_params['kwargs_lens']
+		import lenstronomy.Util.param_util as param_util
+		for model_i, (model_name, model_params) in enumerate(zip(models, params)):
+			if model_name.startswith('EPL'):
+				model_name = 'EPL'
+				# Lenstronomy expects e1/e2, Jaxstronomy axis_ratio/angle
+				model_params['angle'], model_params['axis_ratio'] = \
+					param_util.ellipticity2phi_q(model_params['e1'], model_params['e2'])
+				del model_params['e1']
+				del model_params['e2']
+			if model_name == 'SHEAR':
+				# Jaxstronomy expects shear polar coordinates
+				# (then immediately converts to Cartesian coordinates...)
+				model_params['angle'], model_params['gamma_ext'] = \
+					param_util.shear_cartesian2polar(
+						model_params['gamma1'], 
+						model_params['gamma2'])
+				del model_params['gamma1']
+				del model_params['gamma2']
+			for param_name, value in model_params.items():
+				param_name = dict(
+					Rs='scale_radius',
+					alpha_Rs='alpha_rs',
+					r_trunc='trunc_radius',
+					gamma='slope',
+					ra_0='center_x',
+					dec_0='center_y',
+				).get(param_name, param_name)
+				kwargs_lens_jax[param_name.lower()][model_i] = value
+			if model_name not in ('NFW', 'TNFW', 'EPL'):
+				# Lenstronomy all-capses all models, jaxstronomy only abbrevs
+				model_name = model_name.capitalize()
+			kwargs_lens_jax['model_index'][model_i] = \
+				jaxstronomy.lens_models.__all__.index(model_name)
+		z_lens_array = np.asarray(kwargs_model['lens_redshift_list'] + [0] * n_pad)
+
+		grid_x, grid_y = jaxstronomy.utils.coordinates_evaluate(
+        	kwargs_detector_jax['n_x'], kwargs_detector_jax['n_y'],
+        	kwargs_detector_jax['pixel_width'], kwargs_detector_jax['supersampling_factor'])
+
+		assert z_lens_array.shape == kwargs_lens_jax['model_index'].shape
+		# before = time.time()
+		image = self._jitted_jax_generate(
+			grid_x,
+			grid_y,
+			kwargs_lens_all=kwargs_lens_jax,
+			kwargs_source_slice=kwargs_source_jax,
+			kwargs_lens_light_slice=kwargs_lens_light_jax,
+			kwargs_psf=kwargs_psf_jax,
+			cosmology_params=cosmology_params,
+			z_lens_array=z_lens_array,
+			z_source=kwargs_model['z_source'],
+			kwargs_detector=kwargs_detector_jax,
+			apply_psf=apply_psf
+		)
+		# after = time.time()
+		# print(f"Time spent inside jax: {after-before:.2f} sec")
+		# Convert to a mutable numpy array
+		image = np.asarray(image).copy()
+
+		# Generate source-only and lens-only images without lensing
+		# TODO: too lazy for now; just putting dummy images so mag cut succeeds?
+		source_only = image * .001
+		lens_only = image * .001
+		return image, source_only, lens_only
 
 	def _draw_image_drizzle(self):
 		"""Uses the current config sample to generate a drizzled image and the

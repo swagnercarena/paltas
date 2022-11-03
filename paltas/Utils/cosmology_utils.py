@@ -4,6 +4,8 @@ Add to the functionality of colossus
 
 Useful functions for extra cosmology calculations.
 """
+import functools
+
 from colossus.cosmology import cosmology
 import numpy as np
 
@@ -127,3 +129,35 @@ def get_k_correction(z_light):
 	"""
 
 	return 2.5 * np.log(1+z_light)
+
+
+def cosmo_to_jaxstronomy(cosmo: cosmology):
+	jaxmo_params = {
+		'omega_m_zero': cosmo.Om0,
+		'omega_b_zero': cosmo.Ob0,
+		'omega_de_zero': cosmo.Ode0,
+		'omega_rad_zero': cosmo.Or(z=0),
+		'temp_cmb_zero': cosmo.Tcmb0,
+		'hubble_constant': cosmo.H0,
+		'n_s': cosmo.ns,
+		'sigma_eight': cosmo.sigma8,
+	}
+	return _cosmo_to_jaxstronomy(tuple(jaxmo_params.items()))
+
+
+# Each image gets a different cosmo object, so we couldn't cache
+# the cosmo_to_jaxstronomy function directly (we could, but it would trigger
+# one conversion per image, which is expensive enough to matter)
+@functools.cache
+def _cosmo_to_jaxstronomy(jaxmo_param_tuple):
+	import jaxstronomy
+	jaxmo_params = dict(jaxmo_param_tuple)
+	# TODO: Talk with Sebastian about what values to use here
+	lookup_table_kwargs = dict(
+		z_lookup_max=2., 
+		dz=.01, 
+		r_min=1e-4, 
+		r_max=1e3, 
+		n_r_bins=100)
+	return jaxstronomy.cosmology_utils.add_lookup_tables_to_cosmology_params(
+		jaxmo_params, **lookup_table_kwargs)
