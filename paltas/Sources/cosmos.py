@@ -123,6 +123,10 @@ class COSMOSCatalog(GalaxyCatalog):
 
 			np.save(self.catalog_path,self.catalog)
 
+		self.max_image_size = max(
+			self.catalog['size_x'].max(),
+			self.catalog['size_y'].max())
+
 	def __len__(self):
 		return len(self.catalog)
 

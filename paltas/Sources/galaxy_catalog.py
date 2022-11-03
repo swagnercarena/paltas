@@ -47,6 +47,8 @@ class GalaxyCatalog(SourceBase):
 	# This parameter must be set by class inheriting GalaxyCatalog
 	ab_zeropoint = None
 
+	max_image_size = 1000
+
 	def __len__(self):
 		"""Returns the length of the catalog"""
 		raise NotImplementedError
@@ -196,6 +198,9 @@ class GalaxyCatalog(SourceBase):
 			self.normalize_to_mag(img,mag_apparent,
 				self.source_parameters['output_ab_zeropoint'],pixel_width)
 
+		# Pad the image to the maximum image size
+		img = pad_image(img, self.max_image_size, self.max_image_size)
+
 		# Convert to kwargs for lenstronomy
 		return (
 			['INTERPOL'],
@@ -273,3 +278,15 @@ class GalaxyCatalog(SourceBase):
 		return (
 			self.cosmo.angularDiameterDistance(z_old)
 			/ self.cosmo.angularDiameterDistance(z_new))
+
+
+def pad_image(img, nx, ny):
+	"""Returns img with zeros padded on both sides so shape is (nx, ny)"""
+	old_nx, old_ny = img.shape
+	result = np.zeros((nx, ny), dtype=img.dtype)
+	x_center = (nx - old_nx) // 2
+	y_center = (ny - old_ny) // 2
+	result[
+		x_center:x_center + old_nx, 
+		y_center:y_center + old_ny] = img
+	return result
