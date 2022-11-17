@@ -315,8 +315,11 @@ class DoubleSersicData(SingleSersicSource):
 			'n_sersic':self.source_parameters['n_disk'],
 			'e1':self.source_parameters['e1_disk'],
 			'e2':self.source_parameters['e2_disk']}
-		light_model_kwargs = [kwargs_bulge,kwargs_disk]
 
+		return self._complete_double_sersic_draw(mag_bulge, kwargs_bulge, mag_disk, kwargs_disk)
+
+	def _complete_double_sersic_draw(self, mag_bulge, kwargs_bulge, mag_disk, kwargs_disk):
+		light_model_kwargs = [kwargs_bulge,kwargs_disk]
 		# Add the shared parameters.
 		for kwargs in light_model_kwargs:
 			kwargs['center_x'] = self.source_parameters['center_x']
@@ -335,3 +338,70 @@ class DoubleSersicData(SingleSersicSource):
 		light_z_list = [self.source_parameters['z_source']]*2
 
 		return light_model_list,light_model_kwargs,light_z_list
+
+
+class DoubleSersicCOSMODC2(DoubleSersicData):
+
+	required_parameters = (
+		'cosmodc2_file', 'center_x', 'center_y', 'z_source')
+
+	def __init__(self, cosmology_parameters, source_parameters):
+		super().__init__(cosmology_parameters, source_parameters)
+
+		self.catalog = np.load(source_parameters['cosmodc2_file'])['arr_0'][:]
+		self.catalog = np.sort(self.catalog, order='redshift')
+
+	@staticmethod
+	def divide_magnitude(mag_total, f_bulge):
+		"""Returns the apparent magnitude for the bulge and the disk
+
+		Args:
+			mag_total (float): Total magnitude of the system
+			f_bulge (float): Fraction of light in the bulge
+
+		Returns:
+			(float,float): The magnitude of the bulge and the
+				magnitude of the disk as a tuple.
+		"""
+		# Convert from magnitude to some kind of luminosity (in unspecified units)
+		L_total = 10**(-0.4 * mag_total)
+		# Divide between bulge and disk
+		L_bulge = L_total * f_bulge
+		L_disk = L_total - L_bulge
+		return -2.5 * np.log10([L_bulge, L_disk])
+
+	def draw_source(self):
+		"""Returns lenstronomy LightModel kwargs
+
+		Returns:
+			(list,list,list) A list containing the model name(s),
+			a list containing the model kwargs dictionaries, and a list
+			containing the redshifts of each model. Redshifts list can
+			be None.
+		"""
+		# Find which simulated galaxy is closest to the lens redshift
+		# (should randomize sufficiently, assuming redshift is sampled
+		#  from a nice continuous distribution)
+		index = np.searchsorted(
+			self.catalog['redshift'], 
+			self.source_parameters['z_source'])
+		d = self.catalog[index]
+		# Convert from record to dict. Kludgy.
+		d = dict(zip(d.dtype.fields.keys(), d))
+
+		mag_bulge, mag_disk = self.divide_magnitude(
+			d['mag_i_lsst'], d['bulge_to_total_ratio_i'])
+
+		kwargs_bulge = {
+			'R_sersic': d['size_bulge_true'],
+			'n_sersic': d['sersic_bulge'],
+			'e1': d['ellipticity_1_bulge_true'],
+			'e2': d['ellipticity_2_bulge_true']}
+		kwargs_disk = {
+			'R_sersic': d['size_disk_true'],
+			'n_sersic': d['sersic_disk'],
+			'e1': d['ellipticity_1_disk_true'],
+			'e2': d['ellipticity_2_disk_true']}
+
+		return self._complete_double_sersic_draw(
+			mag_bulge, kwargs_bulge, mag_disk, kwargs_disk)

@@ -6,7 +6,7 @@ from paltas.Substructure.los_dg19 import LOSDG19
 from paltas.Substructure.subhalos_dg19 import SubhalosDG19
 from paltas.MainDeflector.simple_deflectors import PEMDShear
 from paltas.Sources.cosmos import COSMOSExcludeCatalog
-from paltas.Sources.sersic import DoubleSersicData
+from paltas.Sources.sersic import DoubleSersicCOSMODC2
 from paltas.Sampling import distributions
 from astropy.io import fits
 import pandas as pd
@@ -121,21 +121,14 @@ config_dict = {
 					os.path.join(root_path,'paltas/Sources/val_galaxies.csv'),
 					names=['catalog_i'])['catalog_i'].to_numpy())}
 	},
-	'lens_light':{
-		'class': DoubleSersicData,
-		'parameters':{
-			'magnitude,f_bulge':MagFBulgeWrapper(
-				mag_bulge_dist=norm(loc=-21.69,scale=0.75).rvs,
-				f_bulge_dist=uniform(loc=0.02,scale=0.95).rvs),
-			'output_ab_zeropoint':output_ab_zeropoint,
-			'n_bulge':norm(loc=4.0,scale=0.2).rvs,
-			'n_disk':norm(loc=1.0,scale=0.1).rvs,
-			'r_disk_bulge':lognorm(scale=np.exp(-1.5),s=2).rvs,
-			'e1_bulge':norm(loc=0.0,scale=0.1).rvs,
-			'e2_bulge':norm(loc=0.0,scale=0.1).rvs,
-			'e1_disk':norm(loc=0.0,scale=0.1).rvs,
-			'e2_disk':norm(loc=0.0,scale=0.1).rvs,
-			'center_x':None,'center_y':None,'z_source':None
+	'lens_light': {
+		'class': DoubleSersicCOSMODC2,
+		'parameters': {
+			'cosmodc2_file': root_path + r'/datasets/cosmodc2/cosmodc2_selected_10132_10142_18mag.npz',
+			'output_ab_zeropoint': output_ab_zeropoint,
+			'center_x': None,
+			'center_y': None,
+			'z_source': None
 		}
 	},
 	'cosmology':{
