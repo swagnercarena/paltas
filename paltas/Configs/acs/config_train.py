@@ -181,8 +181,8 @@ config_dict = {
 				dist=uniform(loc=0.1,scale=0.06).rvs),
 			'main_deflector:z_lens,lens_light:z_source,source:z_source':(
 				distributions.RedshiftsLensLight(z_lens_min=0.06,
-					z_lens_mean=0.24,z_lens_std=0.14,z_source_min=0.3,
-					z_source_mean=0.70,z_source_std=0.24)),
+					z_lens_mean=0.21,z_lens_std=0.08,z_source_min=0.3,
+					z_source_mean=0.65,z_source_std=0.2)),
 			'main_deflector:center_x,lens_light:center_x':(
 				distributions.DuplicateScatter(
 					dist=norm(loc=0,scale=0.16).rvs,scatter=0.05)),
