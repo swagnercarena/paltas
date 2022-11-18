@@ -13,6 +13,7 @@ import numpy as np
 from lenstronomy.LensModel.Profiles import sersic_utils
 from scipy.special import gammainc, gamma
 from scipy.optimize import fsolve
+import warnings
 
 
 class SingleSersicSource(SourceBase):
@@ -368,7 +369,10 @@ class DoubleSersicCOSMODC2(DoubleSersicData):
 		# Divide between bulge and disk
 		L_bulge = L_total * f_bulge
 		L_disk = L_total - L_bulge
-		return -2.5 * np.log10([L_bulge, L_disk])
+		# f_bulge could be 0 or 1, avoid runtimewarning
+		with warnings.catch_warnings():
+			warnings.simplefilter('ignore')
+			return -2.5 * np.log10([L_bulge, L_disk])
 
 	def draw_source(self):
 		"""Returns lenstronomy LightModel kwargs
