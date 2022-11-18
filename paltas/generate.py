@@ -24,7 +24,11 @@ from paltas.Configs.config_handler import ConfigHandler
 from paltas.Utils.cli_maker import make_cli
 
 
-def generate_from_config(config_path, save_folder, n=1, save_png_too=False, tf_record=False):
+def generate_from_config(
+		config_path, save_folder, 
+		n: int = 1, 
+		save_png_too: bool = False, 
+		tf_record: bool = False):
 	"""Generate simulated strong lensing images
 
 	Args:
