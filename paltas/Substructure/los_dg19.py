@@ -11,7 +11,6 @@ import numba
 import numpy as np
 from colossus.lss import peaks, bias
 from ..Utils import power_law, cosmology_utils
-import functools
 from . import nfw_functions
 import lenstronomy.Util.util as util
 from lenstronomy.LensModel.Profiles.nfw import NFW
@@ -121,7 +120,6 @@ class LOSDG19(LOSBase):
 
 		return -1/3*nfn_eval*rho_m/m**2*d_ln_sigma_d_ln_r
 
-	@functools.lru_cache(maxsize=None)
 	def power_law_dn_dm(self,z,m_min,m_max,n_dm=100):
 		"""Returns the best fit power law parameters for the physical number
 		density at a given redshift and mass range.
@@ -192,7 +190,6 @@ class LOSDG19(LOSBase):
 			model='tinker10')
 		return 1+np.mean(xi_halo)
 
-	@functools.lru_cache(maxsize=1024)
 	def cone_angle_to_radius(self,z,z_lens,z_source,cone_angle,
 		angle_buffer=0.8):
 		"""Returns the radius in kpc at the given redshift for the given cone
@@ -228,7 +225,6 @@ class LOSDG19(LOSBase):
 			r_los *= 1 - scal_factor
 		return r_los
 
-	@functools.lru_cache(maxsize=1024)
 	def volume_element(self,z,z_lens,z_source,dz,cone_angle,angle_buffer=0.8):
 		"""Returns the physical volume element at the given redshift
 
