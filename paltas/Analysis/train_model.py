@@ -142,7 +142,7 @@ def train_model(training_config, tensorboard_dir=None):
 		print('Make sure your validation images already have noise! Noise ' +
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
-		all_params,min(batch_size,n_val_npy),1,
+		all_params,min(batch_size,n_val_npy),n_epochs,
 		norm_images=norm_images,input_norm_path=input_norm_path,
 		kwargs_detector=None,log_learning_params=log_learning_params)
 
