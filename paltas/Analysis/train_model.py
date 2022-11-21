@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Initialize and train a neural posterior estimator on a strong lensing image
@@ -10,36 +11,20 @@ from paltas.Analysis import dataset_generation, loss_functions, conv_models
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
 from tensorflow.keras import optimizers
 import pandas as pd
+from paltas.Utils.cli_maker import make_cli
 
 
-def parse_args():
-	"""Parse the input arguments by the user
+def train_model(training_config, tensorboard_dir=None):
+	"""Train a neural network on simulated data
 
-	Returns:
-		(argparse.Namespace): An instance of the Namespace object with the
-		users provided values.
+	Args:
+		training_config: Path to configuration for training the model
+		tensorboard_dir: Optional path to save tensorboard output to
 
 	"""
-	# Initialize the parser and the possible inputs
-	parser = argparse.ArgumentParser()
-	parser.add_argument('training_config', help='Path to configuration for '
-		+'training the model.')
-	parser.add_argument('--tensorboard_dir', default=None, type=str,
-		dest='tensorboard_dir', help='Optional path to save a tensorboard ' +
-		'output to')
-	args = parser.parse_args()
-	return args
-
-
-def main():
-	"""The main script to run from the command line.
-	"""
-	# Get the user provided arguments
-	args = parse_args()
-
 	# Get the training parameters from the provided .py file
 	config_dir, config_file = os.path.split(os.path.abspath(
-		args.training_config))
+		training_config))
 	sys.path.insert(0, config_dir)
 	config_name, _ = os.path.splitext(config_file)
 	config_module = import_module(config_name)
@@ -219,8 +204,8 @@ def main():
 	# Set up the callbacks for our training
 	callbacks = []
 	# If requested, save our model progress to a tensorboard directory
-	if args.tensorboard_dir is not None:
-		tensorboard = TensorBoard(log_dir=args.tensorboard_dir,
+	if tensorboard_dir is not None:
+		tensorboard = TensorBoard(log_dir=tensorboard_dir,
 			update_freq='batch')
 		callbacks.append(tensorboard)
 	# Save the model weights as long as the validation loss is decreasing
@@ -235,4 +220,4 @@ def main():
 
 
 if __name__ == '__main__':
-	main()
+	make_cli(train_model)

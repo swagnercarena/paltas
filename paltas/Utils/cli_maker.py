@@ -8,6 +8,8 @@ def make_cli(main_f):
     """Wrap main_f in an argparse command-line interface
 
     Docstring and type annotations determine argument parsing and help message.
+    
+    Un-annotated arguments will be passed as strings.
     """
     # Get the signature, used for getting argument names and types
     signature = inspect.signature(main_f).parameters
