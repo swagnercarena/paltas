@@ -11,7 +11,7 @@ import numba
 import numpy as np
 from colossus.lss import peaks, bias
 from ..Utils import power_law, cosmology_utils
-from . import nfw_functions
+from . import nfw_functions, dg19_utils
 import lenstronomy.Util.util as util
 from lenstronomy.LensModel.Profiles.nfw import NFW
 from scipy.signal import fftconvolve
