@@ -1,1 +1,3 @@
 tensorflow>=2.4.1
+numdifftools
+emcee

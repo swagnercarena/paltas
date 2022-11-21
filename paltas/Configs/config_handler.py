@@ -86,6 +86,16 @@ class LenstronomyInputs:
 		self.kwargs_params['kwargs_lens_light'] += model_kwargs
 
 
+def load_config_module(config_path):
+	"""Return imported config module from config_path"""
+	config_dir, config_file = os.path.split(os.path.abspath(config_path))
+	sys.path.insert(0, config_dir)
+	config_name, _ = os.path.splitext(config_file)
+	config_module = import_module(config_name)
+	sys.path = sys.path[1:]
+	return config_module
+
+
 class ConfigHandler():
 	"""Class that parses the configuration files to extract images and lenstronomy
 	configurations.
@@ -96,10 +106,7 @@ class ConfigHandler():
 
 	def __init__(self,config_path,):
 		# Get the dictionary from the provided .py file
-		config_dir, config_file = os.path.split(os.path.abspath(config_path))
-		sys.path.insert(0, config_dir)
-		config_name, _ = os.path.splitext(config_file)
-		self.config_module = import_module(config_name)
+		self.config_module = load_config_module(config_path)
 		self.config_dict = self.config_module.config_dict
 
 		# Get the random seed to use, or draw a random not-too-large one

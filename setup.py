@@ -24,6 +24,7 @@ setup(
 	packages=find_packages(PACKAGE_PATH),
 	package_dir={'paltas': 'paltas'},
 	include_package_data=True,
+	package_data={'': ['*.csv', '*.fits']},
 	install_requires=required_packages,
 	license='MIT',
 	zip_safe=False

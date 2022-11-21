@@ -7,6 +7,8 @@ This module contains the class used to sample parameters for our train and test
 set from the input distributions.
 """
 import warnings
+from scipy._lib._util import check_random_state
+
 # Definte the components we need the sampler to consider.
 # TODO: add point source & lens light
 lensing_components = ['subhalo','los','main_deflector','source','lens_light',
@@ -54,14 +56,32 @@ class Sampler():
 		# Iterate through the keys in the draw_dict and populate the values of
 		# param_dict correctly.
 		for key in sorted(draw_dict):
+
+			value = draw_dict[key]
+
+			# Dirty workaround for https://github.com/scipy/scipy/issues/16998
+			# Explicitly ensure the distributions use the global random state
+			if hasattr(value, '__self__'):
+				# Scipy distribution
+				value.__self__.random_state = check_random_state(None)
+			elif hasattr(value, 'dist'):
+				# Duplicate or MultipleValues. 
+				# Other custom paltas dists not yet supported..
+				value.dist.__self__.random_state = check_random_state(None)
+
+			if callable(value):
+				# Sampling function: call to draw
+				draw = value()
+			else:
+				# Fixed value
+				draw = value
+
 			# If the key implies that multiple parameters will be drawn from
 			# the distribution, draw the value and then iterate through the
 			# parameters.
 			if ',' in key:
 				# Get the parameters, removing whitespace
 				params = key.replace(' ','').split(',')
-				# Draw the values
-				draw = draw_dict[key]()
 				# Check for consistency
 				if len(params) != len(draw):
 					raise ValueError('Parameters of length %d do'%(len(params))
@@ -69,12 +89,8 @@ class Sampler():
 				# Populate the keys
 				for i, param in enumerate(params):
 					param_dict[param] = draw[i]
-			# If it's a univariate function just call it.
-			elif callable(draw_dict[key]):
-				param_dict[key] = draw_dict[key]()
-			# If it's a fixed value just populate it.
 			else:
-				param_dict[key] = draw_dict[key]
+				param_dict[key] = draw
 
 		return param_dict
 

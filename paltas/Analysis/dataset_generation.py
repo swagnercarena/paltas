@@ -10,7 +10,8 @@ tensorflow.
 import numpy as np
 import tensorflow as tf
 import pandas as pd
-import glob, os
+import os
+from pathlib import Path
 from tqdm import tqdm
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 import warnings
@@ -79,8 +80,8 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 	return norm_dict
 
 
-def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
-	cov_mat=None):
+def unnormalize_outputs(input_norm_path,learning_params,mean=None,standard_dev=None,
+	cov_mat=None, prec_mat=None):
 	"""Given NN outputs, undo the normalization step and return the parameters
 	in the original space
 
@@ -95,7 +96,10 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 			n_params) containing the standard deviation estimate for each
 			parameter.
 		cov_mat (np.array): A numpy array with dimensions (batch_size,n_params,
-			n_params) containing the covariance matrix estiamtes for each
+			n_params) containing the covariance matrix estimates for each
+			image.
+		prec_mat (np.array): A numpy array with dimensions (batch_size,n_params,
+			n_params) containing the precision matrix estimates for each
 			image.
 
 	Notes:
@@ -108,9 +112,10 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 		param_mean = norm_dict['mean'][param]
 		param_std = norm_dict['std'][param]
 
-		# We always want to correct the mean
-		mean[:,lpi] *= param_std
-		mean[:,lpi] += param_mean
+		# If provided we want to correct the mean
+		if mean is not None:
+			mean[:,lpi] *= param_std
+			mean[:,lpi] += param_mean
 
 		# If provided we want to correct the standard deviation
 		if standard_dev is not None:
@@ -120,6 +125,11 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 		if cov_mat is not None:
 			cov_mat[:,lpi,:] *= param_std
 			cov_mat[:,:,lpi] *= param_std
+
+		# If provided we want to correct the precision matrix
+		if prec_mat is not None:
+			prec_mat[:,lpi,:] /= param_std
+			prec_mat[:,:,lpi] /= param_std
 
 
 def kwargs_detector_to_tf_noise(image,kwargs_detector):
@@ -163,8 +173,9 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 		tf_record_path (str): The path to which the TFRecord will be saved
 	"""
 	# Pull the list of numpy filepaths from the directory
-	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
-	npy_file_list = list(sorted(npy_file_list))
+	# Path().glob > glob.glob(os.path.join) for dirs with funny chars
+	npy_file_list = Path(npy_folder).glob('image_*.npy')
+	npy_file_list = list(sorted([str(x) for x in npy_file_list]))
 	# Open label csv
 	metadata = pd.read_csv(metadata_path, index_col=None)
 
@@ -433,7 +444,7 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 		(np.array): A numpy array containing the rotated images.
 
 	Notes:
-		output is changed in place.
+		output is changed in place -- image_batch is not!!
 	"""
 
 	# Rotate the image

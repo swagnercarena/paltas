@@ -40,10 +40,15 @@ class GalaxyCatalog(SourceBase):
 	-	source_absolute_magnitude - AB absolute magnitude of the source. The
 		light from the catalog galaxy will be rescaled to match this
 		magnitude.
+	-   include_k_correction - whether to do k corrections. If omitted,
+		assumed True.
+
 	"""
 	required_parameters = ('random_rotation','output_ab_zeropoint',
 		'z_source','center_x','center_y')
-	optional_parameters = ('source_absolute_magnitude')
+	optional_parameters = ('source_absolute_magnitude', 
+		'pixel_width_multiplier', 'brightness_multiplier',
+		'include_k_correction')
 	# This parameter must be set by class inheriting GalaxyCatalog
 	ab_zeropoint = None
 
@@ -181,18 +186,26 @@ class GalaxyCatalog(SourceBase):
 		# take into account the color of the object!
 		img *= 10**((self.source_parameters['output_ab_zeropoint']-
 			self.__class__.ab_zeropoint)/2.5)
+		img *= self.source_parameters.get('brightness_multiplier', 1)
 
 		pixel_width *= self.z_scale_factor(metadata['z'], z_new)
 
-		# Apply the k correction to the image from the redshifting
-		self.k_correct_image(img,metadata['z'],z_new)
+		# Option to artificially make sources bigger or smaller
+		# (with constant surface brightness, so changing total flux)
+		pixel_width *= self.source_parameters.get('pixel_width_multiplier', 1)
+
+		if self.source_parameters.get('include_k_correction', True):
+			# Apply the k correction to the image from the redshifting
+			self.k_correct_image(img,metadata['z'],z_new)
 
 		# If a desired absolute magnitude was specified, scale the image
 		# accordingly
 		if 'source_absolute_magnitude' in self.source_parameters:
 			mag_apparent = absolute_to_apparent(
 				self.source_parameters['source_absolute_magnitude'],
-				self.source_parameters['z_source'],self.cosmo)
+				self.source_parameters['z_source'],
+				self.cosmo,
+				include_k_correction=self.source_parameters.get('include_k_correction', True))
 			self.normalize_to_mag(img,mag_apparent,
 				self.source_parameters['output_ab_zeropoint'],pixel_width)
 
@@ -217,7 +230,7 @@ class GalaxyCatalog(SourceBase):
 			z_new (float): The new redshift of the object
 
 		Notes:
-			image will be changed in place
+			image will be changed in place.
 		"""
 		# Calculate the k-correction for the change in redshift
 		mag_k_correct = get_k_correction(z_new) - get_k_correction(z_original)
