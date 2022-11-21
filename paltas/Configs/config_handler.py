@@ -12,6 +12,7 @@ from ..Sampling.sampler import Sampler
 from ..Utils.cosmology_utils import get_cosmology, ddt
 from ..Utils.hubble_utils import hubblify
 from ..Utils.lenstronomy_utils import PSFHelper
+from ..Sources.source_base import make_lens_light_class
 from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.SimulationAPI.observation_api import SingleBand
@@ -143,12 +144,9 @@ class ConfigHandler():
 			if model_name in self.config_dict:
 				model_class = self.config_dict[model_name]['class']
 				if model_name == 'lens_light':
-					# Special case, crooked path to initializing a source model
-					model_instance = model_class(
-						cosmology_parameters=sample['cosmology_parameters'], 
-						source_parameters=sample['lens_light_parameters'])
-				else:
-					model_instance = model_class.init_from_sample(sample)
+					# Transform the source class into a lens light class
+					model_class = make_lens_light_class(model_class)
+				model_instance = model_class.init_from_sample(sample)
 			else:
 				model_instance = None
 			setattr(self, attr_name, model_instance)
@@ -221,9 +219,7 @@ class ConfigHandler():
 				sample=sample,
 				# For calculate_average_alpha
 				numpix=self.numpix, 
-				kwargs_numerics=self.kwargs_numerics,
-				# Lens light and sources go into different buckets
-				lens_light=model == self.lens_light_class)
+				kwargs_numerics=self.kwargs_numerics,)
 
 		kwargs_model, kwargs_params = result.kwargs_model, result.kwargs_params
 
