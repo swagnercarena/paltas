@@ -1,7 +1,7 @@
 # Configuration for lenses with varied redshift and realistic lens light.
 
 import numpy as np
-from scipy.stats import norm, truncnorm, uniform, lognorm
+from scipy.stats import norm, truncnorm, uniform
 from paltas.Substructure.los_dg19 import LOSDG19
 from paltas.Substructure.subhalos_dg19 import SubhalosDG19
 from paltas.MainDeflector.simple_deflectors import PEMDShear
