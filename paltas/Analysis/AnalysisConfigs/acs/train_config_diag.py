@@ -1,11 +1,10 @@
 import os
 from pathlib import Path
 
-#batch_size = 256
-batch_size = 32   # TEMP, training on laptop!
+batch_size = 64   # Training on laptop...
 
 # The number of epochs to train for
-n_epochs = 100
+n_epochs = 10   # TEMP, 200 was previous
 # The size of the images in the training set
 img_size = (128,128,1)
 # A random seed to use
@@ -33,10 +32,10 @@ params_as_inputs = [
 # Paths to data
 ##
 
-base_path = Path('/mnt/data/data/paltas/acs_900')
+base_path = Path('/mnt/data/data/paltas/acs_100k')
 
 # Folder containing the npy images for training
-npy_folders_train = [base_path / f'test_{i}/' for i in range(0, 8+1)]
+npy_folders_train = [f for f in sorted(base_path.glob('*')) if f.name.isnumeric()]
 # The path to the folder (singular!) containing the npy images for validation
 npy_folder_val = base_path / 'val'
 
