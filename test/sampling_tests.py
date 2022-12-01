@@ -327,6 +327,17 @@ class DistributionsTests(unittest.TestCase):
 			self.assertTrue(z_source > z_lens)
 			self.assertEqual(z_lens,z_lens_light)
 
+	def testRedshiftsPointSource(self):
+		dist = distributions.RedshiftsPointSource(z_lens_min=0.5,z_lens_mean=1,
+			z_lens_std=0.05,z_source_min=0,z_source_mean=0.6,z_source_std=0.6)
+		for i in range(0,5):
+			z_lens,z_lens_light,z_source,z_point_source = dist()
+			self.assertEqual(z_lens,z_lens_light)
+			self.assertEqual(z_source,z_point_source)
+			# if passes above, only need one check for < conditions
+			self.assertTrue(z_lens < z_source)
+			self.assertTrue(z_lens > 0.5 and z_source > 0.5)
+
 	def testMultipleValues(self):
 		# Test size of return
 		dist = distributions.MultipleValues(dist=norm(loc=1.0,scale=0.5).rvs,
