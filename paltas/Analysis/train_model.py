@@ -105,7 +105,9 @@ def main():
 	random_rotation = config_module.random_rotation
 	# CSV Path
 	csv_path = config_module.csv_path
-
+	# Steps per LR Decay
+	steps_per_decay = config_module.steps_per_decay
+	
 	params_as_inputs = getattr(config_module,'params_as_inputs',[])
 	all_params = params_as_inputs + learning_params
 
@@ -184,7 +186,7 @@ def main():
 		num_outputs = num_params + int(num_params*(num_params+1)/2)
 		loss = loss_functions.FullCovarianceLoss(num_params,flip_pairs,
 			weight_terms).loss
-        # TODO: fix how this is handled
+		# TODO: fix how this is handled
 		gamma_mse = loss_functions.ParameterSE(loss_functions.FullCovarianceLoss(num_params,flip_pairs,
 			weight_terms),3).square_error
 	else:
@@ -203,8 +205,9 @@ def main():
 			model_type))
 
 	# Use learning rate decay for optimal learning
+	# TODO: decay_steps is changed!!!
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.98,
+		learning_rate,decay_steps=steps_per_decay,decay_rate=0.98,
 		staircase=True)
 
 	# Use the desired optimizer
@@ -228,11 +231,15 @@ def main():
 		tensorboard = TensorBoard(log_dir=args.tensorboard_dir,
 			update_freq='batch')
 		callbacks.append(tensorboard)
-	# Save the model weights as long as the validation loss is decreasing
-	modelcheckpoint = ModelCheckpoint(model_weights,monitor='val_loss',
+	# Save model weights at last epoch
+	modelcheckpoint_last = ModelCheckpoint(model_weights[:-3]+'_last.h5',monitor='val_loss',
 		save_best_only=False,save_freq='epoch')
-	callbacks.append(modelcheckpoint)
-    # Save training results to .csv file
+	callbacks.append(modelcheckpoint_last)
+	# Save model weights at best epoch
+	modelcheckpoint_best = ModelCheckpoint(model_weights[:-3]+'_best.h5',monitor='val_loss',
+		save_best_only=True,save_freq='epoch')
+	callbacks.append(modelcheckpoint_best)
+	# Save training results to .csv file
 	if csv_path is not None:
 		csv = CSVLogger(csv_path,separator=',',append=False)
 		callbacks.append(csv)
