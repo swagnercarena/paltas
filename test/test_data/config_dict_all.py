@@ -98,6 +98,7 @@ config_dict = {
 	'point_source':{
 		'class': SinglePointSource,
 		'parameters':{
+            'z_point_source':1.5,
 			'x_point_source':0.001,
 			'y_point_source':0.001,
 			'magnitude':uniform(loc=20,scale=2.5).rvs,

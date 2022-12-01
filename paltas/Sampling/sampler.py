@@ -7,8 +7,7 @@ This module contains the class used to sample parameters for our train and test
 set from the input distributions.
 """
 import warnings
-# Definte the components we need the sampler to consider.
-# TODO: add point source & lens light
+# Define the components we need the sampler to consider.
 lensing_components = ['subhalo','los','main_deflector','source','lens_light',
 	'point_source','lens_equation_solver','cosmology','psf','detector','drizzle',
 	'pixel_grid']

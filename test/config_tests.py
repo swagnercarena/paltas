@@ -5,6 +5,7 @@ import paltas
 import numpy as np
 from lenstronomy.LensModel.lens_model import LensModel
 from lenstronomy.PointSource.point_source import PointSource
+from lenstronomy.SimulationAPI.data_api import DataAPI
 from scipy.signal import fftconvolve
 from paltas.Sources.cosmos import COSMOSIncludeCatalog
 from paltas.MainDeflector.simple_deflectors import PEMDShear
@@ -342,16 +343,29 @@ class ConfigUtilsTests(unittest.TestCase):
 			np.sum(image[90:110,90:110]))
 
 		# Add point source and validate output
-		self.c.sample['point_source_parameters'] = {'x_point_source':0.001,
-			'y_point_source':0.001,'magnitude':22,'output_ab_zeropoint':25.95,
-			'compute_time_delays':False}
+		self.c.sample['point_source_parameters'] = {'z_point_source':1.5,
+			'x_point_source':0.001,'y_point_source':0.001,'magnitude':12,
+			'output_ab_zeropoint':25.95,'compute_time_delays':False}
 		self.c.point_source_class = SinglePointSource(
-			self.c.sample['point_source_parameters'])
+			'planck18',self.c.sample['point_source_parameters'])
 
 		image_ps, metadata = self.c._draw_image_standard(self.c.add_noise)
 
 		# Check that more light is added to the image
 		self.assertTrue(np.sum(image_ps) > np.sum(image))
+
+		# Check that adding kwargs_pixel_grid changes final image
+		data_api = DataAPI(self.c.numpix,kwargs_pixel_grid=None,
+			**self.c.sample['detector_parameters'])
+		data_kwargs = data_api.kwargs_data
+		self.c.sample['pixel_grid_parameters'] = {
+			# shift final image
+			'ra_at_xy_0':data_kwargs['ra_at_xy_0']*1.5,
+			'dec_at_xy_0':data_kwargs['dec_at_xy_0'],
+			'transform_pix2angle':data_kwargs['transform_pix2angle']
+		}
+		image_pgrid, metadata = self.c._draw_image_standard(self.c.add_noise)
+		self.assertTrue(np.sum(np.abs(image_pgrid-image_ps)) > 1e-2)
 
 	def test__draw_image_drizzle(self):
 		# Test that drawing drizzled images works as expected.
