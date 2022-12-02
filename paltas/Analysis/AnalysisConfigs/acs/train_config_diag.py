@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
 
-batch_size = 64   # Training on laptop...
+batch_size = 256
 
 # The number of epochs to train for
-n_epochs = 10   # TEMP, 200 was previous
+n_epochs = 200
 # The size of the images in the training set
 img_size = (128,128,1)
 # A random seed to use
@@ -32,7 +32,7 @@ params_as_inputs = [
 # Paths to data
 ##
 
-base_path = Path('/mnt/data/data/paltas/acs_100k')
+base_path = Path('/lscratch/jaalbers/acs_100k')
 
 # Folder containing the npy images for training
 npy_folders_train = [f for f in sorted(base_path.glob('*')) if f.name.isnumeric()]
@@ -66,8 +66,10 @@ loss_function = 'diag'
 model_type = 'xresnet34'
 # A string specifying which optimizer to use
 optimizer = 'Adam'
+
+
 # Where to save the model weights
-model_weights = (base_path / 'model_weights' /
+model_weights = (Path('/scratch/users/jaalbers/acs_100k_training') / 'model_weights' /
 	'xresnet34_diag_{epoch:02d}-{val_loss:.2f}.h5')
 # Initial weights to use. Leave to None to train from scratch
 model_weights_init = None
