@@ -126,14 +126,14 @@ def train_model(training_config, tensorboard_dir=None):
 	if random_rotation:
 		# Get a generator object that returns rotated images and parameters.
 		tf_dataset_t = dataset_generation.generate_rotations_dataset(
-			tfr_train_paths,all_params,batch_size,n_epochs,
+			tfr_train_paths,all_params,batch_size,None,
 			norm_images=norm_images,input_norm_path=input_norm_path,
 			kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	else:
 		# Turn our tf records into tf datasets for training and validation
 		tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
-			all_params,batch_size,n_epochs,norm_images=norm_images,
+			all_params,batch_size,None,norm_images=norm_images,
 			input_norm_path=input_norm_path,kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	# We shouldn't be adding random noise to validation images. They should
@@ -142,7 +142,7 @@ def train_model(training_config, tensorboard_dir=None):
 		print('Make sure your validation images already have noise! Noise ' +
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
-		all_params,min(batch_size,n_val_npy),n_epochs,
+		all_params,min(batch_size,n_val_npy),None,
 		norm_images=norm_images,input_norm_path=input_norm_path,
 		kwargs_detector=None,log_learning_params=log_learning_params)
 
@@ -194,11 +194,11 @@ def train_model(training_config, tensorboard_dir=None):
 	model.compile(loss=loss,optimizer=opt,metrics=[loss])
 
 	print('Is model built: ' + str(model.built))
-
-	try:
+    
+	if model_weights_init and os.path.exists(model_weights_init):
 		model.load_weights(model_weights_init)
 		print('Loaded weights %s'%(model_weights_init))
-	except:
+	else:
 		print('No weights found. Saving new weights to %s'%(model_weights))
 
 	# Set up the callbacks for our training
