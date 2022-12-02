@@ -372,6 +372,18 @@ class GaussianInference:
 		return summary, chain
 
 
+def flatten_dict(d, parent_key='', sep='_'):
+    # Stolen from https://stackoverflow.com/a/6027615
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
 def extract_mu_cov(config_path, params):
 	"""Return (mean, cov) arrays of distribution of params
 	as defined by paltas config at config_path
@@ -386,20 +398,45 @@ def extract_mu_cov(config_path, params):
 			raise ValueError(f"{config_path} has multiple python files")
 
 	config_dict = load_config_module(config_path).config_dict
+	flat_dict = flatten_dict(config_dict)
 
-	# Frst extract the mean and std of all possible parameters
-	# Most are mean deflector parameters ...
-	mean_std = {
-		pname: _get_mean_std(
-			config_dict['main_deflector']['parameters'][short_names[pname]],
-			short_names[pname])
-		for pname in params if pname.startswith('main_deflector')
-	}
-	# ... except for sigma_sub
-	# TODO: other subhalo params!
-	mean_std[long_names['sigma_sub']] = _get_mean_std(
-		config_dict['subhalo']['parameters']['sigma_sub'],
-		'sigma_sub')
+	mean_std = dict()
+	for pname in params:
+		value = flat_dict[pname]
+		if value is None:
+			# We have to get the value from the cross object dict
+			for x_pname, value in config_dict['cross_object']['parameters'].items():
+				x_params = [x.replace(':', '_parameters_') for x in x_pname.split(',')]
+				if pname not in x_params:
+					continue
+				if isinstance(value, paltas.Sampling.distributions.Duplicate):
+					value = value.dist
+				elif isinstance(value, paltas.Sampling.distributions.DuplicateScatter):
+					# This is OK only if the parameter is the _first_ one listed,
+					# the second one gets extra scatter
+					if pname != x_params[0]:
+						raise ValueError("Second element of DuplicateScatter gets extra scatter, don't know dist")
+					value = value.dist
+				break
+			else:
+				raise ValueError(f"{pname} is None in config and not in cross_object")
+		# Convert value to (mean, std)
+		if isinstance(value, (int, float)):
+			# Value was kept constant
+			mean, std = value, 0
+		else:
+			# Let's hope it is a scipy stats distribution, so we can
+			# back out the mean and std through sneaky ways
+			self = value.__self__
+			dist = self.dist
+			if not isinstance(dist, (
+					stats._continuous_distns.norm_gen)):
+				warnings.warn(
+					f"Approximating {dist.name} for {pname} with a normal distribution",
+					UserWarning)
+			mean, std = self.mean(), self.std()
+
+		mean_std[pname] = (mean, std)
 
 	# Produce mean vector / cov matrix in the right order
 	mu, std = np.array([mean_std[pname] for pname in params]) .T
@@ -455,7 +492,9 @@ def run_network_on(
 		overwrite=False,
 		return_result=False,
 		output_filename='network_outputs.npz',
-		save_penultimate=True):
+		save_penultimate=True,
+		params_as_inputs=None,
+		loss_type='full'):
 	"""Run a neural network over a folder with image data.
 	Creates output_filename with return values in that folder.
 
@@ -475,8 +514,11 @@ def run_network_on(
 	 - return_result: If True, also returns stuff saved to the npz
 	 - save_penultimate: if True, runs the model twice; the second time
 	 	just to save the output of the penultimate layer.
+	 - params_as_inputs: Sequence of parameters used as inputs to fully
+	 	connected layer.
+	 - loss_type: loss function the network was trained with;
+		'full' or 'diagonal'.
 	"""
-
 	# Check input/output folders
 	folder = Path(folder)
 	assert folder.exists()
@@ -503,7 +545,15 @@ def run_network_on(
 		
 	# Load normalization / parameter names and order
 	norm_df = pd.read_csv(norm_path)
-	learning_params = norm_df.parameter.values.tolist()
+	all_params = norm_df.parameter.values.tolist()
+
+	# Separate input params (eg redshift) from output parameters (eg theta_E)
+	if params_as_inputs:
+		params_as_inputs = [x for x in all_params if x in params_as_inputs]
+		output_params = [x for x in all_params if x not in params_as_inputs]
+	else:
+		params_as_inputs = None
+		output_params = all_params
 
 	# Load model
 	model = tf.keras.models.load_model(
@@ -520,9 +570,9 @@ def run_network_on(
 	
 	# Extract training and test/population mean and cov
 	training_population_mean, training_population_cov = extract_mu_cov(
-		train_config_path, learning_params)
+		train_config_path, output_params)
 	population_mean, population_cov = extract_mu_cov(
-		folder, learning_params)
+		folder, output_params)
 	
 	# Ensure we have the tfrecord dataset
 	tfr_path = folder / 'data.tfrecord'
@@ -531,31 +581,39 @@ def run_network_on(
 	if not tfr_path.exists():
 		paltas.Analysis.dataset_generation.generate_tf_record(
 			npy_folder=str(folder),
-			learning_params=learning_params,
+			learning_params=all_params,
 			metadata_path=str(metadata_path),
 			tf_record_path=str(tfr_path))
 
 	# Construct the paltas dataset generator
-	test_dataset = paltas.Analysis.dataset_generation.generate_tf_dataset(
-		tf_record_path=str(tfr_path),
-		learning_params=learning_params,
-		batch_size=batch_size,
-		n_epochs=1,
-		norm_images=True,
-		input_norm_path=norm_path,
-		kwargs_detector=None,  # Don't add more noise
-		log_learning_params=None,
-		shuffle=False)
+	def make_dataset():
+		test_dataset = paltas.Analysis.dataset_generation.generate_tf_dataset(
+			tf_record_path=str(tfr_path),
+			learning_params=all_params,
+			batch_size=batch_size,
+			n_epochs=1,
+			norm_images=True,
+			input_norm_path=norm_path,
+			kwargs_detector=None,  # Don't add more noise
+			log_learning_params=None,
+			shuffle=False)
+		if params_as_inputs:
+			test_dataset = paltas.Analysis.dataset_generation.generate_params_as_input_dataset(
+				test_dataset, params_as_inputs, all_params)
+		return test_dataset
+
+	test_dataset = make_dataset()
 
 	if n_rotations == 0:
 		# Should do the same as n_rotations=1, retained for testing.
-		image_mean, image_prec = _predict(model, test_dataset, learning_params)
+		image_mean, image_prec = _predict(
+			model, test_dataset, output_params, loss_type=loss_type)
 		image_cov = np.linalg.inv(image_prec)
 
 		# Convert to physical units. Modifies image_xxx variables in-place
 		paltas.Analysis.dataset_generation.unnormalize_outputs(
 			input_norm_path=norm_path,
-			learning_params=learning_params,
+			learning_params=output_params,
 			mean=image_mean,
 			cov_mat=image_cov,
 			prec_mat=image_prec,
@@ -570,8 +628,9 @@ def run_network_on(
 			# Get predictions on rotated dataset
 			_mean, _prec = _predict(
 				model, 
-				_rotation_generator(test_dataset, learning_params, angle), 
-				learning_params)
+				_rotation_generator(test_dataset, output_params, angle), 
+				output_params,
+				loss_type=loss_type)
 
 			# Recover covariance: rotation of precision matrix not yet coded
 			_cov = np.linalg.inv(_prec)
@@ -580,16 +639,16 @@ def run_network_on(
 			# NB: must do this before back-rotation!
 			paltas.Analysis.dataset_generation.unnormalize_outputs(
 				input_norm_path=norm_path,
-				learning_params=learning_params,
+				learning_params=output_params,
 				mean=_mean,
 				cov_mat=_cov,
 			)
 
 			# Rotate back to original frame. Modifies in-place
 			paltas.Analysis.dataset_generation.rotate_params_batch(
-				learning_params, _mean, -angle)
+				output_params, _mean, -angle)
 			paltas.Analysis.dataset_generation.rotate_covariance_batch(
-				learning_params, _cov, -angle)
+				output_params, _cov, -angle)
 
 			means.append(_mean)
 			covs.append(_cov)
@@ -600,8 +659,8 @@ def run_network_on(
 		# Paltas paper says: covariances, and image predictions for x_lens and 
 		# y_lens, are not averaged over rotations.
 		for param in (mdef + 'center_x', mdef + 'center_y'):
-			if param in learning_params:
-				i = learning_params.index(param)
+			if param in output_params:
+				i = output_params.index(param)
 				image_mean[:,i] = means[0,:,i]
 		image_cov = covs[0]
 		image_prec = np.linalg.inv(image_cov)
@@ -615,7 +674,7 @@ def run_network_on(
 	if save_penultimate:
 		# Run the model again, saving the output of the penultimate layer
 		# A bit wasteful to run it twice, but OK...
-		conv_outputs = model_conv.predict(test_dataset)
+		conv_outputs = model_conv.predict(make_dataset())
 	else:
 		conv_outputs = None
 
@@ -625,13 +684,13 @@ def run_network_on(
 		image_cov=image_cov,
 		image_prec=image_prec,
 		# OK, image truths are not needed for inference. But why not save them..
-		image_truth=df[learning_params].values,
+		image_truth=df[output_params].values,
 		population_mean=population_mean,
 		population_cov=population_cov,
 		training_population_mean=training_population_mean,
 		training_population_cov=training_population_cov,
 		# Copy over parameter names/orders for interpretability
-		param_names=learning_params,
+		param_names=output_params,
 		# These are a bit large, but who cares: just put everything in one file...
 		convout=conv_outputs,
 		metadata=df.to_records(index=False),
@@ -643,30 +702,47 @@ def run_network_on(
 		return result
 
 
-def _predict(model, dataset, learning_params):
+def _predict(model, dataset, learning_params, loss_type='full'):
 	# Finally! Actually run the network over the images
 	result = model.predict(dataset)
 
 	# Parse the result
-	# For diagonal loss, change to:
-	# loss = paltas.Analysis.loss_functions.DiagonalCovarianceLoss(
-	# ...
-	# y_pred, log_var_pred = [x.numpy() for x in loss.convert_output(result)]
-	loss = paltas.Analysis.loss_functions.FullCovarianceLoss(
-		len(learning_params), flip_pairs=None, weight_terms=None)
-	image_mean, image_prec, _ = [x.numpy() for x in loss.convert_output(result)]
+	if loss_type.startswith('diag'):
+		loss = paltas.Analysis.loss_functions.DiagonalCovarianceLoss(
+			len(learning_params), flip_pairs=None, weight_terms=None)
+		image_mean, log_var_pred = [x.numpy() for x in loss.convert_output(result)]
+		# Convert to precision matrices. Too lazy to vectorize
+		log_var_pred = log_var_pred.clip(-10, 10)
+		image_prec = np.stack([np.diag(np.exp(-x)) for x in log_var_pred])
+	else:
+		loss = paltas.Analysis.loss_functions.FullCovarianceLoss(
+			len(learning_params), flip_pairs=None, weight_terms=None)
+		image_mean, image_prec, _ = [x.numpy() for x in loss.convert_output(result)]
 	return image_mean, image_prec
+
 
 def _rotation_generator(dataset, learning_params, angle):
 	for images, truths in dataset:
-		images = images.numpy()
-		truths = truths.numpy()
+		if isinstance(images, (list, tuple)):
+			# We got an images, params_input list/tuple
+			images, input_params = images
+		else:
+			input_params = None
+		if not isinstance(images, np.ndarray):
+			images = images.numpy()
+		if not isinstance(truths, np.ndarray):
+			truths = truths.numpy()
+
 		images = paltas.Analysis.dataset_generation.rotate_image_batch(
 			images,
 			learning_params,
 			# NB truths is changed in-place!
 			truths,
 			angle)
+
+		if input_params is not None:
+			# Restore the input params unchanged
+			images = [images, input_params]
 		yield images, truths
 
 
