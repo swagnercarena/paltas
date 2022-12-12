@@ -39,10 +39,19 @@ class SingleSersicSource(SourceBase):
 	- center_x - x-coordinate source center in units of arcseconds
 	- center_y - y-coordinate source center in units of arcseconds
 	- z_source - source redshift
+
+	Optional Parameters
+
+	-   include_k_correction - whether to do k corrections. If omitted,
+		assumed True.
+	-	brightness_multiplier - multiply final brightness by this number.
+		if omitted, use 1.
 	"""
 
 	required_parameters = ('magnitude','output_ab_zeropoint','R_sersic',
 		'n_sersic','e1','e2','center_x','center_y','z_source')
+
+	optional_parameters = ('include_k_correction', 'brightness_multiplier')
 
 	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
@@ -68,6 +77,7 @@ class SingleSersicSource(SourceBase):
 		sersic_params['amp'] = SingleSersicSource.mag_to_amplitude(
 			mag_apparent,self.source_parameters['output_ab_zeropoint'],
 			sersic_params)
+		sersic_params['amp'] *= self.source_parameters.get('brightness_multiplier', 1)
 		return (
 			['SERSIC_ELLIPSE'],
 			[sersic_params],[self.source_parameters['z_source']])
@@ -76,14 +86,14 @@ class SingleSersicSource(SourceBase):
 	def mag_to_amplitude(mag_apparent,mag_zeropoint,kwargs_list):
 		"""Converts a user defined magnitude to the corresponding amplitude
 		that lenstronomy will use
-	
+
 		Args:
 			mag_apparent (float): The desired apparent magnitude
 			mag_zeropoint (float): The magnitude zero-point of the detector
 			kwargs_list (dict): A dict of kwargs for SERSIC_ELLIPSE, amp
 				parameter not included
 
-		Returns: 
+		Returns:
 			(float): amplitude lenstronomy should use to get desired magnitude
 			desired magnitude
 		"""
@@ -92,7 +102,7 @@ class SingleSersicSource(SourceBase):
 		# norm=True sets amplitude = 1
 		flux_norm = sersic_model.total_flux([kwargs_list], norm=True)[0]
 		flux_true = magnitude2cps(mag_apparent, mag_zeropoint)
-		
+
 		return flux_true/flux_norm
 
 	@staticmethod
@@ -334,6 +344,9 @@ class DoubleSersicData(SingleSersicSource):
 			self.source_parameters['output_ab_zeropoint'],kwargs_disk)
 		kwargs_disk['amp'] = amp_disk
 
+		kwargs_disk['amp'] *= self.source_parameters.get('brightness_multiplier', 1)
+		kwargs_bulge['amp'] *= self.source_parameters.get('brightness_multiplier', 1)
+
 		# Populate our remaining lists.
 		light_model_list = ['SERSIC_ELLIPSE']*2
 		light_z_list = [self.source_parameters['z_source']]*2
@@ -387,7 +400,7 @@ class DoubleSersicCOSMODC2(DoubleSersicData):
 		# (should randomize sufficiently, assuming redshift is sampled
 		#  from a nice continuous distribution)
 		index = np.searchsorted(
-			self.catalog['redshift'], 
+			self.catalog['redshift'],
 			self.source_parameters['z_source'])
 		d = self.catalog[index]
 		# Convert from record to dict. Kludgy.
