@@ -47,12 +47,14 @@ class SingleSersicSource(SourceBase):
 		magnitude.
 	-   include_k_correction - whether to do k corrections. If omitted,
 		assumed True.
+	-	brightness_multiplier - multiply final brightness by this number.
+		if omitted, use 1.
 	"""
 
 	required_parameters = ('magnitude','output_ab_zeropoint','R_sersic',
 		'n_sersic','e1','e2','center_x','center_y','z_source')
 
-	optional_parameters = ('include_k_correction',)
+	optional_parameters = ('include_k_correction', 'brightness_multiplier')
 
 	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
@@ -81,6 +83,7 @@ class SingleSersicSource(SourceBase):
 		sersic_params['amp'] = SingleSersicSource.mag_to_amplitude(
 			mag_apparent,self.source_parameters['output_ab_zeropoint'],
 			sersic_params)
+		sersic_params['amp'] *= self.source_parameters.get('brightness_multiplier', 1)
 		return (
 			['SERSIC_ELLIPSE'],
 			[sersic_params],[self.source_parameters['z_source']])
@@ -346,6 +349,9 @@ class DoubleSersicData(SingleSersicSource):
 		amp_disk = SingleSersicSource.mag_to_amplitude(mag_disk,
 			self.source_parameters['output_ab_zeropoint'],kwargs_disk)
 		kwargs_disk['amp'] = amp_disk
+
+		kwargs_disk['amp'] *= self.source_parameters.get('brightness_multiplier', 1)
+		kwargs_bulge['amp'] *= self.source_parameters.get('brightness_multiplier', 1)
 
 		# Populate our remaining lists.
 		light_model_list = ['SERSIC_ELLIPSE']*2
