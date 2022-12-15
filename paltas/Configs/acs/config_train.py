@@ -47,26 +47,6 @@ def get_acs_psf():
 	return hdul[0].data
 
 
-# Set up another callable for the magnitude of the bulge and the fraction
-# of the light in the bulge.
-class MagFBulgeWrapper():
-
-	def __init__(self,mag_bulge_dist,f_bulge_dist):
-		self.mag_bulge_dist = mag_bulge_dist
-		self.f_bulge_dist = f_bulge_dist
-
-	def __call__(self):
-		# Draw the magnitude of the bulge and the fraction of the light
-		# in the bulge.
-		mag_bulge = self.mag_bulge_dist()
-		f_bulge = self.f_bulge_dist()
-
-		# Calculate the total magnitude with that bulge fraction
-		mag = mag_bulge + 2.5*np.log10(f_bulge)
-
-		return mag,f_bulge
-
-
 config_dict = {
 	'subhalo':{
 		'class': SubhalosDG19,
@@ -93,7 +73,7 @@ config_dict = {
 		'parameters':{
 			'M200': 1e13,'z_lens': None,
 			'gamma': truncnorm(-20,np.inf,loc=2.0,scale=0.1).rvs,
-			'theta_E': truncnorm(-1.24/0.26,np.inf,loc=1.25,scale=0.3).rvs,
+			'theta_E': truncnorm(-1.25/0.3,np.inf,loc=1.25,scale=0.3).rvs,
 			'e1': norm(loc=0.0,scale=0.1).rvs,
 			'e2': norm(loc=0.0,scale=0.1).rvs,
 			'center_x': None,
@@ -147,11 +127,17 @@ config_dict = {
 		'parameters':{
 			'pixel_scale':0.050,
 			'ccd_gain':uniform(loc=1.886,scale=0.134).rvs,
-			'read_noise':uniform(loc=5,scale=1).rvs,
+			# See https://hst-docs.stsci.edu/acsdhb/chapter-4-acs-data-processing-considerations/4-1-read-noise-and-a-to-d-conversion,
+			# SLACS observations were around 2006?
+			# Which amplifiers were used? All of them?
+			'read_noise':uniform(loc=5.25,scale=0.25).rvs,
 			'magnitude_zero_point':output_ab_zeropoint,
-			'exposure_time':uniform(loc=500,scale=175).rvs,
+			# Note this should be the exposure of one drizzled exposure
+			'exposure_time':uniform(loc=546,scale=115).rvs,
 			'sky_brightness':uniform(21.13,scale=0.57).rvs,
-			'num_exposures':1,'background_noise':None
+			# This parameter appears to be ignored
+			#'num_exposures':1,
+			'background_noise':None
 		}
 	},
 	'drizzle':{
