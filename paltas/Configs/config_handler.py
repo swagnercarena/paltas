@@ -207,9 +207,13 @@ class ConfigHandler():
 		# Collect all the lenstronomy inputs
 		result = LenstronomyInputs()
 		for model in [
-				self.los_class, self.subhalo_class, self.main_deflector_class, 
-				self.lens_light_class, self.point_source_class, 
-				self.source_class]:
+				# Draw big things first to help seed consistency
+				self.source_class,
+				self.main_deflector_class, 
+				self.lens_light_class,
+				self.point_source_class, 
+				self.subhalo_class, 
+				self.los_class]:
 			if model is None:
 				continue
 			model.update_from_sample(sample)

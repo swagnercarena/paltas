@@ -63,6 +63,7 @@ class COSMOSCatalog(GalaxyCatalog):
 		'max_z','smoothing_sigma','cosmos_folder','random_rotation',
 		'min_flux_radius','output_ab_zeropoint','z_source','center_x',
 		'center_y')
+	optional_parameters = ('fix_catalog_i',)
 	# Average AB magnitude zeropoint for the COSMOS run.
 	ab_zeropoint = 25.95
 

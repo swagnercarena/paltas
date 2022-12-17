@@ -141,7 +141,10 @@ class GalaxyCatalog(SourceBase):
 		"""
 		# If no index is provided pick one at random
 		if catalog_i is None:
-			catalog_i = self.sample_indices(1).item()
+			if self.source_parameters.get('fix_catalog_i') is None:
+				catalog_i = self.sample_indices(1).item()
+			else:
+				catalog_i = self.source_parameters['fix_catalog_i']
 		# If no rotation is provided, pick one at random or use original
 		# orientation
 		if phi is None:
