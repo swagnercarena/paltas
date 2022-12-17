@@ -74,7 +74,11 @@ def generate_from_config(
 		filename = os.path.join(save_folder, 'image_%07d' % successes)
 		np.save(filename, image)
 		if save_png_too:
-			plt.imsave(filename + '.png', image)
+			plt.imsave(
+				filename + '.png', 
+				np.log10(image.clip(0, None)),
+				cmap=plt.cm.magma,
+				)
 
 		metadata_list.append(metadata)
 
