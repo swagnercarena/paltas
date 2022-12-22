@@ -408,6 +408,10 @@ class DoubleSersicCOSMODC2(DoubleSersicData):
 		index = np.searchsorted(
 			self.catalog['redshift'], 
 			self.source_parameters['z_source'])
+		if index >= len(self.catalog):
+			warnings.warn(
+				"Redshift beyond catalog range, returning most distant galaxy")
+			index = len(self.catalog) - 1
 		d = self.catalog[index]
 		# Convert from record to dict. Kludgy.
 		d = dict(zip(d.dtype.fields.keys(), d))
