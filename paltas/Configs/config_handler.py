@@ -604,6 +604,8 @@ class ConfigHandler():
 			kwargs_psf_jax = None   # Will be ignored
 
 		def padding_until_power_two(n):
+			if n == 0:
+				return 0
 			return int(2**np.ceil(np.log2(n)) - n)
 
 		# Source light and lens light models
