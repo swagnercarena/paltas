@@ -38,7 +38,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.point_source_parameters=dict(
 			x_point_source=0.001,
 			y_point_source=0.001,
-			magnitude=11,
+			mag_app=22,
 			output_ab_zeropoint=25,
 			compute_time_delays=False,
             z_point_source=3
@@ -50,16 +50,16 @@ class SinglePointSourceTests(PointSourceBaseTests):
 	def test_check_parameterization(self):
 		# test that the base class actually checks for missing parameters
 		failed_parameters = dict(x_point_source=0.001,y_point_source=0.001,
-			magnitude=22)
+			mag_app=22)
 		with self.assertRaises(ValueError):
 			SinglePointSource(cosmology_parameters='planck18',
 				point_source_parameters=failed_parameters)
 
 	def test_update_parameters(self):
 		# test a parameter originally set in setUp
-		self.point_source_parameters['magnitude'] = 10
+		self.point_source_parameters['mag_app'] = 19
 		self.c.update_parameters(None,self.point_source_parameters)
-		self.assertEqual(self.c.point_source_parameters['magnitude'], 10)
+		self.assertEqual(self.c.point_source_parameters['mag_app'], 19)
 
 	def test_draw_point_source(self):
 		list_model, list_kwargs = self.c.draw_point_source()
@@ -116,8 +116,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.assertTrue(np.sum(im_diff) > 0)
 
 		# make sure the flux is what we expect
-		mag_apparent = absolute_to_apparent(self.c.point_source_parameters['magnitude'],
-			self.c.point_source_parameters['z_point_source'],self.cosmo)
+		mag_apparent = self.c.point_source_parameters['mag_app']
 		flux_true = magnitude2cps(mag_apparent,
 			self.c.point_source_parameters['output_ab_zeropoint'])
 		flux_image = np.sum(im_diff)

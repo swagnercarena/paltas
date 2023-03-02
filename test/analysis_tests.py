@@ -1827,4 +1827,8 @@ class TrainModelTests(unittest.TestCase):
 			os.remove(f)
 		os.rmdir('test_data/validation')
 
+		# Use a config file with csv option & gamma MSE option 
+		#sys.argv = ['test','test_data/INSERTCONFIG.py']
+		#Analysis.train_model.main()        
+
 		sys.argv = old_sys

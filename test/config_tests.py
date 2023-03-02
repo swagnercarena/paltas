@@ -330,7 +330,7 @@ class ConfigUtilsTests(unittest.TestCase):
 		np.testing.assert_almost_equal(image,sub_image)
 
 		# Generate image with deflector & lens light
-		self.c.sample['lens_light_parameters'] = {'z_source':0.5,'magnitude':20,
+		self.c.sample['lens_light_parameters'] = {'z_source':0.5,'mag_app':20,
 			'output_ab_zeropoint':25.95,'R_sersic':1.,'n_sersic':1.2,'e1':0.,
 			'e2':0.,'center_x':0.0,'center_y':0.0}
 		self.c.lens_light_class = SingleSersicSource(
@@ -344,7 +344,7 @@ class ConfigUtilsTests(unittest.TestCase):
 
 		# Add point source and validate output
 		self.c.sample['point_source_parameters'] = {'z_point_source':1.5,
-			'x_point_source':0.001,'y_point_source':0.001,'magnitude':12,
+			'x_point_source':0.001,'y_point_source':0.001,'mag_app':12,
 			'output_ab_zeropoint':25.95,'compute_time_delays':False}
 		self.c.point_source_class = SinglePointSource(
 			'planck18',self.c.sample['point_source_parameters'])

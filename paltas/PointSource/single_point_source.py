@@ -38,7 +38,8 @@ class SinglePointSource(PointSourceBase):
 		of days.
 	"""
 
-	required_parameters = ('x_point_source', 'y_point_source', 'magnitude',
+    # removing magnitude, but still requires one of: mag_abs or mag_app
+	required_parameters = ('x_point_source', 'y_point_source',
 		'output_ab_zeropoint', 'compute_time_delays', 'z_point_source')
 
 	def draw_point_source(self):
@@ -58,10 +59,15 @@ class SinglePointSource(PointSourceBase):
 			point_source_kwargs['mag_pert'] = self.point_source_parameters[
 				'mag_pert']
 
-		# abs to apparent mag 
-		mag_apparent = absolute_to_apparent(self.point_source_parameters['magnitude'],
-			self.point_source_parameters['z_point_source'],self.cosmo)
         # mag to amp conversion
+		if 'mag_abs' in self.point_source_parameters.keys():
+			mag_apparent = absolute_to_apparent(self.point_source_parameters['mag_abs'],
+				self.point_source_parameters['z_source'],self.cosmo)
+		elif 'mag_app' in self.point_source_parameters.keys():
+			mag_apparent = self.point_source_parameters['mag_app']
+		else:
+			raise ValueError('Not all of the required parameters for the ' +
+				'parameterization are present: missing mag_abs or mag_app')
 		# note: flux = amplitude for point source
 		point_source_kwargs['source_amp'] = magnitude2cps(mag_apparent,
 			self.point_source_parameters['output_ab_zeropoint'])

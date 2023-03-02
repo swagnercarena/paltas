@@ -85,7 +85,7 @@ config_dict = {
 		'class': SingleSersicSource,
 		'parameters':{
 			'z_source':1.5,
-			'magnitude':uniform(loc=19,scale=2).rvs,
+			'mag_app':uniform(loc=19,scale=2).rvs,
 			'output_ab_zeropoint':output_ab_zeropoint,
 			'R_sersic':truncnorm(-1.333,np.inf,loc=0.8,scale=0.15).rvs,
 			'n_sersic':truncnorm(-2.,np.inf,loc=3,scale=0.5).rvs,
@@ -101,7 +101,7 @@ config_dict = {
             'z_point_source':1.5,
 			'x_point_source':0.001,
 			'y_point_source':0.001,
-			'magnitude':uniform(loc=20,scale=2.5).rvs,
+			'mag_app':uniform(loc=20,scale=2.5).rvs,
 			'output_ab_zeropoint':25.127,
 			'mag_pert': distributions.MultipleValues(dist=norm(1,0.1).rvs,num=5),
 			'compute_time_delays':True,
