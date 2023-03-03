@@ -363,6 +363,10 @@ class ConfigHandler():
 			lens_model (lenstronomy.LensModel.lens_model.LensModel): An instance
 				of the lenstronomy lens model that will be used to calculate
 				lensing quantitities.
+
+		Note:
+			if metadata=None after calling this function, more than 5 PS images
+			were produced
 		"""
 		# Extract the sample
 		sample = self.get_current_sample()
@@ -378,6 +382,11 @@ class ConfigHandler():
 		# point source parameters
 		pfix = 'point_source_parameters_'
 		metadata[pfix+'num_images'] = num_images
+		
+		# throw error if num images > 5
+		if num_images > 5:
+			metadata = None
+			return
 
 		# Calculate magnifications using complete_lens_model
 		magnifications = lens_model.magnification(x_image[0],y_image[0],
@@ -525,6 +534,10 @@ class ConfigHandler():
 		if self.point_source_class is not None:
 			self._calculate_ps_metadata(metadata,kwargs_params,
 				point_source_model,lens_model)
+			
+			# address case w/ 6 PS images
+			if metadata is None:
+				return None,None
 
 		return image, metadata
 
@@ -586,6 +599,10 @@ class ConfigHandler():
 		# noise.
 		image_ss, metadata = self._draw_image_standard(add_noise=False,
 			apply_psf=False)
+		# case w/ 6 images
+		if image_ss is None:
+			return None,None
+		
 		self.sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 		self.numpix = numpix_copy
 
@@ -697,6 +714,10 @@ class ConfigHandler():
 			# Magnification cut was not met, return None,None
 			return None, None
 
+		# address case w/ more than 6 images
+		if image is None:
+			return None,None
+		
 		# Mask out an interior region of the image if requested
 		if hasattr(self.config_module,'mask_radius'):
 			kwargs_detector = self.get_current_sample()['detector_parameters']
