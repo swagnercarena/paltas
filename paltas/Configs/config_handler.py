@@ -22,6 +22,7 @@ from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.PointSource.point_source import PointSource
 from lenstronomy.ImSim.image_model import ImageModel
 import lenstronomy.Util.util as util
+import lenstronomy.Util.param_util as param_util
 from immutabledict import immutabledict
 
 
@@ -568,15 +569,26 @@ class ConfigHandler():
 		# at the top level
 		import jax
 		import jaxstronomy
+		from jaxstronomy import image_simulation_test as jaxstro_imsim_test
+
 		if self.point_source_class is not None:
 			warnings.warn("Jaxstronomy does not compute point source metadata!")
 
+		all_models = jaxstro_imsim_test._prepare_all_models()
+		all_models['all_los_models'] = [jaxstronomy.lens_models.NFW]
+		all_models['all_subhalo_models'] = [jaxstronomy.lens_models.TNFW]
+
 		if not hasattr(self, '_jitted_jax_generate'):
 			# print("Should jit now")
-			self._jitted_jax_generate = jax.jit(jaxstronomy.image_simulation.generate_image, 
+			self._jitted_jax_generate = jax.jit(
+				functools.partial(
+					jaxstronomy.image_simulation.generate_image, 
+					all_models=all_models),
 				static_argnames=[
 					'kwargs_detector',
-					'apply_psf'])
+					'apply_psf',
+					],
+			)
 
 		# Detector kwargs. Fine, just some renamings.
 		kwargs_detector_jax = {
@@ -592,14 +604,23 @@ class ConfigHandler():
 		# Cosmology params: cosmology_utils includes lookup table caching
 		cosmology_params = cosmo_to_jaxstronomy(self.get_sample_cosmology())
 
+		def get_model_names(model_list):
+			return [x.__name__ for x in model_list]
+
+		def get_model_params(model_list):
+			return tuple(sorted(set(itertools.chain(
+				*[model.parameters for model in model_list]))))
+
 		# PSF
 		if apply_psf:
+			warnings.warn("Not yet passing PSF args correctly, probably crash")
+			all_psf_models = all_models['all_psf_models']
 			psf_model_name = kwargs_psf['psf_type'].capitalize()
 			kwargs_psf_jax = {
 				pname: kwargs_psf.get(pname, 0.5)
-				for pname in jaxstronomy.image_simulation.ALL_PSF_MODEL_PARAMETERS}
-			kwargs_psf_jax['model_index'] = jaxstronomy.psf_models.__all__.index(
-				psf_model_name)
+				for pname in get_model_params(all_psf_models)}
+			kwargs_psf_jax['model_index'] = \
+				get_model_names(all_psf_models).index(psf_model_name)
 		else:
 			kwargs_psf_jax = None   # Will be ignored
 
@@ -609,20 +630,17 @@ class ConfigHandler():
 			return int(2**np.ceil(np.log2(n)) - n)
 
 		# Source light and lens light models
-		all_source_model_names = jaxstronomy.source_models.__all__
-		all_source_models = tuple(
-        	[jaxstronomy.source_models.__getattribute__(model)
-            	for model in jaxstronomy.source_models.__all__])
-		all_source_model_parameters = tuple(sorted(set(itertools.chain(
-			*[model.parameters for model in all_source_models]))))
+		all_source_models = all_models['all_source_models']
+		all_source_model_names = get_model_names(all_source_models)
+		all_source_model_parameters = get_model_params(all_source_models)
 		kwargs_source_jax = dict()
 		kwargs_lens_light_jax = dict()
 		for jaxdict, models, params in [
 				[kwargs_source_jax, kwargs_model['source_light_model_list'], kwargs_params['kwargs_source']],
 				[kwargs_lens_light_jax, kwargs_model['lens_light_model_list'], kwargs_params['kwargs_lens_light']]]:
-			n_models = len(models)
-			n_pad = padding_until_power_two(n_models)
-			n_tot = n_models + n_pad
+			n_real = len(models)
+			n_pad = padding_until_power_two(n_real)
+			n_tot = n_real + n_pad
 			# print(f"Padded {n_models} to {n_tot} sources")
 			# Start with reasonable defaults for each model
 			# Note these aren't jnp arrays, we'll be mutating things
@@ -662,57 +680,109 @@ class ConfigHandler():
 		# Finally the lens models. Note duplication with middle part of above
 		# code blob :-( And it's not exactly the same because we need different
 		# parameter renamings... :-((
-		n_models = len(kwargs_model['lens_model_list'])
-		n_pad = padding_until_power_two(n_models)
-		n_tot = n_models + n_pad
-		# print(f"Padded {n_models} to {n_tot} lenses")
-		kwargs_lens_jax = {
-			param_name: 0.5 * np.ones(n_tot) 
-			for param_name in jaxstronomy.image_simulation.ALL_LENS_MODEL_PARAMETERS
-		}
-		kwargs_lens_jax['model_index'] = np.zeros(n_tot, dtype=int) - 1
-		models = kwargs_model['lens_model_list']
-		params = kwargs_params['kwargs_lens']
-		import lenstronomy.Util.param_util as param_util
-		for model_i, (model_name, model_params) in enumerate(zip(models, params)):
-			if model_name.startswith('EPL'):
-				model_name = 'EPL'
-				# Lenstronomy expects e1/e2, Jaxstronomy axis_ratio/angle
-				model_params['angle'], model_params['axis_ratio'] = \
-					param_util.ellipticity2phi_q(model_params['e1'], model_params['e2'])
-				del model_params['e1']
-				del model_params['e2']
-			if model_name == 'SHEAR':
-				# Jaxstronomy expects shear polar coordinates
-				# (then immediately converts to Cartesian coordinates...)
-				model_params['angle'], model_params['gamma_ext'] = \
-					param_util.shear_cartesian2polar(
-						model_params['gamma1'], 
-						model_params['gamma2'])
-				del model_params['gamma1']
-				del model_params['gamma2']
-			for param_name, value in model_params.items():
-				param_name = dict(
-					Rs='scale_radius',
-					alpha_Rs='alpha_rs',
-					r_trunc='trunc_radius',
-					gamma='slope',
-					ra_0='center_x',
-					dec_0='center_y',
-				).get(param_name, param_name)
-				kwargs_lens_jax[param_name.lower()][model_i] = value
-			if model_name not in ('NFW', 'TNFW', 'EPL'):
-				# Lenstronomy all-capses all models, jaxstronomy only abbrevs
-				model_name = model_name.capitalize()
-			kwargs_lens_jax['model_index'][model_i] = \
-				jaxstronomy.lens_models.__all__.index(model_name)
-		z_lens_array = np.asarray(kwargs_model['lens_redshift_list'] + [0] * n_pad)
+
+		# New jaxstronomy requires that we split lens models into groups.
+		# Unfortunately paltas just concatenated everything, so we need some
+		# fragile code to regroup the models.
+
+		group_names = ['los_before', 'subhalos', 'main_deflector', 'los_after']
+		all_lens_modelz = dict(
+			los_before=all_models['all_los_models'],
+			subhalos=all_models['all_subhalo_models'],
+			main_deflector=all_models['all_main_deflector_models'],
+			los_after=all_models['all_los_models'],
+		)
+		all_lens_model_namez = {k: get_model_names(v) for k, v in all_lens_modelz.items()}
+
+		# Sort models by descending redshift
+		# TODO: is this necessary?
+		sort_i = np.argsort(np.asarray(kwargs_model['lens_redshift_list']))
+		def _sort(x):
+			return np.asarray(x)[sort_i].tolist()
+		lens_names = _sort(kwargs_model['lens_model_list'])
+		lens_params = _sort(kwargs_params['kwargs_lens'])
+		lens_zs = _sort(kwargs_model['lens_redshift_list'])
+
+		# Find which model belongs to which group
+		z_lens = self.sample['main_deflector_parameters']['z_lens']
+		group_for_model = []
+		for model_name, z in zip(lens_names, lens_zs):
+			if z < z_lens:
+				g = 'los_before'
+			elif z > z_lens:
+				g = 'los_after'
+			# TODO: hardcoded assumption that subhalos are TNFWs
+			# and main deflectors are not!
+			elif model_name == 'TNFW':
+				g = 'subhalos'
+			else:
+				g = 'main_deflector'
+			group_for_model.append(g)
+
+		# Construct jaxstronomy arguments for each param group
+		kwargs_lens_jax = {}
+		for group_name in group_names:
+			def _group_slice(things):
+				assert len(things) == len(group_for_model)
+				return [
+					x
+					for x, group in zip(things, group_for_model)
+					if group == group_name]
+
+			m_names = _group_slice(lens_names)
+			m_params = _group_slice(lens_params)
+
+			n_real = len(m_names)
+			n_pad = padding_until_power_two(n_real)
+			n_tot = n_real + n_pad
+			print(f"{group_name=}, padding {n_real=} to {n_tot=}")
+
+			kwargs_lens_jax['z_array_' + group_name] = np.asarray(
+				_group_slice(lens_zs) + [0] * n_pad)
+			kwargs_lens_jax['kwargs_' + group_name] = kwargs_lenz = {
+				param_name: 0.5 * np.ones(n_tot)
+				for param_name in get_model_params(all_lens_modelz[group_name])
+			}
+			kwargs_lenz['model_index'] = np.zeros(n_tot, dtype=int) - 1
+
+			for model_i, (model_name, model_params) in enumerate(zip(
+					m_names, m_params)):
+				if model_name.startswith('EPL'):
+					model_name = 'EPL'
+					# Lenstronomy expects e1/e2, Jaxstronomy axis_ratio/angle
+					model_params['angle'], model_params['axis_ratio'] = \
+						param_util.ellipticity2phi_q(model_params['e1'], model_params['e2'])
+					del model_params['e1']
+					del model_params['e2']
+				if model_name == 'SHEAR':
+					# Jaxstronomy expects shear polar coordinates
+					# (then immediately converts to Cartesian coordinates...)
+					model_params['angle'], model_params['gamma_ext'] = \
+						param_util.shear_cartesian2polar(
+							model_params['gamma1'],
+							model_params['gamma2'])
+					del model_params['gamma1']
+					del model_params['gamma2']
+				for param_name, value in model_params.items():
+					param_name = dict(
+						Rs='scale_radius',
+						alpha_Rs='alpha_rs',
+						r_trunc='trunc_radius',
+						gamma='slope',
+						ra_0='center_x',
+						dec_0='center_y',
+					).get(param_name, param_name)
+					kwargs_lenz[param_name.lower()][model_i] = value
+				if model_name not in ('NFW', 'TNFW', 'EPL'):
+					# Lenstronomy all-capses abbreviations, jaxstronomy does not
+					model_name = model_name.capitalize()
+				kwargs_lenz['model_index'][model_i] = \
+					all_lens_model_namez[group_name].index(model_name)
 
 		grid_x, grid_y = jaxstronomy.utils.coordinates_evaluate(
         	kwargs_detector_jax['n_x'], kwargs_detector_jax['n_y'],
         	kwargs_detector_jax['pixel_width'], kwargs_detector_jax['supersampling_factor'])
 
-		assert z_lens_array.shape == kwargs_lens_jax['model_index'].shape
 		# before = time.time()
 		image = self._jitted_jax_generate(
 			grid_x,
@@ -722,7 +792,6 @@ class ConfigHandler():
 			kwargs_lens_light_slice=kwargs_lens_light_jax,
 			kwargs_psf=kwargs_psf_jax,
 			cosmology_params=cosmology_params,
-			z_lens_array=z_lens_array,
 			z_source=kwargs_model['z_source'],
 			kwargs_detector=kwargs_detector_jax,
 			apply_psf=apply_psf
