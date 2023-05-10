@@ -250,7 +250,7 @@ def main():
 	# TODO add validation data.
 	model.fit(tf_dataset_t,callbacks=callbacks,epochs=n_epochs,
 		steps_per_epoch=steps_per_epoch,validation_data=tf_dataset_v,
-		validation_steps=int(math.ceil(n_val_npy/batch_size)))
+		validation_steps=None)
 
 
 if __name__ == '__main__':
