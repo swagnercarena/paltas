@@ -17,6 +17,7 @@ from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 from lenstronomy.LensModel.lens_model import LensModel
+from lenstronomy.LensModel.lens_model_extensions import LensModelExtensions
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.PointSource.point_source import PointSource
 from lenstronomy.ImSim.image_model import ImageModel
@@ -89,6 +90,17 @@ class ConfigHandler():
 		# Get the numerical kwargs numpix from the config
 		self.kwargs_numerics = self.config_module.kwargs_numerics
 		self.numpix = self.config_module.numpix
+		
+		# handle quads_only
+		if hasattr(self.config_module, 'quads_only'):
+			self.quads_only = self.config_module.quads_only
+		else:
+			self.quads_only = False
+
+		if hasattr(self.config_module,'compute_caustic_area'):
+			self.compute_caustic_area = self.config_module.compute_caustic_area
+		else:
+			self.compute_caustic_area = False
 
 		# Set up the paltas objects we'll use
 		self.los_class = None
@@ -324,6 +336,27 @@ class ConfigHandler():
 						'metadata.csv',
 						category=RuntimeWarning)
 					SERIALIZATIONWARNING = False
+					
+		# write caustic area if requested
+		if self.compute_caustic_area:
+			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
+				new_sample=False)
+			lm = LensModel(kwargs_model['lens_model_list'])
+			lm_ext = LensModelExtensions(lm)
+			compute_window = self.numpix * sample['detector_parameters']['pixel_scale']
+			metadata['main_deflector_parameters_caustic_area'] = lm_ext.caustic_area(
+				kwargs_params['kwargs_lens'],{'compute_window':compute_window})
+			
+			# also write minimum separation btwn. caustic & source
+			_,_,ra_list,dec_list = lm_ext.critical_curve_caustics(
+				kwargs_params['kwargs_lens'],compute_window=compute_window)
+			
+			# index into list is for "selecting specified vortex"? (default is 0)
+			ra_offset = kwargs_params['kwargs_source'][0]['center_x'] - ra_list[0]
+			dec_offset = kwargs_params['kwargs_source'][0]['center_y'] - dec_list[0]
+			min_distance = np.sqrt(np.min(ra_offset**2 + dec_offset**2))
+			metadata['source_parameters_distance_to_caustic'] = min_distance
+
 
 		return metadata
 
@@ -364,9 +397,8 @@ class ConfigHandler():
 				of the lenstronomy lens model that will be used to calculate
 				lensing quantitities.
 
-		Note:
-			if metadata=None after calling this function, more than 5 PS images
-			were produced
+		Return:
+			returns 0 if successful, -1 if failed
 		"""
 		# Extract the sample
 		sample = self.get_current_sample()
@@ -383,10 +415,22 @@ class ConfigHandler():
 		pfix = 'point_source_parameters_'
 		metadata[pfix+'num_images'] = num_images
 		
+		# write offset between lens center & PS position
+		x_diff = (kwargs_params['kwargs_ps'][0]['ra_source'] 
+			- kwargs_params['kwargs_lens'][0]['center_x'])
+		y_diff = (kwargs_params['kwargs_ps'][0]['dec_source'] 
+	    	- kwargs_params['kwargs_lens'][0]['center_y'])
+		metadata[pfix+'lens_ps_offset'] = np.sqrt(x_diff**2 + y_diff**2)
+		
 		# throw error if num images > 5
 		if num_images > 5:
 			metadata = None
-			return
+			return -1
+
+		# throw error if not quad & requested quads only
+		if self.quads_only and num_images != 4:
+			metadata = None
+			return -1
 
 		# Calculate magnifications using complete_lens_model
 		magnifications = lens_model.magnification(x_image[0],y_image[0],
@@ -424,16 +468,22 @@ class ConfigHandler():
 				metadata[pfix+'x_image_'+str(i)] = x_image[0][i]
 				metadata[pfix+'y_image_'+str(i)] = y_image[0][i]
 				metadata[pfix+'magnification_'+str(i)] = magnifications[i]
+				if 'mag_pert' in sample['point_source_parameters'].keys():
+					metadata[pfix+'mag_pert_'+str(i)] = sample['point_source_parameters']['mag_pert'][i]
 			else:
 				metadata[pfix+'x_image_'+str(i)] = np.nan
 				metadata[pfix+'y_image_'+str(i)] = np.nan
 				metadata[pfix+'magnification_'+str(i)] = np.nan
+				if 'mag_pert' in sample['point_source_parameters'].keys():
+					metadata[pfix+'mag_pert_'+str(i)] = np.nan
 
 			if sample['point_source_parameters']['compute_time_delays']:
 				if i < len(td):
 					metadata[pfix+'time_delay_' + str(i)] = td[i]
 				else:
 					metadata[pfix+'time_delay_' + str(i)] = np.nan
+					
+		return 0
 
 	def _draw_image_standard(self,add_noise=True,apply_psf=True):
 		"""Uses the current config sample to generate an image and the
@@ -509,6 +559,7 @@ class ConfigHandler():
 			kwargs_params['kwargs_ps'])
 
 		# Check for the magnification cut and apply it.
+        # TODO: these assumptions break down w/ a point source in the model
 		if self.mag_cut is not None:
 			# Evaluate the light that would have been in the image using
 			# the image model
@@ -532,11 +583,11 @@ class ConfigHandler():
 		# If a point source was specified, calculate the time delays
 		# and image positions.
 		if self.point_source_class is not None:
-			self._calculate_ps_metadata(metadata,kwargs_params,
+			success = self._calculate_ps_metadata(metadata,kwargs_params,
 				point_source_model,lens_model)
 			
 			# address case w/ 6 PS images
-			if metadata is None:
+			if success == -1:
 				return None,None
 
 		return image, metadata

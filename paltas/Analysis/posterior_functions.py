@@ -62,13 +62,25 @@ def plot_coverage(y_pred,y_test,std_pred,parameter_names,
 		_, _, rval, _, _ = linregress(y_test[:,i],y_pred[:,i])
 		straight = np.linspace(np.min(y_test[:,i]),np.max(y_test[:,i]),10)
 		plt.plot(straight, straight, label='',color='k')
-		plt.text(0.8*np.max(straight)+0.2*np.min(straight),np.min(straight),
-			'$R^2$: %.3f'%(rval**2),{'fontsize':fontsize})
+		#plt.text(0.8*np.max(straight)+0.2*np.min(straight),np.min(straight),
+		#	'$R^2$: %.3f'%(rval**2),{'fontsize':fontsize})
 		plt.title(parameter_names[i],fontsize=fontsize)
 		plt.ylabel('Prediction',fontsize=fontsize)
 		plt.xlabel('True Value',fontsize=fontsize)
 		plt.legend(**{'fontsize':fontsize},loc=2)
-	plt.show(block=block)
+
+        #Add mean error/MAE/P
+		ax = plt.gca()
+		mean_error = np.mean(error[:,i])
+		plt.text(0.73,0.05,
+			'Mean Error: %.3f'%(mean_error),{'fontsize':fontsize},transform=ax.transAxes)
+		MAE = np.median(np.abs(error[:,i]))
+		plt.text(0.73,0.11,
+			'MAE: %.3f'%(MAE),{'fontsize':fontsize},transform=ax.transAxes)
+		P = np.median(std_pred[:,i])
+		plt.text(0.73,0.16,'P: %.3f'%(P),{'fontsize':fontsize},transform=ax.transAxes)
+
+	#plt.show(block=block)
 
 
 def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):

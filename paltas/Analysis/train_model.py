@@ -217,7 +217,10 @@ def main():
 	opt = getattr(optimizers,optimizer_string)(learning_rate=lr_schedule)
 
 	# Compile our model
-	model.compile(loss=loss,optimizer=opt,metrics=[loss,gamma_mse])
+	if loss_function == 'full':
+		model.compile(loss=loss,optimizer=opt,metrics=[loss,gamma_mse])
+	else:
+		model.compile(loss=loss,optimizer=opt,metrics=[loss])
 
 	print('Is model built: ' + str(model.built))
 

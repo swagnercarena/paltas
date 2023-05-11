@@ -7,7 +7,7 @@ This module contains classes that define distributions that can be effecitvely
 sampled from.
 """
 import numpy as np
-from scipy.stats import truncnorm
+from scipy.stats import truncnorm, uniform
 from astropy.io import fits
 from lenstronomy.Util import kernel_util
 
@@ -322,6 +322,64 @@ class DuplicateXY():
 		
 		return x,y,x,y
 
+class FourComponentCorrelatedCenter():
+	"""
+    Sample center coordinates for lens mass, lens light, source light, ps light
+        given an initial distribution for lens mass center, 
+	    scatter on distance to lens light, 
+	    scatter on distance to source/ps light
+	    
+	Note: assumes source and point source at same location
+	    
+	Args: 
+        lm_dist (callable or float): Distribution to pull lens mass coordinates from
+		ll_sigma (float): Gaussian sigma for distance from lens mass to lens light
+		src_sigma (float): Gaussian sigma for distance from lens mass to source light
+
+	Returns:
+		x_lm,y_lm,x_ll,y_ll,x_src,y_src,x_ps,y_ps
+    """
+	
+	def __init__(self,lm_dist,ll_sigma,src_sigma):
+		self.lm_dist = lm_dist
+		self.ll_sigma = ll_sigma
+		self.src_sigma = src_sigma
+
+	def _calc_xy_scatter(self):
+		"""
+		Given a Gaussian sigma for distance between center and componenet, 
+		draw a radius from that Gaussian truncated & centered at zero. 
+		Also draw random angle between 0,2pi. Then, return corresponding x,y
+		components.
+
+		Returns:
+			x_scat_ll, y_scat_ll, x_scat_src, y_scat_src (Scatter to be added
+				to lens mass coordinate)
+		"""
+
+		R_ll = truncnorm.rvs(0,np.inf,loc=0.0,scale=self.ll_sigma)
+		phi_ll = uniform.rvs(0,2*np.pi)
+		R_src = truncnorm.rvs(0,np.inf,loc=0.0,scale=self.ll_sigma)
+		phi_src = uniform.rvs(0,2*np.pi)
+		return R_ll*np.cos(phi_ll),R_ll*np.sin(phi_ll),R_src*np.cos(phi_src),R_src*np.sin(phi_src)
+
+	def __call__(self):
+
+		if callable(self.lm_dist):
+			x_lm = self.lm_dist()
+			y_lm = self.lm_dist()
+		else:
+			x_lm = self.lm_dist
+			y_lm = self.lm_dist
+
+		x_scat_ll, y_scat_ll, x_scat_src, y_scat_src = self._calc_xy_scatter()
+		x_ll = x_lm + x_scat_ll
+		y_ll = y_lm + y_scat_ll
+		x_src = x_lm + x_scat_src
+		y_src = y_lm + y_scat_src
+
+		return x_lm,y_lm,x_ll,y_ll,x_src,y_src,x_src,y_src
+	
 
 class RedshiftsTruncNorm():
 	"""Class that samples z_lens and z_source from truncated normal 

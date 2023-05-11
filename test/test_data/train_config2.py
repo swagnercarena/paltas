@@ -56,3 +56,5 @@ learning_rate = 5e-3
 random_rotation = False
 # csv path
 csv_path = None
+# steps_per_decay
+steps_per_decay = 1
