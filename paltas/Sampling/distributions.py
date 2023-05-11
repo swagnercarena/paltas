@@ -340,10 +340,12 @@ class FourComponentCorrelatedCenter():
 		x_lm,y_lm,x_ll,y_ll,x_src,y_src,x_ps,y_ps
     """
 	
-	def __init__(self,lm_dist,ll_sigma,src_sigma):
+	def __init__(self,lm_dist,ll_sigma,src_sigma,ll_mu=0,src_mu=0):
 		self.lm_dist = lm_dist
 		self.ll_sigma = ll_sigma
 		self.src_sigma = src_sigma
+		self.ll_mu = ll_mu
+		self.src_mu = src_mu
 
 	def _calc_xy_scatter(self):
 		"""
@@ -357,9 +359,9 @@ class FourComponentCorrelatedCenter():
 				to lens mass coordinate)
 		"""
 
-		R_ll = truncnorm.rvs(0,np.inf,loc=0.0,scale=self.ll_sigma)
+		R_ll = truncnorm.rvs(-self.ll_mu/self.ll_sigma,np.inf,loc=self.ll_mu,scale=self.ll_sigma)
 		phi_ll = uniform.rvs(0,2*np.pi)
-		R_src = truncnorm.rvs(0,np.inf,loc=0.0,scale=self.ll_sigma)
+		R_src = truncnorm.rvs(-self.src_mu/self.src_sigma,np.inf,loc=self.src_mu,scale=self.src_sigma)
 		phi_src = uniform.rvs(0,2*np.pi)
 		return R_ll*np.cos(phi_ll),R_ll*np.sin(phi_ll),R_src*np.cos(phi_src),R_src*np.sin(phi_src)
 

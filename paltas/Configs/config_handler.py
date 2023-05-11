@@ -101,6 +101,12 @@ class ConfigHandler():
 			self.compute_caustic_area = self.config_module.compute_caustic_area
 		else:
 			self.compute_caustic_area = False
+			
+		if hasattr(self.config_module, 'ps_magnification_cut'):
+			self.ps_magnification_cut = self.config_module.ps_magnification_cut
+		else:
+			self.ps_magnification_cut = None
+
 
 		# Set up the paltas objects we'll use
 		self.los_class = None
@@ -440,6 +446,13 @@ class ConfigHandler():
 			magnifications = magnifications * (
 				sample['point_source_parameters']['mag_pert'][
 					0:len(magnifications)])
+			
+		# throw error if does not pass point source magnification cut
+		if self.ps_magnification_cut is not None:
+			avg_magnification = np.mean(np.abs(magnifications))
+			if avg_magnification < self.ps_magnification_cut:
+				metadata = None
+				return -1
 
 		# Calculate time delays
 		if sample['point_source_parameters']['compute_time_delays']:
