@@ -18,7 +18,7 @@
 .. image:: https://readthedocs.org/projects/paltas/badge/?version=latest
     :target: https://paltas.readthedocs.io/en/latest
     :alt: Documentation Status
-    
+
 .. image:: https://img.shields.io/badge/arXiv-2203.00690%20-yellowgreen.svg
     :target: https://arxiv.org/abs/2203.00690
 
@@ -73,6 +73,23 @@ Figures
 
 Code for generating the plots included in some of the publications using ``paltas`` can be found under the corresponding arxiv number in the ``notebooks/papers/`` folder.
 
+Contributing
+------------
+
+We welcome improvements via GitHub pull request! The workflow for contributing to ``paltas`` is the same as it is for ``lenstronomy``, please see the `lenstronomy CONTRIBUTING guidelines <https://github.com/lenstronomy/lenstronomy/blob/main/CONTRIBUTING.rst>`_. for the rundown.
+
+In brief, to contribute to ``paltas`` you will need to fork the repo on GitHub, clone it, and pip install with editable option, like this:
+
+.. code-block:: bash
+
+    $ git clone git@github.com:<your-account>/paltas.git
+    $ cd paltas
+    $ pip install -e .
+
+You should then work in a local development branch, while keeping your ``main`` branch up to date with the base repo on GitHub. (That means you'll need to ``git remote add base https://github.com/swagnercarena/lenstronomy.git`` so that you can ``git pull base main`` from your ``main`` branch).
+
+See the `lenstronomy CONTRIBUTING guidelines <https://github.com/lenstronomy/lenstronomy/blob/main/CONTRIBUTING.rst>`_. for help with python style, docstring formats, creating pull requests, and so on. We recommend that you start your pull request (PR) when you _begin_ work on a new feature or bug fix, so that the rest of the ``paltas`` community can see what you are doing and coordinate with you - when your improvement is ready you can request code review from others via the PR interface.
+
 Attribution
 -----------
 If you use ``paltas`` or its datasets for your own research, please cite the ``paltas`` package (`Wagner-Carena et al. 2022 <https://arxiv.org/abs/2203.00690>`_) as well as the ``lenstronomy`` package (`Birrer & Amara 2018 <https://arxiv.org/abs/1803.09746v1>`_, `Birrer et al. 2021 <https://joss.theoj.org/papers/10.21105/joss.03283>`_).
@@ -81,7 +98,7 @@ Zenodo Uploads
 --------------
 The following is a list of the zenodo uploads associated to papers using paltas. These uploads will include additional chains, test sets, and model weights required to reproduce the paper results.
 
-* `From Images to Dark Matter: End-To-End Inference of Substructure From Hundreds of Strong Gravitational Lenses -- Data <https://zenodo.org/record/6326743#.Yo_4qBPML0o>`_. 
+* `From Images to Dark Matter: End-To-End Inference of Substructure From Hundreds of Strong Gravitational Lenses -- Data <https://zenodo.org/record/6326743#.Yo_4qBPML0o>`_.
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.6326743.svg
    :target: https://doi.org/10.5281/zenodo.6326743
