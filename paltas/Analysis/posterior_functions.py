@@ -107,7 +107,10 @@ def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):
 	if weights is None:
 		y_mean = np.mean(predict_samps,axis=0)
 	else:
-		y_mean = np.mean(np.expand_dims(weights,axis=-1)*predict_samps,axis=0)
+		# Make sure weights are normalized s.t. they sum to 1
+		weights = weights / np.sum(weights,axis=0)
+		# weighted average
+		y_mean = np.sum(np.expand_dims(weights,axis=-1)*predict_samps,axis=0)
 
 	# The metric for the distance calculation. Using numba for speed.
 	@numba.njit
@@ -132,7 +135,8 @@ def calc_p_dlt(predict_samps,y_test,weights=None,cov_dist_mat=None):
 	if weights is None:
 		return np.mean(p_dlt,axis=0)
 	else:
-		return np.mean(p_dlt*weights,axis=0)
+		# weighted average
+		return np.sum(p_dlt.astype('int')*weights,axis=0)
 
 
 def plot_calibration(predict_samps,y_test,color_map=["#377eb8", "#4daf4a"],
