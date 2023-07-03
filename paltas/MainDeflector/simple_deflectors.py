@@ -63,7 +63,8 @@ class PEMD(MainDeflectorBase):
 		# Use lenstronomy to sort the parameters
 		for model in md_model_list:
 			# The list of parameters linked to that lenstronomy model
-			p_names = ProfileListBase._import_class(model,None,None).param_names
+			p_names = ProfileListBase._import_class(model,custom_class=None,
+					   kwargs_interp=None,kwargs_synthesis=None).param_names
 			model_kwargs = {}
 			for param in p_names:
 				model_kwargs[param] = (self.main_deflector_parameters[param])
@@ -130,7 +131,8 @@ class PEMDShear(MainDeflectorBase):
 		# Use lenstronomy to sort the parameters
 		for model in md_model_list:
 			# The list of parameters linked to that lenstronomy model
-			p_names = ProfileListBase._import_class(model,None,None).param_names
+			p_names = ProfileListBase._import_class(model,custom_class=None,
+					   kwargs_interp=None,kwargs_synthesis=None).param_names
 			model_kwargs = {}
 			for param in p_names:
 				model_kwargs[param] = (self.main_deflector_parameters[param])
