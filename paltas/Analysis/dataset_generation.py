@@ -70,7 +70,9 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 			log_data = metadata[log_learning_params].to_numpy()
 			log_norm_dict['mean'] = np.mean(np.log(log_data),axis=0)
 			log_norm_dict['std'] = np.std(np.log(log_data),axis=0)
-			norm_dict = norm_dict.append(log_norm_dict)
+			# pandas DataFrame.append() method is deprecated
+			norm_dict = pd.concat([norm_dict,log_norm_dict])
+			#norm_dict = norm_dict.append(log_norm_dict)
 
 		# Set parameter to the index
 		norm_dict = norm_dict.set_index('parameter')
