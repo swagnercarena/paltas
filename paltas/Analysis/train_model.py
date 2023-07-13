@@ -203,6 +203,9 @@ def main():
 	elif model_type == 'xresnet18' and not params_as_inputs:
 		model = conv_models.build_xresnet18(img_size,num_outputs,
 			train_only_head=train_only_head)
+	elif model_type == 'xresnet101' and not params_as_inputs:
+		model = conv_models.build_xresnet101(img_size,num_outputs,
+			train_only_head=train_only_head)
 	else:
 		raise ValueError('%s model not in the list of supported models'%(
 			model_type))

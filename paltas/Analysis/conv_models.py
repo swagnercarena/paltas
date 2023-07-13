@@ -106,6 +106,128 @@ def _xresnet_stack(x,filters,kernel_size,strides,conv_shortcut,name,blocks,
 	return x
 
 
+def _xresnet(arch,conv_inputs,num_outputs,custom_head=False,trainable=True,
+	output_trainable=True):
+	"""Run a convolutional input through an xresnet model described in
+	https://arxiv.org/pdf/1812.01187.pdf
+
+	Args:
+        arch (string): Architecture, one of '18','34',or '101'
+		conv_inputs (KerasTensor): A KerasTensor with dimension (batch_size,
+			image_size,image_size,n_channels) that will be used as the input to
+			the xresent_34 model.
+		num_outputs (int): The number of outputs to predict
+		custom_head (bool): If true, then add a custom head at the end of
+			xresnet34 in line with what' used in the fastai code.
+		trainable (bool): If False, do not train the convolutional weights.
+		output_trainable (bool): If False do not train the last dense layer.
+
+	Returns:
+		(KerasTensor): The outputs of the xresnet34 with dimension (batch_size,
+		num_outputs).
+	"""
+
+	num_blocks = {
+		'18':[2,2,2,2],
+		'34':[3,4,6,3],
+		'101':[3,4,23,3]
+	}
+	if arch not in {'18','34','101'}:
+		raise ValueError('xresnet arch must be one of: \'18\',\'34\',\'101\'')
+	
+	# Assume the first dimension is the batch size
+	bn_axis = -1
+
+	# Build the stem of the resnet
+	# Conv 1 of stem
+	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad1',
+		trainable=trainable)(conv_inputs)
+	x = layers.Conv2D(32,3,strides=2,use_bias=False,name='stem_conv1',
+		trainable=trainable)(x)
+	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+		name='stem_bn1',trainable=trainable)(x)
+	x = layers.Activation('relu',name='stem_relu1',trainable=trainable)(x)
+
+	# Conv 2 of stem
+	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad2',
+		trainable=trainable)(x)
+	x = layers.Conv2D(32,3,strides=1,use_bias=False,name='stem_conv2',
+		trainable=trainable)(x)
+	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+		name='stem_bn2',trainable=trainable)(x)
+	x = layers.Activation('relu',name='stem_relu2',trainable=trainable)(x)
+
+	# Conv 3 of stem
+	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad3',
+		trainable=trainable)(x)
+	x = layers.Conv2D(64,3,strides=1,use_bias=False,name='stem_conv3',
+		trainable=trainable)(x)
+	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+		name='stem_bn3',trainable=trainable)(x)
+	x = layers.Activation('relu',name='stem_relu3',trainable=trainable)(x)
+
+	# Next step is max pooling of the stem
+	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad4',
+		trainable=trainable)(x)
+	x = layers.MaxPooling2D(3,strides=2,name='stem_maxpooling',
+		trainable=trainable)(x)
+
+	# # Now we apply the residual stacks
+	x = _xresnet_stack(x,filters=64,kernel_size=3,strides=1,
+		conv_shortcut=False,name='stack1',blocks=num_blocks[arch][0],
+		trainable=trainable)
+	x = _xresnet_stack(x,filters=128,kernel_size=3,strides=2,
+		conv_shortcut=True,name='stack2',blocks=num_blocks[arch][1],
+		trainable=trainable)
+	x = _xresnet_stack(x,filters=256,kernel_size=3,strides=2,
+		conv_shortcut=True,name='stack3',blocks=num_blocks[arch][2],
+		trainable=trainable)
+	x = _xresnet_stack(x,filters=512,kernel_size=3,strides=2,
+		conv_shortcut=True,name='stack4',blocks=num_blocks[arch][3],
+		trainable=trainable)
+
+	# Conduct the pooling and a dense transform to the final prediction
+	x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
+	if custom_head:
+		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+			name='head_bn1',trainable=output_trainable)(x)
+		x = layers.Dense(512,use_bias=False,name='head_dense1',
+			trainable=output_trainable)(x)
+		x = layers.Activation('relu',name='head_relu1')(x)
+		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
+			name='head_bn2',trainable=output_trainable)(x)
+		x = layers.Dense(num_outputs,use_bias=False,name='head_dense2',
+			trainable=output_trainable)(x)
+		outputs = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,
+			momentum=0.1,name='head_bn3',trainable=output_trainable)(x)
+	else:
+		outputs = layers.Dense(num_outputs,name='output_dense',
+			trainable=output_trainable)(x)
+
+	return outputs
+	
+def _xresnet18(conv_inputs,num_outputs,custom_head=False,trainable=True,
+	output_trainable=True):
+	"""Run a convolutional input through the xresnet18 model
+
+	Args:
+		conv_inputs (KerasTensor): A KerasTensor with dimension (batch_size,
+			image_size,image_size,n_channels) that will be used as the input to
+			the xresent_18 model.
+		num_outputs (int): The number of outputs to predict
+		custom_head (bool): If true, then add a custom head at the end of
+			xresnet18 in line with what' used in the fastai code.
+		trainable (bool): If False, do not train the convolutional weights.
+		output_trainable (bool): If False do not train the last dense layer.
+
+	Returns:
+		(KerasTensor): The outputs of the xresnet34 with dimension (batch_size,
+		num_outputs).
+	"""
+
+	return _xresnet('18',conv_inputs,num_outputs,custom_head,trainable,
+		 output_trainable)
+
 def _xresnet34(conv_inputs,num_outputs,custom_head=False,trainable=True,
 	output_trainable=True):
 	"""Run a convolutional input through the xresnet34 model described in
@@ -126,84 +248,21 @@ def _xresnet34(conv_inputs,num_outputs,custom_head=False,trainable=True,
 		num_outputs).
 	"""
 
-	# Assume the first dimension is the batch size
-	bn_axis = -1
+	return _xresnet('34',conv_inputs,num_outputs,custom_head,trainable,
+		 output_trainable)
 
-	# Build the stem of the resnet
-	# Conv 1 of stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad1',
-		trainable=trainable)(conv_inputs)
-	x = layers.Conv2D(32,3,strides=2,use_bias=False,name='stem_conv1',
-		trainable=trainable)(x)
-	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='stem_bn1',trainable=trainable)(x)
-	x = layers.Activation('relu',name='stem_relu1',trainable=trainable)(x)
-
-	# Conv 2 of stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad2',
-		trainable=trainable)(x)
-	x = layers.Conv2D(32,3,strides=1,use_bias=False,name='stem_conv2',
-		trainable=trainable)(x)
-	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='stem_bn2',trainable=trainable)(x)
-	x = layers.Activation('relu',name='stem_relu2',trainable=trainable)(x)
-
-	# Conv 3 of stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad3',
-		trainable=trainable)(x)
-	x = layers.Conv2D(64,3,strides=1,use_bias=False,name='stem_conv3',
-		trainable=trainable)(x)
-	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='stem_bn3',trainable=trainable)(x)
-	x = layers.Activation('relu',name='stem_relu3',trainable=trainable)(x)
-
-	# Next step is max pooling of the stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad4',
-		trainable=trainable)(x)
-	x = layers.MaxPooling2D(3,strides=2,name='stem_maxpooling',
-		trainable=trainable)(x)
-
-	# # Now we apply the residual stacks
-	x = _xresnet_stack(x,filters=64,kernel_size=3,strides=1,
-		conv_shortcut=False,name='stack1',blocks=3,trainable=trainable)
-	x = _xresnet_stack(x,filters=128,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack2',blocks=4,trainable=trainable)
-	x = _xresnet_stack(x,filters=256,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack3',blocks=6,trainable=trainable)
-	x = _xresnet_stack(x,filters=512,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack4',blocks=3,trainable=trainable)
-
-	# Conduct the pooling and a dense transform to the final prediction
-	x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
-	if custom_head:
-		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-			name='head_bn1',trainable=output_trainable)(x)
-		x = layers.Dense(512,use_bias=False,name='head_dense1',
-			trainable=output_trainable)(x)
-		x = layers.Activation('relu',name='head_relu1')(x)
-		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-			name='head_bn2',trainable=output_trainable)(x)
-		x = layers.Dense(num_outputs,use_bias=False,name='head_dense2',
-			trainable=output_trainable)(x)
-		outputs = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,
-			momentum=0.1,name='head_bn3',trainable=output_trainable)(x)
-	else:
-		outputs = layers.Dense(num_outputs,name='output_dense',
-			trainable=output_trainable)(x)
-
-	return outputs
-
-def _xresnet18(conv_inputs,num_outputs,custom_head=False,trainable=True,
+def _xresnet101(conv_inputs,num_outputs,custom_head=False,trainable=True,
 	output_trainable=True):
-	"""Run a convolutional input through the xresnet18 model
+	"""Run a convolutional input through the xresnet34 model described in
+	https://arxiv.org/pdf/1812.01187.pdf
 
 	Args:
 		conv_inputs (KerasTensor): A KerasTensor with dimension (batch_size,
 			image_size,image_size,n_channels) that will be used as the input to
-			the xresent_18 model.
+			the xresent_34 model.
 		num_outputs (int): The number of outputs to predict
 		custom_head (bool): If true, then add a custom head at the end of
-			xresnet18 in line with what' used in the fastai code.
+			xresnet34 in line with what' used in the fastai code.
 		trainable (bool): If False, do not train the convolutional weights.
 		output_trainable (bool): If False do not train the last dense layer.
 
@@ -212,73 +271,8 @@ def _xresnet18(conv_inputs,num_outputs,custom_head=False,trainable=True,
 		num_outputs).
 	"""
 
-	# Assume the first dimension is the batch size
-	bn_axis = -1
-
-	# Build the stem of the resnet
-	# Conv 1 of stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad1',
-		trainable=trainable)(conv_inputs)
-	x = layers.Conv2D(32,3,strides=2,use_bias=False,name='stem_conv1',
-		trainable=trainable)(x)
-	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='stem_bn1',trainable=trainable)(x)
-	x = layers.Activation('relu',name='stem_relu1',trainable=trainable)(x)
-
-	# Conv 2 of stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad2',
-		trainable=trainable)(x)
-	x = layers.Conv2D(32,3,strides=1,use_bias=False,name='stem_conv2',
-		trainable=trainable)(x)
-	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='stem_bn2',trainable=trainable)(x)
-	x = layers.Activation('relu',name='stem_relu2',trainable=trainable)(x)
-
-	# Conv 3 of stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad3',
-		trainable=trainable)(x)
-	x = layers.Conv2D(64,3,strides=1,use_bias=False,name='stem_conv3',
-		trainable=trainable)(x)
-	x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-		name='stem_bn3',trainable=trainable)(x)
-	x = layers.Activation('relu',name='stem_relu3',trainable=trainable)(x)
-
-	# Next step is max pooling of the stem
-	x = layers.ZeroPadding2D(padding=((1,1),(1,1)),name='stem_pad4',
-		trainable=trainable)(x)
-	x = layers.MaxPooling2D(3,strides=2,name='stem_maxpooling',
-		trainable=trainable)(x)
-
-	# # Now we apply the residual stacks
-    # CHANGED blocks= TO SWITCH TO RESNET18
-	x = _xresnet_stack(x,filters=64,kernel_size=3,strides=1,
-		conv_shortcut=False,name='stack1',blocks=2,trainable=trainable)
-	x = _xresnet_stack(x,filters=128,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack2',blocks=2,trainable=trainable)
-	x = _xresnet_stack(x,filters=256,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack3',blocks=2,trainable=trainable)
-	x = _xresnet_stack(x,filters=512,kernel_size=3,strides=2,
-		conv_shortcut=True,name='stack4',blocks=2,trainable=trainable)
-
-	# Conduct the pooling and a dense transform to the final prediction
-	x = layers.GlobalAveragePooling2D(name='avg_pool')(x)
-	if custom_head:
-		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-			name='head_bn1',trainable=output_trainable)(x)
-		x = layers.Dense(512,use_bias=False,name='head_dense1',
-			trainable=output_trainable)(x)
-		x = layers.Activation('relu',name='head_relu1')(x)
-		x = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,momentum=0.1,
-			name='head_bn2',trainable=output_trainable)(x)
-		x = layers.Dense(num_outputs,use_bias=False,name='head_dense2',
-			trainable=output_trainable)(x)
-		outputs = layers.BatchNormalization(axis=bn_axis,epsilon=1e-5,
-			momentum=0.1,name='head_bn3',trainable=output_trainable)(x)
-	else:
-		outputs = layers.Dense(num_outputs,name='output_dense',
-			trainable=output_trainable)(x)
-
-	return outputs
+	return _xresnet('101',conv_inputs,num_outputs,custom_head,trainable,
+		 output_trainable)
 
 def build_xresnet18(img_size,num_outputs,custom_head=False,
 	train_only_head=False):
@@ -404,5 +398,42 @@ def build_xresnet34_fc_inputs(img_size,num_outputs,num_fc_inputs,
 	outputs = layers.Dense(num_outputs,use_bias=True,name='fc_dense3')(x)
 
 	model = Model(inputs=[inputs_image,inputs_fc],outputs=outputs)
+
+	return model
+
+def build_xresnet101(img_size,num_outputs,custom_head=False,
+	train_only_head=False):
+	""" Build the xresnet101 model
+	Note this is not exactly the xresnet101 model described here: 
+		https://arxiv.org/pdf/1512.03385.pdf (see Figure 5)
+	We use building blocks rather than "bottleneck" building blocks. 
+	This matches the architecture described in our previous work: 
+		https://arxiv.org/pdf/2012.00042.pdf (see Figure 3)
+
+	Args:
+		img_size ((int,int,int)): A tuple with shape (pix,pix,freq) that
+			describes the size of the input images.
+		num_outputs (int): The number of outputs to predict
+		custom_head (bool): If true, then add a custom head at the end of
+			xresnet34 in line with what' used in the fastai code.
+		train_only_head (bool): If true, only train the head of the network.
+
+	Returns:
+		(keras.Model): An instance of the xresnet101 model implemented in
+		Keras.
+	"""
+
+	# If we train only the head, then none of the previous weights should be
+	# trainable
+	trainable = not train_only_head
+
+	# Initialize the inputs
+	inputs = layers.Input(shape=img_size)
+
+	# Pass the inputs through out xresnet 34 model.
+	outputs = _xresnet101(inputs,num_outputs,custom_head=custom_head,
+		trainable=trainable,output_trainable=True)
+
+	model = Model(inputs=inputs,outputs=outputs)
 
 	return model
