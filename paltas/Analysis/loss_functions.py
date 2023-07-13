@@ -425,33 +425,3 @@ class FullCovarianceLoss(BaseLoss):
 				tf.matmul(y_pred,flip_mat),prec_mat,L_diag))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
-
-class ParameterSE():
-	""" Class to compute square error for a particular parameter
-
-	Args:
-		loss_object (BaseLoss): Loss object
-		param_idx (int): Index to slice for specific parameter
-	"""
-	def __init__(self,loss_object,param_idx):
-		self.loss_object = loss_object
-		self.param_idx = param_idx
-
-	def square_error(self,y_true,output):
-		"""
-		Returns:
-			(tf.tensor): Square error 
-
-		Notes:
-			A metric must return a scalar tensor in order to interface with tf
-			model.compile(metrics=[]) method.
-		"""
-
-		# Extract the outputs
-		converted_output_list = self.loss_object.convert_output(output)
-		if type(converted_output_list) is np.ndarray:
-			y_pred = converted_output_list
-		else:
-			y_pred = converted_output_list[0]
-
-		return tf.square(y_pred[self.param_idx]-y_true[self.param_idx])

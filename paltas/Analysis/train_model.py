@@ -186,9 +186,6 @@ def main():
 		num_outputs = num_params + int(num_params*(num_params+1)/2)
 		loss = loss_functions.FullCovarianceLoss(num_params,flip_pairs,
 			weight_terms).loss
-		# TODO: fix how this is handled
-		gamma_mse = loss_functions.ParameterSE(loss_functions.FullCovarianceLoss(num_params,flip_pairs,
-			weight_terms),3).square_error
 	else:
 		raise ValueError('%s loss not in the list of supported losses'%(
 			loss_function))
@@ -220,10 +217,7 @@ def main():
 	opt = getattr(optimizers,optimizer_string)(learning_rate=lr_schedule)
 
 	# Compile our model
-	if loss_function == 'full':
-		model.compile(loss=loss,optimizer=opt,metrics=[loss,gamma_mse])
-	else:
-		model.compile(loss=loss,optimizer=opt,metrics=[loss])
+	model.compile(loss=loss,optimizer=opt,metrics=[loss])
 
 	print('Is model built: ' + str(model.built))
 
