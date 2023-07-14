@@ -91,6 +91,12 @@ class ConfigHandler():
 		self.kwargs_numerics = self.config_module.kwargs_numerics
 		self.numpix = self.config_module.numpix
 		
+		# handle doubles_quads_only
+		if hasattr(self.config_module, 'doubles_quads_only'):
+			self.doubles_quads_only = self.config_module.doubles_quads_only
+		else:
+			self.doubles_quads_only = False
+
 		# handle quads_only
 		if hasattr(self.config_module, 'quads_only'):
 			self.quads_only = self.config_module.quads_only
@@ -430,6 +436,10 @@ class ConfigHandler():
 		
 		# throw error if num images > 5
 		if num_images > 5:
+			metadata = None
+			return -1
+
+		if self.doubles_quads_only and num_images != 2 and num_images != 4:
 			metadata = None
 			return -1
 
