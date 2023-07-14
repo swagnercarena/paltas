@@ -217,8 +217,8 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 
 
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
-	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
-	log_learning_params=None,shuffle=True):
+	n_epochs,norm_images=False,log_norm_images=False,input_norm_path=None,
+	kwargs_detector=None,log_learning_params=None,shuffle=True):
 	"""Generate a TFDataset that a model can be trained with.
 
 	Args:
@@ -231,6 +231,8 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		n_epochs (int): The number of training epochs. The dataset object will
 			deal with iterating over the data for repeated epochs.
 		norm_images (bool): If True, images will be normalized to have std 1.
+		log_norm_images (bool): If True, images will be log-normalized and
+			rescaled to range [0,1]
 		input_norm_path (str): The path to a csv that contains the
 			normalization to be applied to the output parameters. If None
 			no normalization will be applied.
@@ -291,9 +293,23 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 		if noise_function is not None:
 			image += noise_function(image,kwargs_detector)
 
+		# Check if both normalization flags are set to True
+		if norm_images and log_norm_images:
+			raise ValueError('Error: both norm_images and log_norm_images'+ 
+		    	'flags have been set to True in generate_tf_dataset()')
+
 		# If the images must be normed divide by the std
 		if norm_images:
 			image = image / tf.math.reduce_std(image)
+
+		# add option to do log norm as described in: 
+		# 	https://arxiv.org/pdf/2012.00042.pdf
+		# (went and checked in h0rton, it uses log10)
+		if log_norm_images:
+			image = tf.experimental.numpy.log10(1+image)
+			# rescale to range [0,1]
+			image = (image - tf.math.reduce_min(image)) / (
+				tf.math.reduce_max(image)- tf.math.reduce_min(image))
 
 		# Log the parameter if needed
 		for param in log_learning_params_list:
@@ -448,8 +464,8 @@ def rotate_image_batch(image_batch,learning_params,output,rot_angle):
 
 
 def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
-	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
-	log_learning_params=None,shuffle=True):
+	n_epochs,norm_images=False,log_norm_images=False,input_norm_path=None,
+	kwargs_detector=None,log_learning_params=None,shuffle=True):
 	"""Returns a generator that builds off of a TFDataset by adding random
 	rotations to the images and parameters.
 
@@ -463,6 +479,8 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 		n_epochs (int): The number of training epochs. The dataset object will
 			deal with iterating over the data for repeated epochs.
 		norm_images (bool): If True, images will be normalized to have std 1.
+		log_norm_images (bool): If True, images will be log-normalized and
+			rescaled to range [0,1]
 		input_norm_path (str): The path to a csv that contains the
 			normalization to be applied to the output parameters. If None
 			no normalization will be applied.
@@ -481,8 +499,8 @@ def generate_rotations_dataset(tf_record_path,learning_params,batch_size,
 	# Create our base tf dataset without normalization
 	base_dataset = generate_tf_dataset(tf_record_path,learning_params,
 		batch_size,n_epochs,norm_images=norm_images,
-		kwargs_detector=kwargs_detector,log_learning_params=log_learning_params,
-		shuffle=shuffle)
+		log_norm_images=log_norm_images,kwargs_detector=kwargs_detector,
+		log_learning_params=log_learning_params,shuffle=shuffle)
 
 	# If normalization file is provided use it
 	if input_norm_path is not None:
