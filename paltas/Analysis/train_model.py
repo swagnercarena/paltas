@@ -91,22 +91,25 @@ def main():
 	# Whether or not to normalize the images by the standard deviation
 	norm_images = config_module.norm_images
 	# Whether or not to log norm images
-	log_norm_images = config_module.log_norm_images
+	log_norm_images = getattr(config_module,'log_norm_images',False)
 	# A string with which loss function to use.
 	loss_function = config_module.loss_function
 	# A string specifying which model to use
 	model_type = config_module.model_type
 	# A string specifying which optimizer to use
 	optimizer_string = config_module.optimizer
-	# Where to save the model weights and where to load the initial weights
+	# Where to load the initial model weights
 	model_weights_init = config_module.model_weights_init
+	# Whether to allow mismatch in loaded weights & model architecture
+	allow_skip_mismatch = getattr(config_module,'allow_skip_mismatch',False)
+	# Where to save the model weights 
 	model_weights = config_module.model_weights
 	# The learning rate for the model
 	learning_rate = config_module.learning_rate
 	# Whether or not to apply a random rotation to the input image
 	random_rotation = config_module.random_rotation
 	# CSV Path
-	csv_path = config_module.csv_path
+	csv_path = getattr(config_module,'csv_path',None)
 	# Steps per LR Decay
 	steps_per_decay = config_module.steps_per_decay
 	
@@ -227,7 +230,11 @@ def main():
 	print('Is model built: ' + str(model.built))
 
 	try:
-		model.load_weights(model_weights_init)
+		if allow_skip_mismatch:
+			model.load_weights(model_weights_init,by_name=True,
+		      skip_mismatch=True)
+		else:
+			model.load_weights(model_weights_init)
 		print('Loaded weights %s'%(model_weights_init))
 	except:
 		print('No weights found. Saving new weights to %s'%(model_weights))
