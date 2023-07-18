@@ -90,6 +90,8 @@ def main():
 	kwargs_detector = config_module.kwargs_detector
 	# Whether or not to normalize the images by the standard deviation
 	norm_images = config_module.norm_images
+	# Whether or not to log norm images
+	log_norm_images = config_module.log_norm_images
 	# A string with which loss function to use.
 	loss_function = config_module.loss_function
 	# A string specifying which model to use
@@ -146,13 +148,15 @@ def main():
 		# Get a generator object that returns rotated images and parameters.
 		tf_dataset_t = dataset_generation.generate_rotations_dataset(
 			tfr_train_paths,all_params,batch_size,n_epochs,
-			norm_images=norm_images,input_norm_path=input_norm_path,
+			norm_images=norm_images,log_norm_images=log_norm_images,
+			input_norm_path=input_norm_path,
 			kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	else:
 		# Turn our tf records into tf datasets for training and validation
 		tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
 			all_params,batch_size,n_epochs,norm_images=norm_images,
+			log_norm_images=log_norm_images,
 			input_norm_path=input_norm_path,kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	# We shouldn't be adding random noise to validation images. They should
@@ -162,7 +166,8 @@ def main():
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
 		all_params,min(batch_size,n_val_npy),1,
-		norm_images=norm_images,input_norm_path=input_norm_path,
+		norm_images=norm_images,log_norm_images=log_norm_images,
+		input_norm_path=input_norm_path,
 		kwargs_detector=None,log_learning_params=log_learning_params)
 
 	# If some of the parameters need to be extracted as inputs, do that.
