@@ -260,7 +260,7 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Check that the mag_cut works
 		self.c.add_noise =False
 		self.c.mag_cut = 1.2
-		with self.assertRaises(config_handler.MagnificationError):
+		with self.assertRaises(config_handler.FailedCriteriaError):
 			image, metadata = self.c._draw_image_standard(self.c.add_noise)
 
 		# Now add a deflector and see if we get a ring
@@ -433,7 +433,7 @@ class ConfigUtilsTests(unittest.TestCase):
 		# Check that the mag_cut works
 		c_drizz.add_noise=False
 		c_drizz.mag_cut = 1.2
-		with self.assertRaises(config_handler.MagnificationError):
+		with self.assertRaises(config_handler.FailedCriteriaError):
 			image, metadata = c_drizz._draw_image_drizzle()
 
 		# Now add a deflector and see if we get a ring

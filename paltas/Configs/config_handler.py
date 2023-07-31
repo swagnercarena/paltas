@@ -41,11 +41,15 @@ EXCLUDE_FROM_METADATA = (
 	('source_parameters', 'cosmos_folder'),
 )
 
-
-class MagnificationError(Exception):
-	def __init__(self,mag_cut):
+	
+class FailedCriteriaError(Exception):
+	"""
+    Use this error to skip images that don't pass doubles only, quad only, 
+        magnification cut, (etc.) criteria
+    """
+	def __init__(self):
 		# Pass a useful message to base class constructor
-		message = 'Magnification cut of %.2f not met. '%(mag_cut)
+		message = 'Criteria for image creation not met.'
 		message += 'If this is inteneded (i.e. in a loop) use try/except.'
 		super().__init__(message)
 
@@ -436,17 +440,14 @@ class ConfigHandler():
 		
 		# throw error if num images > 5
 		if num_images > 5:
-			metadata = None
-			return -1
+			raise FailedCriteriaError()
 
 		if self.doubles_quads_only and num_images != 2 and num_images != 4:
-			metadata = None
-			return -1
+			raise FailedCriteriaError()
 
 		# throw error if not quad & requested quads only
 		if self.quads_only and num_images != 4:
-			metadata = None
-			return -1
+			raise FailedCriteriaError()
 
 		# Calculate magnifications using complete_lens_model
 		magnifications = lens_model.magnification(x_image[0],y_image[0],
@@ -461,8 +462,7 @@ class ConfigHandler():
 		if self.ps_magnification_cut is not None:
 			avg_magnification = np.mean(np.abs(magnifications))
 			if avg_magnification < self.ps_magnification_cut:
-				metadata = None
-				return -1
+				raise FailedCriteriaError()
 
 		# Calculate time delays
 		if sample['point_source_parameters']['compute_time_delays']:
@@ -594,7 +594,7 @@ class ConfigHandler():
 			mag = np.sum(image)-lens_light_total
 			mag /= source_light_total
 			if mag < self.mag_cut:
-				raise MagnificationError(self.mag_cut)
+				raise FailedCriteriaError()
 
 		# If noise is specified, add it.
 		if add_noise:
@@ -606,8 +606,11 @@ class ConfigHandler():
 		# If a point source was specified, calculate the time delays
 		# and image positions.
 		if self.point_source_class is not None:
-			success = self._calculate_ps_metadata(metadata,kwargs_params,
-				point_source_model,lens_model)
+			try:
+				success = self._calculate_ps_metadata(metadata,kwargs_params,
+					point_source_model,lens_model)
+			except FailedCriteriaError as e:
+				raise FailedCriteriaError() from e
 			
 			# address case w/ 6 PS images
 			if success == -1:
@@ -784,8 +787,8 @@ class ConfigHandler():
 				# it can be used by _draw_image_drizzle.
 				image,metadata = self._draw_image_standard(
 					add_noise=self.add_noise)
-		except MagnificationError:
-			# Magnification cut was not met, return None,None
+		except FailedCriteriaError:
+			# Image critera not met, return None,None.
 			return None, None
 
 		# address case w/ more than 6 images
