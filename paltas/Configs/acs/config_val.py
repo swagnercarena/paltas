@@ -1,4 +1,3 @@
-import copy
 from paltas.Configs.acs.config_train import *
 from paltas.Sources.cosmos import COSMOSIncludeCatalog
 # Would be nice to do this, but it would mess up scipy.stats random states..

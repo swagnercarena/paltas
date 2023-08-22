@@ -132,8 +132,11 @@ config_dict = {
 			# Which amplifiers were used? All of them?
 			'read_noise':uniform(loc=5.25,scale=0.25).rvs,
 			'magnitude_zero_point':output_ab_zeropoint,
-			# Note this should be the exposure of one drizzled exposure
-			'exposure_time':uniform(loc=546,scale=115).rvs,
+			# Exposure of one of the drizzled exposures.
+			# The 42 full orbit SLACS observations with F814W data have
+			# a total exposure distributed roughly as 2184 +- 116 seconds.
+			# (minimum is 2088 sec, maximum 2520 sec)
+			'exposure_time':uniform(loc=2184/4,scale=116/4).rvs,
 			'sky_brightness':uniform(21.13,scale=0.57).rvs,
 			# This parameter appears to be ignored
 			#'num_exposures':1,

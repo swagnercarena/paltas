@@ -355,6 +355,28 @@ class DoubleSersicData(SingleSersicSource):
 
 
 class DoubleSersicCOSMODC2(DoubleSersicData):
+	"""Class to generate a bulge + disk sersic light model for use as the lens
+	light of the deflector, with sersic parameters drawn from (a selection of)
+	the CosmoDC2 catalog.
+
+	Args:
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
+			dict with H0 and Om0 ( other parameters will be set to defaults).
+		source_parameters: dictionary with source-specific parameters.
+
+	Notes:
+
+	Required Parameters
+
+	- cosmodc2_file - Path to the CosmoDC2 catalog to use. Should be
+		an npz file with a single array called 'arr_0' containing the
+		catalog.
+	- center_x - x-coordinate source center in units of arcseconds
+	- center_y - y-coordinate source center in units of arcseconds
+	- z_source - light source redshift (should be the same as main deflector)
+	"""
 
 	required_parameters = (
 		'cosmodc2_file', 'center_x', 'center_y', 'z_source')
@@ -382,7 +404,7 @@ class DoubleSersicCOSMODC2(DoubleSersicData):
 		# Divide between bulge and disk
 		L_bulge = L_total * f_bulge
 		L_disk = L_total - L_bulge
-		# f_bulge could be 0 or 1, avoid runtimewarning
+		# f_bulge could be 0 or 1; avoid runtimewarning
 		with warnings.catch_warnings():
 			warnings.simplefilter('ignore')
 			return -2.5 * np.log10([L_bulge, L_disk])
