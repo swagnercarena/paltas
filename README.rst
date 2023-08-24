@@ -45,7 +45,7 @@ The default ``paltas`` requirements do not include ``tensorflow``, but if you ar
 Usage
 -----
 
-The main functionality of ``paltas`` is to generate realistic datasets of strong gravitational lenses in a way that's modular, scalable, and user-friendly. To make a dataset with platas all you need is a configuration file which you can then pass to the generate.py script:
+The main functionality of ``paltas`` is to generate realistic datasets of strong gravitational lenses in a way that's modular, scalable, and user-friendly. To make a dataset with ``paltas`` all you need is a configuration file which you can then pass to the generate.py script:
 
 .. code-block:: bash
 
@@ -86,9 +86,9 @@ In brief, to contribute to ``paltas`` you will need to fork the repo on GitHub, 
     $ cd paltas
     $ pip install -e .
 
-You should then work in a local development branch, while keeping your ``main`` branch up to date with the base repo on GitHub. (That means you'll need to ``git remote add base https://github.com/swagnercarena/lenstronomy.git`` so that you can ``git pull base main`` from your ``main`` branch).
+You should then work in a local development branch, while keeping your ``main`` branch up to date with the base repo on GitHub. (That means you'll need to ``git remote add base https://github.com/swagnercarena/paltas.git`` so that you can ``git pull base main`` from your ``main`` branch).
 
-See the `lenstronomy CONTRIBUTING guidelines <https://github.com/lenstronomy/lenstronomy/blob/main/CONTRIBUTING.rst>`_. for help with python style, docstring formats, creating pull requests, and so on. We recommend that you start your pull request (PR) when you _begin_ work on a new feature or bug fix, so that the rest of the ``paltas`` community can see what you are doing and coordinate with you - when your improvement is ready you can request code review from others via the PR interface.
+See the `lenstronomy CONTRIBUTING guidelines <https://github.com/lenstronomy/lenstronomy/blob/main/CONTRIBUTING.rst>`_. for help with python style, docstring formats, creating pull requests, and so on. We recommend that you start your pull request (PR) when you _begin_ work on a new feature or bug fix, so that the rest of the ``paltas`` community can see what you are doing and coordinate with you - when your improvement is ready you can request code review from others via the PR interface. Try and restrict PRs to one feature per branch, to help keep them small and manageable. (Note that ``paltas`` uses `Google docstring style <https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html>`_.)
 
 Attribution
 -----------
