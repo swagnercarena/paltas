@@ -577,8 +577,16 @@ class ConfigHandler():
 
 		# Use the normal generation class to make our highres image without
 		# noise.
-		image_ss, metadata = self._draw_image_standard(add_noise=False,
-			apply_psf=False)
+		try:
+			image_ss, metadata = self._draw_image_standard(add_noise=False,
+				apply_psf=False)
+		except MagnificationError:
+			# Reset the class properties that were modified, then reraise
+			self.sample = sample_copy
+			self.kwargs_numerics = kwargs_numerics_copy
+			self.numpix = numpix_copy
+			raise
+					
 		self.sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 		self.numpix = numpix_copy
 
