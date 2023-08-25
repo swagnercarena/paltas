@@ -101,7 +101,7 @@ class COSMOSCatalog(GalaxyCatalog):
 			# Custom fields
 			catalogs += [
 				np.zeros(len(catalogs[0]),
-					dtype=[('size_x', np.int),('size_y', np.int),('z', float),
+					dtype=[('size_x', int),('size_y', int),('z', float),
 					('pixel_width', float)])]
 
 			self.catalog = numpy.lib.recfunctions.merge_arrays(
@@ -117,7 +117,7 @@ class COSMOSCatalog(GalaxyCatalog):
 				# Grab the shape of each image.
 				meta['size_x'], meta['size_y'] = img.shape
 				# Save the image as its own image.
-				img = img.astype(np.float)
+				img = img.astype(np.float64)
 				np.save(str(self.npy_files_path/('img_%d.npy'%(catalog_i))),img)
 				catalog_i += 1
 
@@ -271,7 +271,7 @@ class COSMOSSersicCatalog(COSMOSCatalog):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
-		_fit_results = self.catalog['sersicfit'].astype(np.float)
+		_fit_results = self.catalog['sersicfit'].astype(np.float64)
 		self.sercic_info = {
 			p: _fit_results[:, i]
 			for i, p in enumerate(
