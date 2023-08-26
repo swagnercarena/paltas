@@ -9,4 +9,4 @@ pandas>=1.0.1
 numba>=0.52.0
 matplotlib>=3.3.3
 pyyaml
-hdf5
+h5py
