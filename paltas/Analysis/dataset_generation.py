@@ -231,7 +231,8 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 				feature=feature))
 			# Write out the example to the TFRecord file
 			writer.write(example.SerializeToString())
-		f.close()
+		if h5: 
+			f.close()
 
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
