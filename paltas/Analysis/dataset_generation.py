@@ -152,7 +152,7 @@ def kwargs_detector_to_tf_noise(image,kwargs_detector):
 
 def generate_tf_record(npy_folder,learning_params,metadata_path,
 	tf_record_path,h5=False):
-	"""Generate a TFRecord file from a directory of numpy files.
+	"""Generate a TFRecord file from a directory of numpy or h5py files.
 
 	Args:
 		root_path (str): The path to the folder containing the numpy files.
@@ -161,6 +161,7 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 		metadata_path (str):  The path to the csv file containing the
 			image metadata.
 		tf_record_path (str): The path to which the TFRecord will be saved
+		h5 (bool): Boolean for whether the images were generated as h5 files (True) or numpy (False).
 	"""
 	# Pull the list of numpy and/or h5 filepaths from the directory. Assumes there is only one h5 file in the folder.
 	npy_file_list = glob.glob(os.path.join(npy_folder,'image_*.npy'))
@@ -179,31 +180,32 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 				' present in the metadata. A default value of 0 will be used.',
 				category=RuntimeWarning)
 			DEFAULTVALUEWARNING = False
-	#If h5 is used, the number of images is the length of the first dimension in the h5 file, rather than the number of h5 files:
+	# If h5 is used, the number of images is the length of the first dimension in the h5 file, rather than the number of h5 files:
 	if h5: 
 		with h5py.File(h5_file,'r') as f0:
 			number_of_files = f0['data'].shape[0]
 	else: 
 		number_of_files = len(npy_file_list)
-    # Initialize the writer object and write the lens data
+   	# Initialize the writer object and write the lens data
 	print('Saving '+str(number_of_files)+' files into the tf record')
 	with tf.io.TFRecordWriter(tf_record_path) as writer:
-		#Iteratively retrieves images from list of npy files, or images within the h5 file:  
+		if h5:
+			f = h5py.File(h5_file, "r")
+		# Iteratively retrieves images from list of npy files, or images within the h5 file:  
 		for file_number in tqdm(range(number_of_files)):
 			if h5:
 				index = int(file_number)
-				with h5py.File(h5_file, "r") as f:
-					image_i = f['data'][()][index]
-				image_shape = image_i.shape
+				image = f['data'][()][index]
+				image_shape = image.shape
 			else:
 				npy_file = npy_file_list[file_number]
-			# Pull the index from the filename
+				# Pull the index from the filename
 				index = int(npy_file[-11:-4])
-				image_i = np.load(npy_file)
-				image_shape = image_i.shape
+				image = np.load(npy_file)
+				image_shape = image.shape
 			# The image must be converted to a tf string feature
 			image_feature = tf.train.Feature(bytes_list=tf.train.BytesList(
-				value=[image_i.astype(np.float32).tostring()]))
+				value=[image.astype(np.float32).tostring()]))
 			# Initialize a feature dictionary with the image, the height,
 			# and the width
 			feature = {
@@ -229,7 +231,7 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 				feature=feature))
 			# Write out the example to the TFRecord file
 			writer.write(example.SerializeToString())
-
+		f.close()
 
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,input_norm_path=None,kwargs_detector=None,
