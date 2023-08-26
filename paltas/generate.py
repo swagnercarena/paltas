@@ -42,7 +42,7 @@ def parse_args():
 	parser.add_argument('--tf_record', action='store_true',
 		help='Generate the tf record for the training set.')
 	parser.add_argument('--h5', action='store_true',
-		help='Save images as .h5 files rather than .npy')
+		help='Saves all the images as a single .h5 file rather than multiple .npy files')
 	args = parser.parse_args()
 	return args
 
@@ -74,7 +74,7 @@ def main():
 	pbar = tqdm(total=args.n)
 	successes = 0
 	tries = 0
-	interim_image_array = []
+	interim_image_list = []
 	while successes < args.n:
 		# We always try
 		tries += 1
@@ -88,7 +88,8 @@ def main():
 
 		# Save the image and the metadata
 		filename = os.path.join(args.save_folder, 'image_%07d' % successes)
-		if not args.h5: np.save(filename, image)
+		if not args.h5:
+			np.save(filename, image)
 		if args.save_png_too:
 			plt.imsave(filename + '.png', image)
 
@@ -108,20 +109,27 @@ def main():
 			metadata_list = []
 #
 		successes += 1
-		interim_image_array.append(image) 
+		interim_image_list.append(image) 
 		if args.h5:
-		#Saves as h5 file every 100 images:
+		# Saves as h5 file every 100 images:
 			if successes==1:
+				interim_image_array = np.array(interim_image_list)
 				with h5py.File(args.save_folder+'/image_data.h5', 'w') as hf:
-					hf.create_dataset("data", data=np.array(interim_image_array),compression="gzip", maxshape=(None,np.array(interim_image_array).shape[1],np.array(interim_image_array).shape[2])) 
-				interim_image_array=[]
+					hf.create_dataset("data",
+							  data=interim_image_array,
+							  compression="gzip",
+							  maxshape=(None,interim_image_array.shape[1],
+							  interim_image_array.shape[2])) 
+				interim_image_list=[]
+				del interim_image_array
 			elif successes%100==0 or successes==args.n:
-				interim_image_array = np.array(interim_image_array)
+				interim_image_array = np.array(interim_image_list)
 				with h5py.File(args.save_folder+'/image_data.h5', 'a') as hf:
-				#Loads the h5 file, extends its shape, then appends the new images generated and saves the file:
+				# Loads the h5 file, extends its shape, then appends the new images generated and saves the file:
 					hf["data"].resize((hf["data"].shape[0] + interim_image_array.shape[0]), axis = 0)
 					hf["data"][-interim_image_array.shape[0]:] = interim_image_array
-				interim_image_array=[]
+				interim_image_list=[]
+				del interim_image_array
 #
 		pbar.update()
 
