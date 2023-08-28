@@ -158,7 +158,7 @@ class GenerateTests(unittest.TestCase):
 		os.rmdir(output_folder)
 
 	def test_h5(self):
-		#Test that the h5 kwarg generates the required h5 files
+		# Test that the h5 kwarg generates the required h5 files
 		old_sys = copy.deepcopy(sys.argv)
 		n_generate = 21
 		output_folder = 'test_data/test_dataset'
@@ -169,7 +169,7 @@ class GenerateTests(unittest.TestCase):
 		generate.main()
 
 		image_file_list = glob.glob(os.path.join(output_folder,'image_data.h5'))
-		#Check only 1 h5 file is made:
+		# Check only 1 h5 file is made:
 		self.assertEqual(len(image_file_list),1)
 		with h5py.File(image_file_list[0],'r') as f0:
 			image_data = f0['data'][()]
