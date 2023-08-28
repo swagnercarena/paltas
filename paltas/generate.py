@@ -111,7 +111,6 @@ def main():
 		successes += 1
 		interim_image_list.append(image) 
 		if args.h5:
-		# Saves as h5 file every 100 images:
 			if successes==1:
 				interim_image_array = np.array(interim_image_list)
 				with h5py.File(args.save_folder+'/image_data.h5', 'w') as hf:
@@ -122,10 +121,11 @@ def main():
 							  interim_image_array.shape[2])) 
 				interim_image_list=[]
 				del interim_image_array
+			# Saves as h5 file every 100 images:
 			elif successes%100==0 or successes==args.n:
 				interim_image_array = np.array(interim_image_list)
-				with h5py.File(args.save_folder+'/image_data.h5', 'a') as hf:
 				# Loads the h5 file, extends its shape, then appends the new images generated and saves the file:
+				with h5py.File(args.save_folder+'/image_data.h5', 'a') as hf:
 					hf["data"].resize((hf["data"].shape[0] + interim_image_array.shape[0]), axis = 0)
 					hf["data"][-interim_image_array.shape[0]:] = interim_image_array
 				interim_image_list=[]
