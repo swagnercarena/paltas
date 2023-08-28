@@ -76,7 +76,7 @@ def main():
 	for npy_folder in npy_folders_train:
 		if not args.h5:
 			n_npy_files += len(glob.glob(os.path.join(npy_folder,'image_*.npy')))
-		#Assumes there is only 1 h5 file per folder
+		# Assumes there is only 1 h5 file per folder
 		else: 
 			with h5py.File(os.path.join(npy_folder,'image_data.h5'),'r') as f0:
 				n_npy_files += f0['data'].shape[0]
