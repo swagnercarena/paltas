@@ -182,7 +182,6 @@ class GenerateTests(unittest.TestCase):
 		for n in range(n_generate):
 			img = image_data[n,:,:]
 			self.assertTupleEqual(img.shape,(64,64))
-		os.remove(image_file_list[0])
 
 		# Make sure the metadata makes sense
 		metadata = pd.read_csv(os.path.join(output_folder,'metadata.csv'))
@@ -212,7 +211,8 @@ class GenerateTests(unittest.TestCase):
 		# Remove the metadata file
 		os.remove(os.path.join(output_folder,'metadata.csv'))
 		os.remove(os.path.join(output_folder,'config_dict.py'))
-
+		os.remove(os.path.join(output_folder,'data.tfrecord'))
+		os.remove(image_file_list[0])
 		sys.argv = old_sys
 
 		# Also clean up the test cosmos cache
