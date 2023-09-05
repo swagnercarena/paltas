@@ -3,7 +3,7 @@ import pandas as pd
 import unittest
 import sys, glob, copy, os
 from paltas import generate
-
+import h5py
 try:
 	import tensorflow as tf
 	tensorflow_installed = True
