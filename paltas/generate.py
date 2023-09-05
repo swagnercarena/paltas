@@ -107,7 +107,6 @@ def main():
 				mode='w' if first_write else 'a',
 				header=first_write)
 			metadata_list = []
-#
 		successes += 1
 		interim_image_list.append(image) 
 		if args.h5:
@@ -130,7 +129,6 @@ def main():
 					hf["data"][-interim_image_array.shape[0]:] = interim_image_array
 				interim_image_list=[]
 				del interim_image_array
-#
 		pbar.update()
 
 	# Make sure the list has been cleared out.
