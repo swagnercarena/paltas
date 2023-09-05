@@ -160,7 +160,7 @@ class GenerateTests(unittest.TestCase):
 	def test_h5(self):
 		# Test that the h5 kwarg generates the required h5 files
 		old_sys = copy.deepcopy(sys.argv)
-		n_generate = 21
+		n_generate = 101
 		output_folder = 'test_data/test_dataset'
 		sys.argv = ['test','test_data/config_dict.py',output_folder,
 			'--n',str(n_generate),'--h5']
