@@ -168,7 +168,7 @@ class GenerateTests(unittest.TestCase):
 			sys.argv.append('--tf_record')
 		generate.main()
 
-		image_file_list = glob.glob(os.path.join(output_folder,'image_data.h5'))
+		image_file_list = glob.glob(os.path.join(output_folder,'*.h5'))
 		# Check only 1 h5 file is made:
 		self.assertEqual(len(image_file_list),1)
 		with h5py.File(image_file_list[0],'r') as f0:
