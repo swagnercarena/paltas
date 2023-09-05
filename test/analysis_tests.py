@@ -135,7 +135,7 @@ class DatasetGenerationTests(unittest.TestCase):
 		norm_dict = Analysis.dataset_generation.normalize_outputs(metadata,
 			learning_params,input_norm_path)
 
-		mean = np.array([[1,2]]*2,dtype=np.float)
+		mean = np.array([[1,2]]*2,dtype=np.float64)
 		cov_mat = np.array([[[1,0.9],[0.9,1]]]*2)
 
 		Analysis.dataset_generation.unnormalize_outputs(input_norm_path,
