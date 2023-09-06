@@ -135,7 +135,7 @@ class CosmologyTests(unittest.TestCase):
 		dd *= 1/h * u.Mpc.to(u.kpc)/u.radian.to(u.arcsecond)
 		np.testing.assert_almost_equal(cosmology_utils.kpc_per_arcsecond(
 			z_test,cosmo),dd,decimal=4)
-	
+
 	def test_ddt(self):
 		# Check that calculation agrees with lenstronomy version
 		cosmo = cosmology_utils.get_cosmology('planck18')
@@ -370,7 +370,7 @@ class HubbleUtilsTests(unittest.TestCase):
 	def test_degrade_image(self):
 		# Test that the degraded image gives the output we'd expect.
 		fake_image = np.array([[0,1,2,3],[4,5,6,7],[8,9,10,11],[12,13,14,15]],
-			dtype=np.float)
+			dtype=np.float64)
 
 		# Start by degrading by a factor of 2
 		degrade_factor = 2
