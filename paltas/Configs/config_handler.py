@@ -111,6 +111,11 @@ class ConfigHandler():
 			self.compute_caustic_area = self.config_module.compute_caustic_area
 		else:
 			self.compute_caustic_area = False
+
+		if hasattr(self.config_module,'compute_mass_enclosed'):
+			self.compute_mass_enclosed = self.config_module.compute_mass_enclosed
+		else:
+			self.compute_mass_enclosed = False
 			
 		if hasattr(self.config_module, 'ps_magnification_cut'):
 			self.ps_magnification_cut = self.config_module.ps_magnification_cut
@@ -372,6 +377,17 @@ class ConfigHandler():
 			dec_offset = kwargs_params['kwargs_source'][0]['center_y'] - dec_list[0]
 			min_distance = np.sqrt(np.min(ra_offset**2 + dec_offset**2))
 			metadata['source_parameters_distance_to_caustic'] = min_distance
+			
+		if self.compute_mass_enclosed:
+			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
+				new_sample=False)
+			lm = LensModel(kwargs_model['lens_model_list'])
+			# r is in arcsec
+			mass_enclosed = lm.lens_model.func_list[0].mass_2d_lens(r=1.5,
+				sigma0=kwargs_params['kwargs_lens'][0]['sigma0'],
+				r_core=kwargs_params['kwargs_lens'][0]['r_core'], 
+				gamma=kwargs_params['kwargs_lens'][0]['gamma'])
+			metadata['main_deflector_parameters_M_encl_15e-1arcsec'] = mass_enclosed
 
 
 		return metadata
@@ -674,11 +690,15 @@ class ConfigHandler():
 
 		# Use the normal generation class to make our highres image without
 		# noise.
-		image_ss, metadata = self._draw_image_standard(add_noise=False,
-			apply_psf=False)
-		# case w/ 6 images
-		if image_ss is None:
-			return None,None
+		try:
+			image_ss, metadata = self._draw_image_standard(add_noise=False,
+				apply_psf=False)
+		except MagnificationError:
+			# Reset the class properties that were modified, then reraise
+			self.sample = sample_copy
+			self.kwargs_numerics = kwargs_numerics_copy
+			self.numpix = numpix_copy
+			raise
 		
 		self.sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 		self.numpix = numpix_copy
