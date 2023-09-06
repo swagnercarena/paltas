@@ -105,8 +105,9 @@ class GenerateTests(unittest.TestCase):
 		# Test that the main function makes some images
 		old_sys = copy.deepcopy(sys.argv)
 		output_folder = 'test_data/test_dataset'
+		n_generate=10
 		sys.argv = ['test','test_data/config_dict_drizz.py',output_folder,
-			'--n','10']
+			'--n',str(n_generate)]
 		if tensorflow_installed:
 			sys.argv.append('--tf_record')
 		generate.main()
