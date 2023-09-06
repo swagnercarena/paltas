@@ -175,6 +175,25 @@ class CosmologyTests(unittest.TestCase):
 			cosmo)
 		self.assertAlmostEqual(m_apparent_2,m_absolute+40+2.5*np.log(1+z_light),
 			places=2)
+    
+	def test_apparent_to_absolute(self):
+        # Assumes absolute_to_apparent works correctly (tested above)
+        
+		# Set cosmology, object parameters
+		cosmo = cosmology_utils.get_cosmology('planck18')
+		z_light = 1.5
+		m_absolute = 10
+        
+		# Convert absolute to apparent
+		m_apparent = cosmology_utils.absolute_to_apparent(m_absolute,z_light,
+			cosmo)
+        
+		# Convert apparent back to absolute
+		m_absolute_2 = cosmology_utils.apparent_to_absolute(m_apparent,z_light,
+			cosmo)
+        
+		# Check absolute magnitudes are the same
+		self.assertAlmostEqual(m_absolute,m_absolute_2,places=3)
 
 	def test_get_k_correction(self):
 		# Test that the k-correction script returns the correct values

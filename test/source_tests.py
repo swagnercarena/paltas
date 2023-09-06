@@ -46,7 +46,7 @@ class SourceBaseTests(unittest.TestCase):
 class SingleSersicSourceTests(SourceBaseTests):
 
 	def setUp(self):
-		self.source_parameters = dict(magnitude=20,output_ab_zeropoint=25,
+		self.source_parameters = dict(mag_abs=20,output_ab_zeropoint=25,
 			R_sersic=1.,n_sersic=2.,e1=0.,e2=0.,center_x=0.,center_y=0.,
 			z_source=1.0)
 		self.c = SingleSersicSource(
@@ -81,7 +81,7 @@ class SingleSersicSourceTests(SourceBaseTests):
 		assert image.sum() > 0
 
 		# Check that the input magnitude was treated as an absolute magnitude
-		amp_abs = self.c.mag_to_amplitude(self.source_parameters['magnitude'],
+		amp_abs = self.c.mag_to_amplitude(self.source_parameters['mag_abs'],
 			self.source_parameters['output_ab_zeropoint'],self.source_parameters)
 		self.assertLess(light_kwargs_list[0]['amp'],amp_abs)
 
@@ -110,6 +110,20 @@ class SingleSersicSourceTests(SourceBaseTests):
 		kwargs_list['amp'] = amp_class
 		sersic_model = LightModel(['SERSIC_ELLIPSE'])
 		self.assertGreater(sersic_model.total_flux([kwargs_list])[0],1)
+		
+	def test_amplitude_to_mag(self):
+		# Test that the amplitude to magnitude conversion follows our basic
+		# intuition
+		mag = 11.0
+		mag_zeropoint = 20
+		kwargs_list = {'amp':1.0,'R_sersic':1.0,'n_sersic':2.0,
+			'e1':0.0,'e2':0.0,'center_x':0.0,'center_y':0.0}
+		# already tested above
+		amp = self.c.mag_to_amplitude(mag,mag_zeropoint,kwargs_list)
+		mag_final = self.c.amplitude_to_mag(amp,mag_zeropoint,
+			kwargs_list)
+		self.assertEqual(mag_final,mag)
+
 
 	def test_get_total_sersic_flux_r(self):
 		# Calculates the sersic flux within a given radius

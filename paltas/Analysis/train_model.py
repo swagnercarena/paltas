@@ -7,7 +7,7 @@ import argparse, os, sys, glob, math
 from importlib import import_module
 import tensorflow as tf
 from paltas.Analysis import dataset_generation, loss_functions, conv_models
-from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
+from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, CSVLogger
 from tensorflow.keras import optimizers
 import pandas as pd
 
@@ -90,20 +90,29 @@ def main():
 	kwargs_detector = config_module.kwargs_detector
 	# Whether or not to normalize the images by the standard deviation
 	norm_images = config_module.norm_images
+	# Whether or not to log norm images
+	log_norm_images = getattr(config_module,'log_norm_images',False)
 	# A string with which loss function to use.
 	loss_function = config_module.loss_function
 	# A string specifying which model to use
 	model_type = config_module.model_type
 	# A string specifying which optimizer to use
 	optimizer_string = config_module.optimizer
-	# Where to save the model weights and where to load the initial weights
+	# Where to load the initial model weights
 	model_weights_init = config_module.model_weights_init
+	# Whether to allow mismatch in loaded weights & model architecture
+	allow_skip_mismatch = getattr(config_module,'allow_skip_mismatch',False)
+	# Where to save the model weights 
 	model_weights = config_module.model_weights
 	# The learning rate for the model
 	learning_rate = config_module.learning_rate
 	# Whether or not to apply a random rotation to the input image
 	random_rotation = config_module.random_rotation
-
+	# CSV Path
+	csv_path = getattr(config_module,'csv_path',None)
+	# Steps per LR Decay
+	steps_per_decay = config_module.steps_per_decay
+	
 	params_as_inputs = getattr(config_module,'params_as_inputs',[])
 	all_params = params_as_inputs + learning_params
 
@@ -142,13 +151,15 @@ def main():
 		# Get a generator object that returns rotated images and parameters.
 		tf_dataset_t = dataset_generation.generate_rotations_dataset(
 			tfr_train_paths,all_params,batch_size,n_epochs,
-			norm_images=norm_images,input_norm_path=input_norm_path,
+			norm_images=norm_images,log_norm_images=log_norm_images,
+			input_norm_path=input_norm_path,
 			kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	else:
 		# Turn our tf records into tf datasets for training and validation
 		tf_dataset_t = dataset_generation.generate_tf_dataset(tfr_train_paths,
 			all_params,batch_size,n_epochs,norm_images=norm_images,
+			log_norm_images=log_norm_images,
 			input_norm_path=input_norm_path,kwargs_detector=kwargs_detector,
 			log_learning_params=log_learning_params)
 	# We shouldn't be adding random noise to validation images. They should
@@ -158,7 +169,8 @@ def main():
 			'will not be added on the fly for validation.')
 	tf_dataset_v = dataset_generation.generate_tf_dataset(tfr_val_path,
 		all_params,min(batch_size,n_val_npy),1,
-		norm_images=norm_images,input_norm_path=input_norm_path,
+		norm_images=norm_images,log_norm_images=log_norm_images,
+		input_norm_path=input_norm_path,
 		kwargs_detector=None,log_learning_params=log_learning_params)
 
 	# If some of the parameters need to be extracted as inputs, do that.
@@ -193,13 +205,20 @@ def main():
 	elif model_type == 'xresnet34' and params_as_inputs:
 		model = conv_models.build_xresnet34_fc_inputs(img_size,num_outputs,
 			len(params_as_inputs),train_only_head=False)
+	elif model_type == 'xresnet18' and not params_as_inputs:
+		model = conv_models.build_xresnet18(img_size,num_outputs,
+			train_only_head=train_only_head)
+	elif model_type == 'xresnet101' and not params_as_inputs:
+		model = conv_models.build_xresnet101(img_size,num_outputs,
+			train_only_head=train_only_head)
 	else:
 		raise ValueError('%s model not in the list of supported models'%(
 			model_type))
 
 	# Use learning rate decay for optimal learning
+	# TODO: decay_steps is changed!!!
 	lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-		learning_rate,decay_steps=steps_per_epoch,decay_rate=0.98,
+		learning_rate,decay_steps=steps_per_decay,decay_rate=0.98,
 		staircase=True)
 
 	# Use the desired optimizer
@@ -211,7 +230,11 @@ def main():
 	print('Is model built: ' + str(model.built))
 
 	try:
-		model.load_weights(model_weights_init)
+		if allow_skip_mismatch:
+			model.load_weights(model_weights_init,by_name=True,
+		      skip_mismatch=True)
+		else:
+			model.load_weights(model_weights_init)
 		print('Loaded weights %s'%(model_weights_init))
 	except:
 		print('No weights found. Saving new weights to %s'%(model_weights))
@@ -223,15 +246,23 @@ def main():
 		tensorboard = TensorBoard(log_dir=args.tensorboard_dir,
 			update_freq='batch')
 		callbacks.append(tensorboard)
-	# Save the model weights as long as the validation loss is decreasing
-	modelcheckpoint = ModelCheckpoint(model_weights,monitor='val_loss',
+	# Save model weights at last epoch
+	modelcheckpoint_last = ModelCheckpoint(model_weights[:-3]+'_last.h5',monitor='val_loss',
 		save_best_only=False,save_freq='epoch')
-	callbacks.append(modelcheckpoint)
+	callbacks.append(modelcheckpoint_last)
+	# Save model weights at best epoch
+	modelcheckpoint_best = ModelCheckpoint(model_weights[:-3]+'_best.h5',monitor='val_loss',
+		save_best_only=True,save_freq='epoch')
+	callbacks.append(modelcheckpoint_best)
+	# Save training results to .csv file
+	if csv_path is not None:
+		csv = CSVLogger(csv_path,separator=',',append=False)
+		callbacks.append(csv)
 
 	# TODO add validation data.
 	model.fit(tf_dataset_t,callbacks=callbacks,epochs=n_epochs,
 		steps_per_epoch=steps_per_epoch,validation_data=tf_dataset_v,
-		validation_steps=int(math.ceil(n_val_npy/batch_size)))
+		validation_steps=None)
 
 
 if __name__ == '__main__':

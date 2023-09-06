@@ -10,19 +10,21 @@ from lenstronomy.Data.imaging_data import ImageData
 from lenstronomy.Util.simulation_util import data_configure_simple
 from lenstronomy.Util.data_util import magnitude2cps
 from lenstronomy.Data.psf import PSF
+from paltas.Utils.cosmology_utils import absolute_to_apparent, get_cosmology
 
 
 class PointSourceBaseTests(unittest.TestCase):
 
 	def setUp(self):
-		self.c = PointSourceBase(point_source_parameters=dict())
+		self.c = PointSourceBase(cosmology_parameters='planck18',
+			point_source_parameters=dict())
 
 	def test_update_parameters(self):
 		# test passing None
 		self.c.update_parameters(None)
 		self.assertDictEqual(self.c.point_source_parameters, dict())
 		# test passing an element that wasn't there yet
-		self.c.update_parameters({'radius':1.})
+		self.c.update_parameters(None,{'radius':1.})
 		self.assertDictEqual(self.c.point_source_parameters, {'radius':1.})
 
 	def test_draw_point_source(self):
@@ -36,25 +38,28 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.point_source_parameters=dict(
 			x_point_source=0.001,
 			y_point_source=0.001,
-			magnitude=22,
+			mag_app=22,
 			output_ab_zeropoint=25,
-			compute_time_delays=False
+			compute_time_delays=False,
+            z_point_source=3
 		)
-		self.c = SinglePointSource(
+		self.c = SinglePointSource(cosmology_parameters='planck18',
 			point_source_parameters=self.point_source_parameters)
+		self.cosmo = get_cosmology('planck18')
 
 	def test_check_parameterization(self):
 		# test that the base class actually checks for missing parameters
 		failed_parameters = dict(x_point_source=0.001,y_point_source=0.001,
-			magnitude=22)
+			mag_app=22)
 		with self.assertRaises(ValueError):
-			SinglePointSource(point_source_parameters=failed_parameters)
+			SinglePointSource(cosmology_parameters='planck18',
+				point_source_parameters=failed_parameters)
 
 	def test_update_parameters(self):
 		# test a parameter originally set in setUp
-		self.point_source_parameters['magnitude'] = 10
-		self.c.update_parameters(self.point_source_parameters)
-		self.assertEqual(self.c.point_source_parameters['magnitude'], 10)
+		self.point_source_parameters['mag_app'] = 19
+		self.c.update_parameters(None,self.point_source_parameters)
+		self.assertEqual(self.c.point_source_parameters['mag_app'], 19)
 
 	def test_draw_point_source(self):
 		list_model, list_kwargs = self.c.draw_point_source()
@@ -63,7 +68,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.assertTrue('SOURCE_POSITION' in list_model)
 
 		# test that all needed parameters are in list_kwargs
-		params = ('ra_source', 'dec_source', 'point_amp')
+		params = ('ra_source', 'dec_source', 'source_amp')
 		for p in params:
 			self.assertTrue(p in list_kwargs[0].keys())
 
@@ -78,7 +83,8 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		source_kwargs = [{'amp':70, 'R_sersic':0.1, 'n_sersic':2.5,
 			'e1':0., 'e2':0., 'center_x':0.01, 'center_y':0.01}]
 
-		point_source_model = PointSource(list_ps_model)
+		point_source_model = PointSource(list_ps_model,
+            fixed_magnification_list=[True])
 
 		# define PSF class, data class
 		n_pixels = 64
@@ -110,7 +116,8 @@ class SinglePointSourceTests(PointSourceBaseTests):
 		self.assertTrue(np.sum(im_diff) > 0)
 
 		# make sure the flux is what we expect
-		flux_true = magnitude2cps(self.c.point_source_parameters['magnitude'],
+		mag_apparent = self.c.point_source_parameters['mag_app']
+		flux_true = magnitude2cps(mag_apparent,
 			self.c.point_source_parameters['output_ab_zeropoint'])
 		flux_image = np.sum(im_diff)
 		self.assertAlmostEqual(flux_true,flux_image)
@@ -120,7 +127,7 @@ class SinglePointSourceTests(PointSourceBaseTests):
 
 		# test draw image with mag_pert
 		self.point_source_parameters['mag_pert'] = [1, 1, 1, 1, 1]
-		self.c.update_parameters(self.point_source_parameters)
+		self.c.update_parameters(None,self.point_source_parameters)
 		list_model, list_kwargs = self.c.draw_point_source()
 		# make sure mag_pert is passed to lenstronomy
 		self.assertTrue('mag_pert' in list_kwargs[0].keys())

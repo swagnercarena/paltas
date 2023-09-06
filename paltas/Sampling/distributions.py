@@ -7,7 +7,9 @@ This module contains classes that define distributions that can be effecitvely
 sampled from.
 """
 import numpy as np
-from scipy.stats import truncnorm
+from scipy.stats import truncnorm, uniform
+from astropy.io import fits
+from lenstronomy.Util import kernel_util
 
 
 class MultivariateLogNormal():
@@ -320,6 +322,66 @@ class DuplicateXY():
 
 		return x,y,x,y
 
+class FourComponentCorrelatedCenter():
+	"""
+    Sample center coordinates for lens mass, lens light, source light, ps light
+        given an initial distribution for lens mass center, 
+	    scatter on distance to lens light, 
+	    scatter on distance to source/ps light
+	    
+	Note: assumes source and point source at same location
+	    
+	Args: 
+        lm_dist (callable or float): Distribution to pull lens mass coordinates from
+		ll_sigma (float): Gaussian sigma for distance from lens mass to lens light
+		src_sigma (float): Gaussian sigma for distance from lens mass to source light
+
+	Returns:
+		x_lm,y_lm,x_ll,y_ll,x_src,y_src,x_ps,y_ps
+    """
+	
+	def __init__(self,lm_dist,ll_sigma,src_sigma,ll_mu=0,src_mu=0):
+		self.lm_dist = lm_dist
+		self.ll_sigma = ll_sigma
+		self.src_sigma = src_sigma
+		self.ll_mu = ll_mu
+		self.src_mu = src_mu
+
+	def _calc_xy_scatter(self):
+		"""
+		Given a Gaussian sigma for distance between center and componenet, 
+		draw a radius from that Gaussian truncated & centered at zero. 
+		Also draw random angle between 0,2pi. Then, return corresponding x,y
+		components.
+
+		Returns:
+			x_scat_ll, y_scat_ll, x_scat_src, y_scat_src (Scatter to be added
+				to lens mass coordinate)
+		"""
+
+		R_ll = truncnorm.rvs(-self.ll_mu/self.ll_sigma,np.inf,loc=self.ll_mu,scale=self.ll_sigma)
+		phi_ll = uniform.rvs(0,2*np.pi)
+		R_src = truncnorm.rvs(-self.src_mu/self.src_sigma,np.inf,loc=self.src_mu,scale=self.src_sigma)
+		phi_src = uniform.rvs(0,2*np.pi)
+		return R_ll*np.cos(phi_ll),R_ll*np.sin(phi_ll),R_src*np.cos(phi_src),R_src*np.sin(phi_src)
+
+	def __call__(self):
+
+		if callable(self.lm_dist):
+			x_lm = self.lm_dist()
+			y_lm = self.lm_dist()
+		else:
+			x_lm = self.lm_dist
+			y_lm = self.lm_dist
+
+		x_scat_ll, y_scat_ll, x_scat_src, y_scat_src = self._calc_xy_scatter()
+		x_ll = x_lm + x_scat_ll
+		y_ll = y_lm + y_scat_ll
+		x_src = x_lm + x_scat_src
+		y_src = y_lm + y_scat_src
+
+		return x_lm,y_lm,x_ll,y_ll,x_src,y_src,x_src,y_src
+	
 
 class RedshiftsTruncNorm():
 	"""Class that samples z_lens and z_source from truncated normal
@@ -389,6 +451,31 @@ class RedshiftsLensLight(RedshiftsTruncNorm):
 		return z_lens,z_lens,z_source
 
 
+class RedshiftsPointSource(RedshiftsTruncNorm):
+    """Class that samples z_lens, z_lens_light, z_source, and z_point_source 
+        from truncated normal distributions, forcing z_source > z_lens to be 
+        true and z_lens_light = z_lens, z_source = z_point_source
+
+	Args:
+		z_lens_min (float): minimum allowed lens redshift
+		z_lens_mean (float): lens redshift mean
+		z_lens_std (float): lens redshift standard deviation
+		z_source_min (float): minimum allowed source redshift
+		z_source_mean (float): source redshift mean
+		z_source_std (float): source redshift standard deviation
+	"""
+
+    def __call__(self):
+        """Returns samples of redshifts, ensuring z_source > z_lens and
+        z_lens_light = z_lens.
+
+		Returns:
+			(float,float): z_lens,z_lens_light,z_source
+		"""
+        z_lens,z_source = super().__call__()
+        return z_lens,z_lens,z_source,z_source
+
+
 class MultipleValues():
 	"""Class to call dist.rvs(size=num)
 
@@ -408,3 +495,111 @@ class MultipleValues():
 			list(float): |num| samples from dist
 		"""
 		return self.dist(size=self.num)
+
+
+# PSF Generator
+
+def xy_helper(x,y):
+	# 1st 7 are bottom row, 2nd 7 are 2nd row, etc...
+	return int(((y%4)*7)-1 + x%7)
+
+
+class PSFGenerator():
+	"""
+	Args:
+		psf_filepath: .fits file that stores PSFs
+		coords_dict dict{scipy.stats.rv_continuous.rvs}: dict of 
+			distributions to sample for coordinates 
+		psf_option (string): option for how PSF file is handled
+
+    Notes:
+        psf_option 'emp_f814w' requires coord_dict keys: 'CCD', 'x', 'y', 'focus'
+	"""
+
+	def __init__(self,psf_filepath,coords_dict,psf_option='emp_f814w'):
+		self.psf_filepath = psf_filepath
+		with fits.open(self.psf_filepath) as hdu:
+			self.psf_kernels = hdu[0].data
+		self.coords_dict = coords_dict
+		self.psf_option = psf_option
+
+	def hst_emp_f814w_mapping(self,coords):
+		"""
+		Args: 
+			coords dict{float}: Dict of coordinate values: [CCD,x,y,focus]
+		"""
+		if not all(key in coords.keys() for key in {'CCD','x','y','focus'}):
+			raise ValueError('emp_f814w option expects 4 coordinates: CCD,x,y,focus')
+
+		# array has size (10,56,101,101)
+		if coords['CCD'] == 1:
+			psf_ccd = self.psf_kernels[:,0:28,:,:]
+		elif coords['CCD'] == 2:
+			psf_ccd = self.psf_kernels[:,28:56,:,:]
+		else: 
+			raise ValueError('invalid CCD coordinate in PSF interpolation: %d'%(coords['CCD']))
+		# now, array has size (10,28,101,101)
+		psf_ccd[psf_ccd < 0] = 0
+		x = coords['x']
+		y = coords['y']
+		f = coords['focus']
+
+		# check values of x, y, & f before proceeding
+		if x <= 4096/14 or x >= (4096 - 4096/14):
+			raise ValueError('invalid x coordinate in PSF interpolation: %d'%(x))
+		if y <=  2051/8 or y >= (2051 - 2051/8):
+			raise ValueError('invalid y coordinate in PSF interpolation: %d'%(y))
+		if f < 1 or f > 10:
+			raise ValueError('invalid focus coordinate in PSF interpolation: %.2f'%(f))
+		# pick the 8 points you need
+		# pick x below/above, y below/above, f below/above
+		# ex: how many times does 4096/7 fit into x value
+		x = (x-4096/14) / (4096/7)
+		x_below = np.floor(x)
+		x_above = x_below+1
+		y = (x-2051/8) / (2051/4)
+		y_below = np.floor(y)
+		y_above = y_below+1
+		f_below = int(np.floor(f))
+		f_above = f_below+1
+		# do the 3D interpolation
+		# source: https://en.wikipedia.org/wiki/Trilinear_interpolation
+		xd = (x - x_below)/(x_above-x_below)
+		print('xd: ', xd)
+		yd = (y - y_below)/(y_above-y_below)
+		print('yd: ', yd)
+		fd = (f - f_below)/(f_above-f_below)
+		print('fd: ', fd)
+		
+		c00 = (psf_ccd[f_below-1,xy_helper(x_below,y_below),:,:]*(1-xd) + 
+			psf_ccd[f_below-1,xy_helper(x_above,y_below),:,:]*xd)
+		c01 = (psf_ccd[f_above-1,xy_helper(x_below,y_below),:,:]*(1-xd) + 
+			psf_ccd[f_above-1,xy_helper(x_above,y_below),:,:]*xd)
+		c10 = (psf_ccd[f_below-1,xy_helper(x_below,y_above),:,:]*(1-xd) + 
+			psf_ccd[f_below-1,xy_helper(x_above,y_above),:,:]*xd)
+		c11 = (psf_ccd[f_above-1,xy_helper(x_below,y_above),:,:]*(1-xd) + 
+			psf_ccd[f_above-1,xy_helper(x_above,y_above),:,:]*xd)
+
+		c0 = c00*(1-yd) + c10*yd
+		c1 = c01*(1-yd) + c11*yd
+		
+		c = c0*(1-fd) + c1*fd
+		print('less than 0: ', np.sum(c<0))
+		
+		return kernel_util.degrade_kernel(c,4)
+
+
+	def __call__(self):
+
+		# sample coordinates
+		coords = {}
+		for k in self.coords_dict.keys():
+			# check if callable
+			if callable(self.coords_dict[k]):
+				coords[k] = self.coords_dict[k]()
+			else:
+				coords[k] = self.coords_dict[k]
+		# map coordinates to a PSF
+		if self.psf_option == 'emp_f814w':
+			final_psf = self.hst_emp_f814w_mapping(coords)
+		return final_psf

@@ -1780,7 +1780,8 @@ class TrainModelTests(unittest.TestCase):
 		Analysis.train_model.main()
 
 		# Cleanup the files we don't want
-		os.remove('test_data/fake_model.h5')
+		os.remove('test_data/fake_model_best.h5')
+		os.remove('test_data/fake_model_last.h5')
 		os.remove('test_data/fake_train/norms.csv')
 		tensorboard_train = glob.glob('test_data/train/*')
 		for f in tensorboard_train:
@@ -1797,7 +1798,8 @@ class TrainModelTests(unittest.TestCase):
 		Analysis.train_model.main()
 
 		# Cleanup the files we don't want
-		os.remove('test_data/fake_model.h5')
+		os.remove('test_data/fake_model_best.h5')
+		os.remove('test_data/fake_model_last.h5')
 		os.remove('test_data/fake_train/norms.csv')
 		os.remove('test_data/fake_train/data.tfrecord')
 		tensorboard_train = glob.glob('test_data/train/*')
@@ -1815,7 +1817,8 @@ class TrainModelTests(unittest.TestCase):
 		Analysis.train_model.main()
 
 		# Cleanup the files we don't want
-		os.remove('test_data/fake_model.h5')
+		os.remove('test_data/fake_model_best.h5')
+		os.remove('test_data/fake_model_last.h5')
 		os.remove('test_data/fake_train/norms.csv')
 		os.remove('test_data/fake_train/data.tfrecord')
 		tensorboard_train = glob.glob('test_data/train/*')
@@ -1826,5 +1829,9 @@ class TrainModelTests(unittest.TestCase):
 		for f in tensorboard_val:
 			os.remove(f)
 		os.rmdir('test_data/validation')
+
+		# Use a config file with csv option & gamma MSE option 
+		#sys.argv = ['test','test_data/INSERTCONFIG.py']
+		#Analysis.train_model.main()        
 
 		sys.argv = old_sys

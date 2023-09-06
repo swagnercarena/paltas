@@ -86,7 +86,7 @@ def absolute_to_apparent(mag_absolute,z_light,cosmo,
 	"""Converts from absolute magnitude to apparent magnitude.
 
 	Args:
-		mag_apparent (float): The absolute magnitude
+		mag_absolute (float): The absolute magnitude
 		z_light (float): The redshift of the light
 		cosmo (colossus.cosmology.Cosmology): An instance of the colossus
 			cosmology object
@@ -94,7 +94,7 @@ def absolute_to_apparent(mag_absolute,z_light,cosmo,
 			correction for a galaxy-like source.
 
 	Returns:
-		(float): The absolute magnitude of the light
+		(float): The apparent magnitude of the light
 	"""
 	# Use the luminosity distance for the conversion
 	lum_dist = cosmo.luminosityDistance(z_light)
@@ -108,6 +108,34 @@ def absolute_to_apparent(mag_absolute,z_light,cosmo,
 		mag_apparent += get_k_correction(z_light)
 
 	return mag_apparent
+
+def apparent_to_absolute(mag_apparent,z_light,cosmo,include_k_correction=True):
+    """Converts from apparent magnitude to absolute magnitude.
+    
+    Args: 
+        mag_apparent (float): The apparent magnitude 
+        z_light (float): The redshift of the light
+        cosmo (colossus.cosmology.Cosmology): An instance of the colossus
+            cosmology object
+        include_k_correction (bool): If true, assumes an approximate k
+            correction for a galaxy-like source will be applied when 
+            converting from absolute magnitude back to apparent magnitude.
+    
+    Returns:
+        (float): The absolute magnitude of the light
+    """
+    
+    # Use the luminosity distance for the conversion
+    lum_dist = cosmo.luminosityDistance(z_light)
+    # Convert from Mpc/h to pc
+    lum_dist *= 1e6/cosmo.h
+    
+    mag_absolute = mag_apparent - 5*np.log10(lum_dist/10)
+    
+    if include_k_correction:
+        mag_absolute -= get_k_correction(z_light)
+    
+    return mag_absolute
 
 
 def get_k_correction(z_light):

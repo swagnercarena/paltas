@@ -54,3 +54,7 @@ model_weights_init = ('./test_data/fake_model.h5')
 learning_rate = 5e-3
 # Whether or not to use random rotation of the input images
 random_rotation = True
+# csv path
+csv_path = None
+# steps_per_decay
+steps_per_decay = 1
