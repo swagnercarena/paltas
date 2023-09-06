@@ -17,7 +17,6 @@ from lenstronomy.Data.psf import PSF
 from lenstronomy.SimulationAPI.data_api import DataAPI
 from lenstronomy.SimulationAPI.observation_api import SingleBand
 from lenstronomy.LensModel.lens_model import LensModel
-from lenstronomy.LensModel.lens_model_extensions import LensModelExtensions
 from lenstronomy.LightModel.light_model import LightModel
 from lenstronomy.PointSource.point_source import PointSource
 from lenstronomy.ImSim.image_model import ImageModel
@@ -41,15 +40,11 @@ EXCLUDE_FROM_METADATA = (
 	('source_parameters', 'cosmos_folder'),
 )
 
-	
-class FailedCriteriaError(Exception):
-	"""
-    Use this error to skip images that don't pass doubles only, quad only, 
-        magnification cut, (etc.) criteria
-    """
-	def __init__(self):
+
+class MagnificationError(Exception):
+	def __init__(self,mag_cut):
 		# Pass a useful message to base class constructor
-		message = 'Criteria for image creation not met.'
+		message = 'Magnification cut of %.2f not met. '%(mag_cut)
 		message += 'If this is inteneded (i.e. in a loop) use try/except.'
 		super().__init__(message)
 
@@ -94,34 +89,6 @@ class ConfigHandler():
 		# Get the numerical kwargs numpix from the config
 		self.kwargs_numerics = self.config_module.kwargs_numerics
 		self.numpix = self.config_module.numpix
-		
-		# handle doubles_quads_only
-		if hasattr(self.config_module, 'doubles_quads_only'):
-			self.doubles_quads_only = self.config_module.doubles_quads_only
-		else:
-			self.doubles_quads_only = False
-
-		# handle quads_only
-		if hasattr(self.config_module, 'quads_only'):
-			self.quads_only = self.config_module.quads_only
-		else:
-			self.quads_only = False
-
-		if hasattr(self.config_module,'compute_caustic_area'):
-			self.compute_caustic_area = self.config_module.compute_caustic_area
-		else:
-			self.compute_caustic_area = False
-
-		if hasattr(self.config_module,'compute_mass_enclosed'):
-			self.compute_mass_enclosed = self.config_module.compute_mass_enclosed
-		else:
-			self.compute_mass_enclosed = False
-			
-		if hasattr(self.config_module, 'ps_magnification_cut'):
-			self.ps_magnification_cut = self.config_module.ps_magnification_cut
-		else:
-			self.ps_magnification_cut = None
-
 
 		# Set up the paltas objects we'll use
 		self.los_class = None
@@ -150,7 +117,7 @@ class ConfigHandler():
 				sample['cosmology_parameters'], sample['lens_light_parameters'])
 		if 'point_source' in self.config_dict:
 			self.point_source_class = self.config_dict['point_source']['class'](
-				sample['cosmology_parameters'],sample['point_source_parameters'])
+				sample['point_source_parameters'])
 
 		# We always need a source class
 		self.source_class = self.config_dict['source']['class'](
@@ -261,8 +228,7 @@ class ConfigHandler():
 				self.lens_light_class.draw_source())
 		if self.point_source_class is not None:
 			self.point_source_class.update_parameters(
-				cosmology_parameters=sample['cosmology_parameters'],
-				point_source_parameters=sample['point_source_parameters'])
+				sample['point_source_parameters'])
 			point_source_model_list,point_source_kwargs_list = (
 				self.point_source_class.draw_point_source())
 
@@ -357,38 +323,6 @@ class ConfigHandler():
 						'metadata.csv',
 						category=RuntimeWarning)
 					SERIALIZATIONWARNING = False
-					
-		# write caustic area if requested
-		if self.compute_caustic_area:
-			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
-				new_sample=False)
-			lm = LensModel(kwargs_model['lens_model_list'])
-			lm_ext = LensModelExtensions(lm)
-			compute_window = self.numpix * sample['detector_parameters']['pixel_scale']
-			metadata['main_deflector_parameters_caustic_area'] = lm_ext.caustic_area(
-				kwargs_params['kwargs_lens'],{'compute_window':compute_window})
-			
-			# also write minimum separation btwn. caustic & source
-			_,_,ra_list,dec_list = lm_ext.critical_curve_caustics(
-				kwargs_params['kwargs_lens'],compute_window=compute_window)
-			
-			# index into list is for "selecting specified vortex"? (default is 0)
-			ra_offset = kwargs_params['kwargs_source'][0]['center_x'] - ra_list[0]
-			dec_offset = kwargs_params['kwargs_source'][0]['center_y'] - dec_list[0]
-			min_distance = np.sqrt(np.min(ra_offset**2 + dec_offset**2))
-			metadata['source_parameters_distance_to_caustic'] = min_distance
-			
-		if self.compute_mass_enclosed:
-			kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
-				new_sample=False)
-			lm = LensModel(kwargs_model['lens_model_list'])
-			# r is in arcsec
-			mass_enclosed = lm.lens_model.func_list[0].mass_2d_lens(r=1.5,
-				sigma0=kwargs_params['kwargs_lens'][0]['sigma0'],
-				r_core=kwargs_params['kwargs_lens'][0]['r_core'], 
-				gamma=kwargs_params['kwargs_lens'][0]['gamma'])
-			metadata['main_deflector_parameters_M_encl_15e-1arcsec'] = mass_enclosed
-
 
 		return metadata
 
@@ -428,9 +362,6 @@ class ConfigHandler():
 			lens_model (lenstronomy.LensModel.lens_model.LensModel): An instance
 				of the lenstronomy lens model that will be used to calculate
 				lensing quantitities.
-
-		Return:
-			returns 0 if successful, -1 if failed
 		"""
 		# Extract the sample
 		sample = self.get_current_sample()
@@ -446,24 +377,6 @@ class ConfigHandler():
 		# point source parameters
 		pfix = 'point_source_parameters_'
 		metadata[pfix+'num_images'] = num_images
-		
-		# write offset between lens center & PS position
-		x_diff = (kwargs_params['kwargs_ps'][0]['ra_source'] 
-			- kwargs_params['kwargs_lens'][0]['center_x'])
-		y_diff = (kwargs_params['kwargs_ps'][0]['dec_source'] 
-	    	- kwargs_params['kwargs_lens'][0]['center_y'])
-		metadata[pfix+'lens_ps_offset'] = np.sqrt(x_diff**2 + y_diff**2)
-		
-		# throw error if num images > 5
-		if num_images > 5:
-			raise FailedCriteriaError()
-
-		if self.doubles_quads_only and num_images != 2 and num_images != 4:
-			raise FailedCriteriaError()
-
-		# throw error if not quad & requested quads only
-		if self.quads_only and num_images != 4:
-			raise FailedCriteriaError()
 
 		# Calculate magnifications using complete_lens_model
 		magnifications = lens_model.magnification(x_image[0],y_image[0],
@@ -473,12 +386,6 @@ class ConfigHandler():
 			magnifications = magnifications * (
 				sample['point_source_parameters']['mag_pert'][
 					0:len(magnifications)])
-			
-		# throw error if does not pass point source magnification cut
-		if self.ps_magnification_cut is not None:
-			avg_magnification = np.mean(np.abs(magnifications))
-			if avg_magnification < self.ps_magnification_cut:
-				raise FailedCriteriaError()
 
 		# Calculate time delays
 		if sample['point_source_parameters']['compute_time_delays']:
@@ -507,22 +414,16 @@ class ConfigHandler():
 				metadata[pfix+'x_image_'+str(i)] = x_image[0][i]
 				metadata[pfix+'y_image_'+str(i)] = y_image[0][i]
 				metadata[pfix+'magnification_'+str(i)] = magnifications[i]
-				if 'mag_pert' in sample['point_source_parameters'].keys():
-					metadata[pfix+'mag_pert_'+str(i)] = sample['point_source_parameters']['mag_pert'][i]
 			else:
 				metadata[pfix+'x_image_'+str(i)] = np.nan
 				metadata[pfix+'y_image_'+str(i)] = np.nan
 				metadata[pfix+'magnification_'+str(i)] = np.nan
-				if 'mag_pert' in sample['point_source_parameters'].keys():
-					metadata[pfix+'mag_pert_'+str(i)] = np.nan
 
 			if sample['point_source_parameters']['compute_time_delays']:
 				if i < len(td):
 					metadata[pfix+'time_delay_' + str(i)] = td[i]
 				else:
 					metadata[pfix+'time_delay_' + str(i)] = np.nan
-					
-		return 0
 
 	def _draw_image_standard(self,add_noise=True,apply_psf=True):
 		"""Uses the current config sample to generate an image and the
@@ -545,12 +446,9 @@ class ConfigHandler():
 		kwargs_model, kwargs_params = self.get_lenstronomy_models_kwargs(
 			new_sample=False)
 
-		# Get the psf, detector, and pixel grid parameters from the sample
+		# Get the psf and detector parameters from the sample
 		kwargs_psf = sample['psf_parameters']
 		kwargs_detector = sample['detector_parameters']
-		kwargs_pixel_grid = None
-		if 'pixel_grid_parameters' in sample.keys():
-			kwargs_pixel_grid = sample['pixel_grid_parameters']
 
 		# Build the psf model
 		if apply_psf:
@@ -559,10 +457,9 @@ class ConfigHandler():
 			psf_model = PSF(psf_type='NONE')
 
 		# Build the data and noise models we'll use.
-		data_api = DataAPI(numpix=self.numpix,
-			kwargs_pixel_grid=kwargs_pixel_grid,**kwargs_detector)
+		data_api = DataAPI(numpix=self.numpix,**kwargs_detector)
 		single_band = SingleBand(**kwargs_detector)
-		
+
 		# Pull the cosmology and source redshift
 		cosmo = get_cosmology(sample['cosmology_parameters'])
 
@@ -577,14 +474,12 @@ class ConfigHandler():
 		lens_light_model = LightModel(kwargs_model['lens_light_model_list'])
 
 		# Point source may need lens eqn solver kwargs
-        # Need to fix how fixed_magnification_list is handled
 		lens_equation_params = None
 		if 'lens_equation_solver_parameters' in sample.keys():
 			lens_equation_params = sample['lens_equation_solver_parameters']
 		point_source_model = PointSource(
 			kwargs_model['point_source_model_list'],lensModel=lens_model,
-			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params,
-            fixed_magnification_list=[True])
+			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params)
 
 		# Put it together into an image model
 		image_model = ImageModel(data_api.data_class,psf_model,
@@ -598,7 +493,6 @@ class ConfigHandler():
 			kwargs_params['kwargs_ps'])
 
 		# Check for the magnification cut and apply it.
-        # TODO: these assumptions break down w/ a point source in the model
 		if self.mag_cut is not None:
 			# Evaluate the light that would have been in the image using
 			# the image model
@@ -610,7 +504,7 @@ class ConfigHandler():
 			mag = np.sum(image)-lens_light_total
 			mag /= source_light_total
 			if mag < self.mag_cut:
-				raise FailedCriteriaError()
+				raise MagnificationError(self.mag_cut)
 
 		# If noise is specified, add it.
 		if add_noise:
@@ -622,15 +516,8 @@ class ConfigHandler():
 		# If a point source was specified, calculate the time delays
 		# and image positions.
 		if self.point_source_class is not None:
-			try:
-				success = self._calculate_ps_metadata(metadata,kwargs_params,
-					point_source_model,lens_model)
-			except FailedCriteriaError as e:
-				raise FailedCriteriaError() from e
-			
-			# address case w/ 6 PS images
-			if success == -1:
-				return None,None
+			self._calculate_ps_metadata(metadata,kwargs_params,
+				point_source_model,lens_model)
 
 		return image, metadata
 
@@ -699,7 +586,7 @@ class ConfigHandler():
 			self.kwargs_numerics = kwargs_numerics_copy
 			self.numpix = numpix_copy
 			raise
-		
+					
 		self.sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 		self.numpix = numpix_copy
 
@@ -807,14 +694,10 @@ class ConfigHandler():
 				# it can be used by _draw_image_drizzle.
 				image,metadata = self._draw_image_standard(
 					add_noise=self.add_noise)
-		except FailedCriteriaError:
-			# Image critera not met, return None,None.
+		except MagnificationError:
+			# Magnification cut was not met, return None,None
 			return None, None
 
-		# address case w/ more than 6 images
-		if image is None:
-			return None,None
-		
 		# Mask out an interior region of the image if requested
 		if hasattr(self.config_module,'mask_radius'):
 			kwargs_detector = self.get_current_sample()['detector_parameters']
