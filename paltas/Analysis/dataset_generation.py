@@ -70,9 +70,7 @@ def normalize_outputs(metadata,learning_params,input_norm_path,
 			log_data = metadata[log_learning_params].to_numpy()
 			log_norm_dict['mean'] = np.mean(np.log(log_data),axis=0)
 			log_norm_dict['std'] = np.std(np.log(log_data),axis=0)
-			# pandas DataFrame.append() method is deprecated
-			norm_dict = pd.concat([norm_dict,log_norm_dict])
-			#norm_dict = norm_dict.append(log_norm_dict)
+			norm_dict = pd.concat([norm_dict, log_norm_dict], ignore_index=True)
 
 		# Set parameter to the index
 		norm_dict = norm_dict.set_index('parameter')
@@ -215,6 +213,20 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 			# Write out the example to the TFRecord file
 			writer.write(example.SerializeToString())
 
+def norm_image(image):
+	""" helper function to normalize an image by its standard deviation
+	"""
+	image = image / tf.math.reduce_std(image)
+	return image
+
+def log_norm_image(image):
+	""" helper function to log-normalize an image
+	"""
+	image = tf.experimental.numpy.log10(1+image)
+	# rescale to range [0,1]
+	image = (image - tf.math.reduce_min(image)) / (
+		tf.math.reduce_max(image)- tf.math.reduce_min(image))
+	return image
 
 def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 	n_epochs,norm_images=False,log_norm_images=False,input_norm_path=None,
@@ -300,16 +312,13 @@ def generate_tf_dataset(tf_record_path,learning_params,batch_size,
 
 		# If the images must be normed divide by the std
 		if norm_images:
-			image = image / tf.math.reduce_std(image)
+			image = norm_image(image)
 
 		# add option to do log norm as described in: 
 		# 	https://arxiv.org/pdf/2012.00042.pdf
 		# (went and checked in h0rton, it uses log10)
 		if log_norm_images:
-			image = tf.experimental.numpy.log10(1+image)
-			# rescale to range [0,1]
-			image = (image - tf.math.reduce_min(image)) / (
-				tf.math.reduce_max(image)- tf.math.reduce_min(image))
+			image = log_norm_image(image)
 
 		# Log the parameter if needed
 		for param in log_learning_params_list:
