@@ -72,15 +72,15 @@ def main():
 	# for training
 	npy_folders_train = config_module.npy_folders_train
 	# Number of steps per epoch is number of examples over the batch size
-	n_npy_files = 0
+	n_images = 0
 	for npy_folder in npy_folders_train:
 		if not args.h5:
-			n_npy_files += len(glob.glob(os.path.join(npy_folder,'image_*.npy')))
+			n_images += len(glob.glob(os.path.join(npy_folder,'image_*.npy')))
 		# Assumes there is only 1 h5 file per folder
 		else: 
 			with h5py.File(os.path.join(npy_folder,'image_data.h5'),'r') as f0:
-				n_npy_files += f0['data'].shape[0]
-	steps_per_epoch = n_npy_files//batch_size
+				n_images += f0['data'].shape[0]
+	steps_per_epoch = n_images//batch_size
 	# The path to the fodler containing the npy images
 	# for validation
 	npy_folder_val = config_module.npy_folder_val
