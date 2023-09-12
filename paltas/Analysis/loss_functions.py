@@ -425,3 +425,84 @@ class FullCovarianceLoss(BaseLoss):
 				tf.matmul(y_pred,flip_mat),prec_mat,L_diag))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
+	
+
+class FullCovarianceAPTLoss(FullCovarianceLoss):
+	""" Automatic Posterior Transformation (APT) Loss w/ full covariance matrix
+
+	Args:
+		num_params (int): The number of parameters to predict.
+		flip_pairs ([[int,...],...]): A list of lists. Each list contains
+			the index of parameters that when flipped together return an
+			equivalent lens model.
+		prior_means ([float]): Means of initial Gaussian training prior
+		prior_scatters ([float]): Standard deviations of initial Gaussian training prior
+		proposal_means ([float]): Means of updated proposal Gaussian training prior
+		proposal_scatters ([float]): Standard deviations of updated proposal Gaussian training prior
+
+		Notes:
+			If multiple lists are provided, all possible combinations of
+			flips will be considered. For example, if flip_pairs is
+			[[0,1],[2,3]] then flipping 0,1,2,3 all at the same time will
+			also be considered.
+	"""
+	
+	def __init__(self, num_params, prior_means, prior_prec, proposal_means,
+		proposal_prec,flip_pairs=None, weight_terms=None):
+
+		super().__init__(num_params,flip_pairs=flip_pairs,
+			weight_terms=weight_terms)
+
+		# store prior & proposal info which we will need to compute loss
+		self.prior_mu = prior_means
+		self.prior_prec = prior_prec
+		self.proposal_mu = proposal_means
+		self.proposal_prec = proposal_prec
+
+	@staticmethod
+	def log_gauss_full(y_true,y_pred,prec_mat):
+		""" Return the negative log posterior of a Gaussian with full
+		covariance matrix
+
+		Args:
+			y_true (tf.Tensor): The true values of the parameters
+			y_pred (tf.Tensor): The predicted value of the parameters
+			prec_mat: The precision matrix
+
+		Returns:
+			(tf.Tensor): The TF graph for calculating the nlp
+
+		Notes:
+			This loss does not include the constant factor of 1/(2*pi)^(d/2).
+		"""
+		y_dif = y_true - y_pred
+		prefactor = 0.5*tf.math.log(tf.linalg.det(prec_mat))
+		return prefactor + 0.5 * tf.reduce_sum(
+			tf.multiply(y_dif,tf.reduce_sum(tf.multiply(tf.expand_dims(
+				y_dif,-1),prec_mat),axis=-2)),-1)
+
+	def loss(self,y_true,output):
+
+		# Extract the outputs
+		y_pred, prec_mat, _ = self.convert_output(output)
+
+		prec_comb = prec_mat + self.proposal_prec - self.prior_prec
+		
+		def matmul(matrix,vector):
+			return tf.reduce_sum(tf.multiply(tf.expand_dims(vector,-1),matrix),axis=-1)
+
+		# Add each possible flip to the loss list. We will then take the
+		# minimum.
+		loss_list = []
+		for flip_mat in self.flip_mat_list:
+			y_pred_flip = tf.matmul(y_pred,flip_mat)
+			print(matmul(prec_mat,y_pred_flip).shape)
+			print(matmul(self.proposal_prec,self.proposal_mu).shape)
+			print(matmul(self.prior_prec,self.prior_mu).shape)
+			mu_comb = matmul(tf.linalg.inv(prec_comb),
+				(matmul(prec_mat,y_pred_flip) + 
+	 			matmul(self.proposal_prec,self.proposal_mu) - 
+	 			matmul(self.prior_prec,self.prior_mu) ))
+			loss_list.append(self.log_gauss_full(y_true,mu_comb,prec_comb))
+		loss_stack = tf.stack(loss_list,axis=-1)
+		return tf.reduce_min(loss_stack,axis=-1)

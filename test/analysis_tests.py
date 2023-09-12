@@ -1009,7 +1009,41 @@ class FullCovarianceLossTests(unittest.TestCase):
 		loss = loss_class.loss(yttf,yptf)
 
 		self.assertAlmostEqual(np.sum(loss.numpy()),scipy_nlp,places=4)
+		
+class FullCovarianceAPTLossTests(unittest.TestCase):
 
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		
+	def test_loss(self):
+		
+		dim = 2
+		mu_prior = tf.constant(np.zeros(dim),dtype=tf.float32)
+		prec_prior = tf.constant(np.diag(np.ones(dim) * 4),dtype=tf.float32)
+		mu_prop = tf.constant(mu_prior,dtype=tf.float32)
+		prec_prop = tf.constant(prec_prior,dtype=tf.float32)
+
+		gaussian_loss = Analysis.loss_functions.FullCovarianceLoss(dim)
+		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(dim, 
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		batch_size = int(1e4)
+
+		# y_pred, L_mat_elements
+		len_L_mat_elements = int(dim*(dim+1)/2)
+		outputs = np.concatenate(
+			[np.random.normal(size=(batch_size, dim)),
+				np.zeros((batch_size, len_L_mat_elements))], axis=-1
+		)
+
+		truth = np.random.normal(size=(batch_size, dim))
+
+		truth = tf.constant(truth,dtype=tf.float32)
+		outputs = tf.constant(outputs,dtype=tf.float32)
+
+		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
+			snpe_c_loss.loss(truth,outputs).numpy())
 
 class ConvModelsTests(unittest.TestCase):
 
