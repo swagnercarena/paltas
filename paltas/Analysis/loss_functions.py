@@ -454,10 +454,10 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 			weight_terms=weight_terms)
 
 		# store prior & proposal info which we will need to compute loss
-		self.prior_mu = prior_means
-		self.prior_prec = prior_prec
-		self.proposal_mu = proposal_means
-		self.proposal_prec = proposal_prec
+		self.prior_mu = tf.constant(prior_means,dtype=tf.float32)
+		self.prior_prec = tf.constant(prior_prec,dtype=tf.float32)
+		self.proposal_mu = tf.constant(proposal_means,dtype=tf.float32)
+		self.proposal_prec = tf.constant(proposal_prec,dtype=tf.float32)
 
 	@staticmethod
 	def log_gauss_full(y_true,y_pred,prec_mat):

@@ -1019,10 +1019,10 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 	def test_loss(self):
 		
 		dim = 2
-		mu_prior = tf.constant(np.zeros(dim),dtype=tf.float32)
-		prec_prior = tf.constant(np.diag(np.ones(dim) * 4),dtype=tf.float32)
-		mu_prop = tf.constant(mu_prior,dtype=tf.float32)
-		prec_prop = tf.constant(prec_prior,dtype=tf.float32)
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
 
 		gaussian_loss = Analysis.loss_functions.FullCovarianceLoss(dim)
 		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(dim, 
