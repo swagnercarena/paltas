@@ -476,7 +476,7 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 			This loss does not include the constant factor of 1/(2*pi)^(d/2).
 		"""
 		y_dif = y_true - y_pred
-		prefactor = 0.5*tf.math.log(tf.linalg.det(prec_mat))
+		prefactor = -0.5*tf.math.log(tf.linalg.det(prec_mat))
 		return prefactor + 0.5 * tf.reduce_sum(
 			tf.multiply(y_dif,tf.reduce_sum(tf.multiply(tf.expand_dims(
 				y_dif,-1),prec_mat),axis=-2)),-1)
