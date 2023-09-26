@@ -9,7 +9,7 @@ functions for NN training on the strong lensing problem.
 import tensorflow as tf
 import numpy as np
 import itertools
-
+import pandas as pd
 
 class BaseLoss():
 	"""	A base class for the loss functions.
@@ -432,13 +432,13 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 
 	Args:
 		num_params (int): The number of parameters to predict.
-		flip_pairs ([[int,...],...]): A list of lists. Each list contains
-			the index of parameters that when flipped together return an
-			equivalent lens model.
 		prior_means ([float]): Means of initial Gaussian training prior
 		prior_scatters ([float]): Standard deviations of initial Gaussian training prior
 		proposal_means ([float]): Means of updated proposal Gaussian training prior
 		proposal_scatters ([float]): Standard deviations of updated proposal Gaussian training prior
+		flip_pairs ([[int,...],...]): A list of lists. Each list contains
+			the index of parameters that when flipped together return an
+			equivalent lens model.
 
 		Notes:
 			If multiple lists are provided, all possible combinations of
@@ -446,18 +446,45 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 			[[0,1],[2,3]] then flipping 0,1,2,3 all at the same time will
 			also be considered.
 	"""
-	
+
 	def __init__(self, num_params, prior_means, prior_prec, proposal_means,
-		proposal_prec,flip_pairs=None, weight_terms=None):
+		proposal_prec,input_norm_path=None,flip_pairs=None, weight_terms=None):
 
 		super().__init__(num_params,flip_pairs=flip_pairs,
 			weight_terms=weight_terms)
+
+		# IF NORMALIZING PARAMETERS WITH NORMS.CSV, MUST ACCOUNT FOR THAT
+		if input_norm_path is not None:
+			prior_means,prior_prec = self._normalize_mu_prec(prior_means,
+				prior_prec,input_norm_path)
+			proposal_means,proposal_prec = self._normalize_mu_prec(proposal_means,
+				proposal_prec,input_norm_path)
 
 		# store prior & proposal info which we will need to compute loss
 		self.prior_mu = tf.constant(prior_means,dtype=tf.float32)
 		self.prior_prec = tf.constant(prior_prec,dtype=tf.float32)
 		self.proposal_mu = tf.constant(proposal_means,dtype=tf.float32)
 		self.proposal_prec = tf.constant(proposal_prec,dtype=tf.float32)
+
+	def _normalize_mu_prec(self,mu,prec_mat,input_norm_path):
+		"""Helper function to convert mu, prec_matrix to normalized parameter 
+			space
+		"""
+		norm_dict = pd.read_csv(input_norm_path)
+		norm_means = norm_dict['mean'].to_numpy()
+		norm_std = norm_dict['std'].to_numpy()
+
+		cov_mat = np.linalg.inv(prec_mat)
+
+		# do the opposite of dataset_generation.unnormalize_outputs
+		for i in range(0,len(mu)):
+			mu[i] -= norm_means[i]
+			mu[i] /= norm_std[i]
+
+			cov_mat[i,:] /= norm_std[i]
+			cov_mat[:,i] /= norm_std[i]
+
+		return mu, np.linalg.inv(cov_mat)
 
 	@staticmethod
 	def log_gauss_full(y_true,y_pred,prec_mat):
@@ -476,6 +503,7 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 			This loss does not include the constant factor of 1/(2*pi)^(d/2).
 		"""
 		y_dif = y_true - y_pred
+		# TODO: check that this is correct (reducing along right axes, etc.)
 		prefactor = -0.5*tf.math.log(tf.linalg.det(prec_mat))
 		return prefactor + 0.5 * tf.reduce_sum(
 			tf.multiply(y_dif,tf.reduce_sum(tf.multiply(tf.expand_dims(
@@ -496,9 +524,7 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 		loss_list = []
 		for flip_mat in self.flip_mat_list:
 			y_pred_flip = tf.matmul(y_pred,flip_mat)
-			print(matmul(prec_mat,y_pred_flip).shape)
-			print(matmul(self.proposal_prec,self.proposal_mu).shape)
-			print(matmul(self.prior_prec,self.prior_mu).shape)
+			# TODO: check that this is correct
 			mu_comb = matmul(tf.linalg.inv(prec_comb),
 				(matmul(prec_mat,y_pred_flip) + 
 	 			matmul(self.proposal_prec,self.proposal_mu) - 

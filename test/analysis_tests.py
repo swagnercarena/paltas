@@ -1016,8 +1016,10 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		# Set up a random seed for consistency
 		np.random.seed(2)
 		
-	def test_loss(self):
+	def test_sanity_loss(self):
 		
+        # if prior = proposal, check that produces the same as without APT 
+        # modification
 		dim = 2
 		mu_prior = np.zeros(dim)
 		prec_prior = np.diag(np.ones(dim) * 4)
@@ -1030,7 +1032,7 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 
 		batch_size = int(1e4)
 
-		# y_pred, L_mat_elements
+		# produce output = y_pred, L_mat_elements in flattened sequence
 		len_L_mat_elements = int(dim*(dim+1)/2)
 		outputs = np.concatenate(
 			[np.random.normal(size=(batch_size, dim)),
@@ -1044,7 +1046,86 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 
 		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
 			snpe_c_loss.loss(truth,outputs).numpy())
+		
+	def test_ratios_loss(self):
+		
+		# now, prior != proposal, check by computing a ratio log pdfs. This way 
+		# we can check w/out computing the normalization
 
+		# generate some random outputs / ground truths
+		# scraped from a random training run, 8 parameters w/ full covariance matrix
+		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
+         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514,
+         3.6308527 ,  23.381945  ,   2.2662773 ,  -4.85888   ,
+         3.962213  ,   3.1098747 ,   2.602856  ,   1.3564798 ,
+         3.3465786 ,   0.2168981 , -16.477966  ,  -8.322151  ,
+         2.487496  ,  -0.28127927,   1.1385951 ,   1.959164  ,
+        -4.360259  , -20.258226  ,  -0.56529176,  -0.7079977 ,
+         1.1026397 ,  -2.486014  ,   1.3936588 ,   6.8615203 ,
+         0.1961821 ,  -0.13286208,  -0.3439808 ,   1.2944454 ,
+         7.697075  ,   3.17325   ,  -7.014868  ,   0.30311686,
+         0.46607757,  -0.42691824,  -0.35380697,   1.5319805 ]])
+		output2 = np.asarray([[  0.3107585 ,  -0.3553329 ,  -0.845628  ,   0.8184399 ,
+         0.24346961,  -0.39209208,   1.0816696 ,  -0.31599775,
+         4.3396106 ,  -9.533168  ,   3.868934  , -26.110418  ,
+        -8.924578  ,   3.5657575 ,  -1.2604252 ,   3.125827  ,
+         1.2062862 ,   0.05078796,  -1.217353  , -33.451992  ,
+        -2.206342  ,  -1.0993657 ,   2.2162561 ,  11.339959  ,
+         5.2832913 , -28.392292  ,   1.8539209 ,  -1.8465352 ,
+         1.8801868 ,   2.9308507 ,   7.9488215 ,  -0.08610094,
+         0.17931506,   2.9013054 ,  -5.293574  ,   2.570334  ,
+        -0.19034708,  -4.010225  , -11.935611  ,  -0.07796383,
+         8.028736  ,   0.9651575 ,   1.8625004 ,   2.6419592 ]])
+		
+		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
+       -0.02982552,  1.0541298 , -0.32437885]])
+		truth2 = np.asarray([[ 0.337906  , -0.16578683, -0.7336807 ,  0.33882454,  0.4227609 ,
+       -0.2745057 ,  0.98757386, -0.28335238]])
+
+		output1 = tf.constant(output1,dtype=tf.float32)
+		truth1 = tf.constant(truth1,dtype=tf.float32)
+		output2 = tf.constant(output2,dtype=tf.float32)
+		truth2 = tf.constant(truth2,dtype=tf.float32)
+
+		# APT prior
+		mu_prior = np.asarray([0.8,0.,0.,2.0,0.,0.,0.,0.])
+		prec_prior = np.linalg.inv(np.diag(np.asarray([0.2,0.12,0.12,0.12,0.18,0.18,0.07,0.07])**2))
+		# APT proposal
+		mu_prop = np.asarray([0.85,-0.01,-0.09,2.07,0.08,-0.02,0.07,-0.02])
+		prec_prop = np.linalg.inv(np.diag(np.asarray([0.001,0.01,0.01,0.11,0.01,0.02,0.003,0.003])**2))
+
+		# create APT loss object
+		input_norm_path = '/Users/smericks/Desktop/StrongLensing/STRIDES14results/sep7_narrow_lognorm/lr_1e-3/norms.csv'
+		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(8, 
+			mu_prior, prec_prior, mu_prop,prec_prop,input_norm_path=input_norm_path)
+		
+		# move to normalized space
+		mu_prior, prec_prior = snpe_c_loss._normalize_mu_prec(mu_prior,prec_prior,input_norm_path)
+		mu_prop, prec_prop = snpe_c_loss._normalize_mu_prec(mu_prop,prec_prop,input_norm_path)
+
+		# function to evaluate ratio of 3 gaussians analytically
+		def log_gaussian_ratio(output,truth):
+			y_pred, prec_mat, _ = snpe_c_loss.convert_output(output)
+
+			y_pred = y_pred[0]
+			prec_mat = prec_mat[0]
+			truth = truth[0]
+
+			log_ratio = multivariate_normal(mean=y_pred,cov=np.linalg.inv(prec_mat)).logpdf(truth)
+			log_ratio += multivariate_normal(mean=mu_prop,cov=np.linalg.inv(prec_prop)).logpdf(truth)
+			log_ratio -= multivariate_normal(mean=mu_prior,cov=np.linalg.inv(prec_prior)).logpdf(truth)
+
+			return log_ratio
+		
+		# change the ground truth, don't change the output 
+		# (otherwise we change qF(), which changes normalization factor Z)
+		analytical_ratio = -log_gaussian_ratio(output1,truth1) + log_gaussian_ratio(output1,truth2)
+		loss_function_ratio = snpe_c_loss.loss(truth1,output1) - snpe_c_loss.loss(truth2,output1)
+		print(type(analytical_ratio))
+		print(type(loss_function_ratio.numpy()))
+		print(loss_function_ratio.numpy())
+		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=4)
+		
 class ConvModelsTests(unittest.TestCase):
 
 	def setUp(self):
