@@ -1130,7 +1130,8 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		prec_prop = np.linalg.inv(np.diag(np.asarray([0.001,0.01,0.01,0.11,0.01,0.02,0.003,0.003])**2))
 
 		# create APT loss object
-		input_norm_path = '/Users/smericks/Desktop/StrongLensing/STRIDES14results/sep7_narrow_lognorm/lr_1e-3/norms.csv'
+		input_norm_path = 'test_data/apt_norms.csv'
+		#'/Users/smericks/Desktop/StrongLensing/STRIDES14results/sep7_narrow_lognorm/lr_1e-3/norms.csv'
 		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(8, 
 			mu_prior, prec_prior, mu_prop,prec_prop,input_norm_path=input_norm_path)
 		
