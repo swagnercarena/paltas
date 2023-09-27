@@ -1047,6 +1047,41 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
 			snpe_c_loss.loss(truth,outputs).numpy())
 		
+		# check with something with non-zero len_L_mat_elements
+		dim = 8
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
+
+		gaussian_loss1 = Analysis.loss_functions.FullCovarianceLoss(dim)
+		snpe_c_loss1 = Analysis.loss_functions.FullCovarianceAPTLoss(dim, 
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
+         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514,
+         3.6308527 ,  23.381945  ,   2.2662773 ,  -4.85888   ,
+         3.962213  ,   3.1098747 ,   2.602856  ,   1.3564798 ,
+         3.3465786 ,   0.2168981 , -16.477966  ,  -8.322151  ,
+         2.487496  ,  -0.28127927,   1.1385951 ,   1.959164  ,
+        -4.360259  , -20.258226  ,  -0.56529176,  -0.7079977 ,
+         1.1026397 ,  -2.486014  ,   1.3936588 ,   6.8615203 ,
+         0.1961821 ,  -0.13286208,  -0.3439808 ,   1.2944454 ,
+         7.697075  ,   3.17325   ,  -7.014868  ,   0.30311686,
+         0.46607757,  -0.42691824,  -0.35380697,   1.5319805 ]])
+		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
+       -0.02982552,  1.0541298 , -0.32437885]])
+		output1 = tf.constant(output1,dtype=tf.float32)
+		truth1 = tf.constant(truth1,dtype=tf.float32)
+
+		# CONFIRMED: the problem is NOT the prefactor
+		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1,output1).numpy(),
+			gaussian_loss1.loss(truth1,output1,debug=True).numpy())
+		
+		# prior = proposal, so should be same as gaussian loss
+		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
+			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
+		
 	def test_ratios_loss(self):
 		
 		# now, prior != proposal, check by computing a ratio log pdfs. This way 
@@ -1125,7 +1160,7 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		print(type(loss_function_ratio.numpy()))
 		print(loss_function_ratio.numpy())
 		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=4)
-		
+
 class ConvModelsTests(unittest.TestCase):
 
 	def setUp(self):

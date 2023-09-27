@@ -379,7 +379,7 @@ class FullCovarianceLoss(BaseLoss):
 		return prec_mat, L_mat_diag
 
 	@staticmethod
-	def log_gauss_full(y_true,y_pred,prec_mat,L_diag):
+	def log_gauss_full(y_true,y_pred,prec_mat,L_diag,debug=False):
 		""" Return the negative log posterior of a Gaussian with full
 		covariance matrix
 
@@ -397,11 +397,17 @@ class FullCovarianceLoss(BaseLoss):
 			This loss does not include the constant factor of 1/(2*pi)^(d/2).
 		"""
 		y_dif = y_true - y_pred
+		if debug:
+			prefactor = -0.5*tf.math.log(tf.linalg.det(prec_mat))
+			return prefactor + 0.5 * tf.reduce_sum(
+				tf.multiply(y_dif,tf.reduce_sum(tf.multiply(tf.expand_dims(
+				y_dif,-1),prec_mat),axis=-2)),-1)
+		
 		return -tf.reduce_sum(L_diag,-1) + 0.5 * tf.reduce_sum(
 			tf.multiply(y_dif,tf.reduce_sum(tf.multiply(tf.expand_dims(
 				y_dif,-1),prec_mat),axis=-2)),-1)
 
-	def loss(self,y_true,output):
+	def loss(self,y_true,output,debug=False):
 		""" Returns the loss of the predicted parameters.
 
 		Args:
@@ -421,8 +427,12 @@ class FullCovarianceLoss(BaseLoss):
 		# minimum.
 		loss_list = []
 		for flip_mat in self.flip_mat_list:
-			loss_list.append(self.log_gauss_full(y_true,
-				tf.matmul(y_pred,flip_mat),prec_mat,L_diag))
+			if debug:
+				loss_list.append(self.log_gauss_full(y_true,
+									tf.matmul(y_pred,flip_mat),prec_mat,L_diag,debug=True))
+			else:
+				loss_list.append(self.log_gauss_full(y_true,
+					tf.matmul(y_pred,flip_mat),prec_mat,L_diag))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
 	
@@ -504,6 +514,7 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 		"""
 		y_dif = y_true - y_pred
 		# TODO: check that this is correct (reducing along right axes, etc.)
+		# A/B test: FullCovariance w/ this prefactor vs. FullCovariance w/ original prefactor
 		prefactor = -0.5*tf.math.log(tf.linalg.det(prec_mat))
 		return prefactor + 0.5 * tf.reduce_sum(
 			tf.multiply(y_dif,tf.reduce_sum(tf.multiply(tf.expand_dims(
@@ -515,20 +526,19 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 		y_pred, prec_mat, _ = self.convert_output(output)
 
 		prec_comb = prec_mat + self.proposal_prec - self.prior_prec
-		
-		def matmul(matrix,vector):
-			return tf.reduce_sum(tf.multiply(tf.expand_dims(vector,-1),matrix),axis=-1)
 
 		# Add each possible flip to the loss list. We will then take the
 		# minimum.
 		loss_list = []
 		for flip_mat in self.flip_mat_list:
 			y_pred_flip = tf.matmul(y_pred,flip_mat)
-			# TODO: check that this is correct
-			mu_comb = matmul(tf.linalg.inv(prec_comb),
-				(matmul(prec_mat,y_pred_flip) + 
-	 			matmul(self.proposal_prec,self.proposal_mu) - 
-	 			matmul(self.prior_prec,self.prior_mu) ))
+			# have to add dimension to y_pred to facilitate matmul
+			rhs = (tf.matmul(prec_mat,tf.expand_dims(y_pred_flip,-1)) + 
+	 			tf.matmul(self.proposal_prec,tf.expand_dims(self.proposal_mu,-1)) - 
+	 			tf.matmul(self.prior_prec,tf.expand_dims(self.prior_mu,-1)) )
+			mu_comb = tf.matmul(tf.linalg.inv(prec_comb),rhs)
+			# remove extra dimension 
+			mu_comb = tf.squeeze(mu_comb,axis=-1)
 			loss_list.append(self.log_gauss_full(y_true,mu_comb,prec_comb))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
