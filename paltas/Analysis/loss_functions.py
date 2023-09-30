@@ -10,6 +10,7 @@ import tensorflow as tf
 import numpy as np
 import itertools
 import pandas as pd
+import copy
 
 class BaseLoss():
 	"""	A base class for the loss functions.
@@ -465,6 +466,7 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 
 		# IF NORMALIZING PARAMETERS WITH NORMS.CSV, MUST ACCOUNT FOR THAT
 		if input_norm_path is not None:
+			print('normalizing prior/proposal')
 			prior_means,prior_prec = self._normalize_mu_prec(prior_means,
 				prior_prec,input_norm_path)
 			proposal_means,proposal_prec = self._normalize_mu_prec(proposal_means,
@@ -476,10 +478,14 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 		self.proposal_mu = tf.constant(proposal_means,dtype=tf.float32)
 		self.proposal_prec = tf.constant(proposal_prec,dtype=tf.float32)
 
+	# TODO: move to dataset_generation file
+	# TODO: write test after moving (make sure identity operation w/ unnormalized)
 	def _normalize_mu_prec(self,mu,prec_mat,input_norm_path):
 		"""Helper function to convert mu, prec_matrix to normalized parameter 
 			space
 		"""
+		mu_copy = np.copy(mu)
+		#mu_copy = copy.deepcopy(mu)
 		norm_dict = pd.read_csv(input_norm_path)
 		norm_means = norm_dict['mean'].to_numpy()
 		norm_std = norm_dict['std'].to_numpy()
@@ -488,13 +494,13 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 
 		# do the opposite of dataset_generation.unnormalize_outputs
 		for i in range(0,len(mu)):
-			mu[i] -= norm_means[i]
-			mu[i] /= norm_std[i]
+			mu_copy[i] -= norm_means[i]
+			mu_copy[i] /= norm_std[i]
 
 			cov_mat[i,:] /= norm_std[i]
 			cov_mat[:,i] /= norm_std[i]
 
-		return mu, np.linalg.inv(cov_mat)
+		return mu_copy, np.linalg.inv(cov_mat)
 
 	@staticmethod
 	def log_gauss_full(y_true,y_pred,prec_mat):

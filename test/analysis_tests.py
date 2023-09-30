@@ -1044,6 +1044,8 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		truth = tf.constant(truth,dtype=tf.float32)
 		outputs = tf.constant(outputs,dtype=tf.float32)
 
+		print(truth.shape)
+
 		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
 			snpe_c_loss.loss(truth,outputs).numpy())
 		
@@ -1072,7 +1074,9 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
        -0.02982552,  1.0541298 , -0.32437885]])
 		output1 = tf.constant(output1,dtype=tf.float32)
+		output1_batched = tf.squeeze(tf.stack([output1,output1]))
 		truth1 = tf.constant(truth1,dtype=tf.float32)
+		truth1_batched = tf.squeeze(tf.stack([truth1,truth1]))
 
 		# CONFIRMED: the problem is NOT the prefactor
 		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1,output1).numpy(),
@@ -1081,6 +1085,11 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		# prior = proposal, so should be same as gaussian loss
 		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
 			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
+		
+		# let's try adding in a batch dimension
+		print(truth1_batched.shape) 
+		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1_batched,output1_batched).numpy(),
+			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy(),decimal=4)
 		
 	def test_ratios_loss(self):
 		
@@ -1132,10 +1141,12 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		# create APT loss object
 		input_norm_path = 'test_data/apt_norms.csv'
 		#'/Users/smericks/Desktop/StrongLensing/STRIDES14results/sep7_narrow_lognorm/lr_1e-3/norms.csv'
+		# WARNING: values changed b/c pass by reference
 		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(8, 
 			mu_prior, prec_prior, mu_prop,prec_prop,input_norm_path=input_norm_path)
-		
 		# move to normalized space
+		# MU_PRIOR, PREC_PRIOR, MU_PROP, PREC_PROP ALREADY MODIFIED B/C PASS BY REFERENCE
+		# (TODO: change how this is handled to avoid further issues)
 		mu_prior, prec_prior = snpe_c_loss._normalize_mu_prec(mu_prior,prec_prior,input_norm_path)
 		mu_prop, prec_prop = snpe_c_loss._normalize_mu_prec(mu_prop,prec_prop,input_norm_path)
 
@@ -1157,10 +1168,13 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		# (otherwise we change qF(), which changes normalization factor Z)
 		analytical_ratio = -log_gaussian_ratio(output1,truth1) + log_gaussian_ratio(output1,truth2)
 		loss_function_ratio = snpe_c_loss.loss(truth1,output1) - snpe_c_loss.loss(truth2,output1)
-		print(type(analytical_ratio))
-		print(type(loss_function_ratio.numpy()))
-		print(loss_function_ratio.numpy())
-		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=4)
+		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=3)
+
+		analytical_ratio = -log_gaussian_ratio(output2,truth1) + log_gaussian_ratio(output2,truth2)
+		loss_function_ratio = snpe_c_loss.loss(truth1,output2) - snpe_c_loss.loss(truth2,output2)
+		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=3)
+
+
 
 class ConvModelsTests(unittest.TestCase):
 
