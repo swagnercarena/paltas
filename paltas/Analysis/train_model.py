@@ -203,7 +203,7 @@ def main():
 	elif loss_function == 'fullapt':
 		num_outputs = num_params + int(num_params*(num_params+1)/2)
 		loss = loss_functions.FullCovarianceAPTLoss(num_params, prior_means, 
-			prior_prec, proposal_means, proposal_prec).loss
+			prior_prec, proposal_means, proposal_prec, input_norm_path=input_norm_path).loss
 	else:
 		raise ValueError('%s loss not in the list of supported losses'%(
 			loss_function))
