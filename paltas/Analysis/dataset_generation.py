@@ -388,6 +388,12 @@ def rotate_params_batch(learning_params,output,rot_angle):
 		x,y = rotate_param(output[:,xi],output[:,yi],2*rot_angle)
 		output[:,xi] = x
 		output[:,yi] = y
+	if 'source_parameters_center_x' in learning_params:
+		xi = learning_params.index('source_parameters_center_x')
+		yi = learning_params.index('source_parameters_center_y')
+		x,y = rotate_param(output[:,xi],output[:,yi],rot_angle)
+		output[:,xi] = x
+		output[:,yi] = y
 
 
 def rotate_covariance_batch(learning_params,coavriance_batch,rot_angle):
