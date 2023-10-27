@@ -15,7 +15,7 @@ required_packages = open('requirements.txt').read().splitlines()
 
 setup(
 	name='paltas',
-	version='0.1.1',
+	version='0.2.0',
 	description='Strong lens substructure package.',
 	long_description=readme,
 	author='Sebastian Wagner-Carena',
