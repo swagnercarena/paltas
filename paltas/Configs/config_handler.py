@@ -71,7 +71,7 @@ class ConfigHandler():
 		self.base_seed = getattr(
 			self.config_module,
 			'seed',
-			(np.random.randint(np.iinfo(np.uint32).max,)))
+			(np.random.randint(np.iinfo(np.uint32).max, dtype=np.int64)))
 		# Make sure base_seed is a sequence, not a number
 		if isinstance(self.base_seed, (int, float)):
 			self.base_seed = (self.base_seed,)
@@ -586,7 +586,7 @@ class ConfigHandler():
 			self.kwargs_numerics = kwargs_numerics_copy
 			self.numpix = numpix_copy
 			raise
-					
+
 		self.sample['detector_parameters']['pixel_scale'] = detector_pixel_scale
 		self.numpix = numpix_copy
 
