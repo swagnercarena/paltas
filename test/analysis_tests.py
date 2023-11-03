@@ -1147,8 +1147,10 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		# move to normalized space
 		# MU_PRIOR, PREC_PRIOR, MU_PROP, PREC_PROP ALREADY MODIFIED B/C PASS BY REFERENCE
 		# (TODO: change how this is handled to avoid further issues)
-		mu_prior, prec_prior = snpe_c_loss._normalize_mu_prec(mu_prior,prec_prior,input_norm_path)
-		mu_prop, prec_prop = snpe_c_loss._normalize_mu_prec(mu_prop,prec_prop,input_norm_path)
+		mu_prior, prec_prior = Analysis.dataset_generation.normalize_mu_prec(
+			mu_prior,prec_prior,input_norm_path)
+		mu_prop, prec_prop = Analysis.dataset_generation.normalize_mu_prec(
+			mu_prop,prec_prop,input_norm_path)
 
 		# function to evaluate ratio of 3 gaussians analytically
 		def log_gaussian_ratio(output,truth):
@@ -1173,6 +1175,82 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		analytical_ratio = -log_gaussian_ratio(output2,truth1) + log_gaussian_ratio(output2,truth2)
 		loss_function_ratio = snpe_c_loss.loss(truth1,output2) - snpe_c_loss.loss(truth2,output2)
 		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=3)
+		
+
+class DiagonalCovarianceAPTLossTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+		
+	def test_sanity_loss(self):
+		
+        # if prior = proposal, check that produces the same as without APT 
+        # modification
+		dim = 2
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
+
+		gaussian_loss = Analysis.loss_functions.DiagonalCovarianceLoss(dim)
+		snpe_c_loss = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim, 
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		batch_size = int(1e4)
+
+		# produce output = y_pred, log_var_pred in flattened sequence
+		outputs = np.concatenate(
+			[np.random.normal(size=(batch_size, dim)),
+				np.zeros((batch_size, dim))], axis=-1
+		)
+
+		truth = np.random.normal(size=(batch_size, dim))
+
+		truth = tf.constant(truth,dtype=tf.float32)
+		outputs = tf.constant(outputs,dtype=tf.float32)
+
+		print(truth.shape)
+
+		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
+			snpe_c_loss.loss(truth,outputs).numpy())
+		
+		# check with something with non-zero len_L_mat_elements
+		dim = 8
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
+
+		gaussian_loss1 = Analysis.loss_functions.DiagonalCovarianceLoss(dim)
+		snpe_c_loss1 = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim, 
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
+         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514, 
+		 -7.26170538, -6.46101679, -6.29505404, -3.06140718, -5.87716862,
+       -6.09388462, -4.22963954, -4.94557475]])
+		# 1.4246841e+03, 6.3971118e+02, 5.4188513e+02 , 2.1357590e+01, 3.5679758e+02, 
+		# 4.4313950e+02, 6.8692467e+01, 1.4055161e+02]])
+		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
+       -0.02982552,  1.0541298 , -0.32437885]])
+		output1 = tf.constant(output1,dtype=tf.float32)
+		output1_batched = tf.squeeze(tf.stack([output1,output1]))
+		truth1 = tf.constant(truth1,dtype=tf.float32)
+		truth1_batched = tf.squeeze(tf.stack([truth1,truth1]))
+
+		# CONFIRMED: the problem is NOT the prefactor
+		test = gaussian_loss1.loss(truth1,output1).numpy()
+		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1,output1).numpy(),
+			gaussian_loss1.loss(truth1,output1).numpy())
+		
+		# prior = proposal, so should be same as gaussian loss
+		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
+			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
+		
+		# let's try adding in a batch dimension
+		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1_batched,output1_batched).numpy(),
+			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy(),decimal=4)
 
 
 

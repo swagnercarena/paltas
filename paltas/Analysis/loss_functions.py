@@ -11,6 +11,7 @@ import numpy as np
 import itertools
 import pandas as pd
 import copy
+from paltas.Analysis.dataset_generation import normalize_mu_prec
 
 class BaseLoss():
 	"""	A base class for the loss functions.
@@ -467,9 +468,9 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 		# IF NORMALIZING PARAMETERS WITH NORMS.CSV, MUST ACCOUNT FOR THAT
 		if input_norm_path is not None:
 			print('normalizing prior/proposal')
-			prior_means,prior_prec = self._normalize_mu_prec(prior_means,
+			prior_means,prior_prec = normalize_mu_prec(prior_means,
 				prior_prec,input_norm_path)
-			proposal_means,proposal_prec = self._normalize_mu_prec(proposal_means,
+			proposal_means,proposal_prec = normalize_mu_prec(proposal_means,
 				proposal_prec,input_norm_path)
 
 		# store prior & proposal info which we will need to compute loss
@@ -477,30 +478,6 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 		self.prior_prec = tf.constant(prior_prec,dtype=tf.float32)
 		self.proposal_mu = tf.constant(proposal_means,dtype=tf.float32)
 		self.proposal_prec = tf.constant(proposal_prec,dtype=tf.float32)
-
-	# TODO: move to dataset_generation file
-	# TODO: write test after moving (make sure identity operation w/ unnormalized)
-	def _normalize_mu_prec(self,mu,prec_mat,input_norm_path):
-		"""Helper function to convert mu, prec_matrix to normalized parameter 
-			space
-		"""
-		mu_copy = np.copy(mu)
-		#mu_copy = copy.deepcopy(mu)
-		norm_dict = pd.read_csv(input_norm_path)
-		norm_means = norm_dict['mean'].to_numpy()
-		norm_std = norm_dict['std'].to_numpy()
-
-		cov_mat = np.linalg.inv(prec_mat)
-
-		# do the opposite of dataset_generation.unnormalize_outputs
-		for i in range(0,len(mu)):
-			mu_copy[i] -= norm_means[i]
-			mu_copy[i] /= norm_std[i]
-
-			cov_mat[i,:] /= norm_std[i]
-			cov_mat[:,i] /= norm_std[i]
-
-		return mu_copy, np.linalg.inv(cov_mat)
 
 	@staticmethod
 	def log_gauss_full(y_true,y_pred,prec_mat):
@@ -548,3 +525,70 @@ class FullCovarianceAPTLoss(FullCovarianceLoss):
 			loss_list.append(self.log_gauss_full(y_true,mu_comb,prec_comb))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
+	
+
+class DiagonalCovarianceAPTLoss(DiagonalCovarianceLoss):
+	""" Automatic Posterior Transformation (APT) Loss w/ diagonal covariance matrix
+
+	Args:
+		num_params (int): The number of parameters to predict.
+		prior_means ([float]): Means of initial Gaussian training prior
+		prior_scatters ([float]): Standard deviations of initial Gaussian training prior
+		proposal_means ([float]): Means of updated proposal Gaussian training prior
+		proposal_scatters ([float]): Standard deviations of updated proposal Gaussian training prior
+		flip_pairs ([[int,...],...]): A list of lists. Each list contains
+			the index of parameters that when flipped together return an
+			equivalent lens model.
+
+		Notes:
+			If multiple lists are provided, all possible combinations of
+			flips will be considered. For example, if flip_pairs is
+			[[0,1],[2,3]] then flipping 0,1,2,3 all at the same time will
+			also be considered.
+	"""
+
+	def __init__(self, num_params, prior_means, prior_prec, proposal_means,
+		proposal_prec,input_norm_path=None,flip_pairs=None, weight_terms=None):
+
+		super().__init__(num_params,flip_pairs=flip_pairs,
+			weight_terms=weight_terms)
+
+		# IF NORMALIZING PARAMETERS WITH NORMS.CSV, MUST ACCOUNT FOR THAT
+		if input_norm_path is not None:
+			print('normalizing prior/proposal')
+			prior_means,prior_prec = normalize_mu_prec(prior_means,
+				prior_prec,input_norm_path)
+			proposal_means,proposal_prec = normalize_mu_prec(proposal_means,
+				proposal_prec,input_norm_path)
+
+		# store prior & proposal info which we will need to compute loss
+		self.prior_mu = tf.constant(prior_means,dtype=tf.float32)
+		self.prior_prec = tf.constant(prior_prec,dtype=tf.float32)
+		self.proposal_mu = tf.constant(proposal_means,dtype=tf.float32)
+		self.proposal_prec = tf.constant(proposal_prec,dtype=tf.float32)
+		
+
+	def loss(self,y_true,output):
+
+		# Extract the outputs
+		y_pred, log_var_pred = self.convert_output(output)
+
+		prec_mat = tf.linalg.diag(tf.math.reciprocal(tf.exp(log_var_pred)))
+		prec_comb = prec_mat + self.proposal_prec - self.prior_prec
+
+		# Add each possible flip to the loss list. We will then take the
+		# minimum.
+		loss_list = []
+		for flip_mat in self.flip_mat_list:
+			y_pred_flip = tf.matmul(y_pred,flip_mat)
+			# have to add dimension to y_pred to facilitate matmul
+			rhs = (tf.matmul(prec_mat,tf.expand_dims(y_pred_flip,-1)) + 
+				tf.matmul(self.proposal_prec,tf.expand_dims(self.proposal_mu,-1)) - 
+				tf.matmul(self.prior_prec,tf.expand_dims(self.prior_mu,-1)) )
+			mu_comb = tf.matmul(tf.linalg.inv(prec_comb),rhs)
+			# remove extra dimension 
+			mu_comb = tf.squeeze(mu_comb,axis=-1)
+			loss_list.append(FullCovarianceAPTLoss.log_gauss_full(y_true,mu_comb,prec_comb))
+		loss_stack = tf.stack(loss_list,axis=-1)
+		return tf.reduce_min(loss_stack,axis=-1)
+	

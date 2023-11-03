@@ -120,6 +120,34 @@ def unnormalize_outputs(input_norm_path,learning_params,mean,standard_dev=None,
 		if cov_mat is not None:
 			cov_mat[:,lpi,:] *= param_std
 			cov_mat[:,:,lpi] *= param_std
+			
+# TODO: write test after moving (make sure identity operation w/ unnormalized)
+def normalize_mu_prec(mu,prec_mat,input_norm_path):
+    """Helper function to convert mu, prec_matrix to normalized parameter 
+        space
+        
+    Args:
+        mu ([float]), shape: (dim): array of means for each param
+        prec_mat ([float]), shape: (dim,dim): precision matrix
+        input_norm_path (string): path to norms.csv
+    """
+    mu_copy = np.copy(mu)
+    #mu_copy = copy.deepcopy(mu)
+    norm_dict = pd.read_csv(input_norm_path)
+    norm_means = norm_dict['mean'].to_numpy()
+    norm_std = norm_dict['std'].to_numpy()
+
+    cov_mat = np.linalg.inv(prec_mat)
+
+    # do the opposite of dataset_generation.unnormalize_outputs
+    for i in range(0,len(mu)):
+        mu_copy[i] -= norm_means[i]
+        mu_copy[i] /= norm_std[i]
+
+        cov_mat[i,:] /= norm_std[i]
+        cov_mat[:,i] /= norm_std[i]
+
+    return mu_copy, np.linalg.inv(cov_mat)
 
 
 def kwargs_detector_to_tf_noise(image,kwargs_detector):
