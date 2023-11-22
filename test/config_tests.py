@@ -286,7 +286,7 @@ class ConfigUtilsTests(unittest.TestCase):
 
 		# Now we'll turn off our main deflector but create a fake LOS
 		# and subhalo class that gives the same profile.
-		class FakeLOSClass():
+		class FakeLOSClass(paltas.Substructure.los_base.LOSBase):
 
 			def update_parameters(self,*args,**kwargs):
 				return
@@ -302,14 +302,14 @@ class ConfigUtilsTests(unittest.TestCase):
 			def calculate_average_alpha(self,*args,**kwargs):
 				return ([],[],[])
 
-		self.c.los_class = FakeLOSClass()
+		self.c.los_class = FakeLOSClass.init_from_sample(self.c.sample)
 		self.c.main_deflector_class = None
 		self.c.sample['los_parameters'] = {}
 		los_image, metadata = self.c._draw_image_standard(self.c.add_noise)
 		np.testing.assert_almost_equal(image,los_image)
 
 		# Repeat the same excercise but for the subhalos
-		class FakeSuhaloClass():
+		class FakeSuhaloClass(paltas.Substructure.subhalos_base.SubhalosBase):
 
 			def update_parameters(self,*args,**kwargs):
 				return
@@ -322,14 +322,14 @@ class ConfigUtilsTests(unittest.TestCase):
 				z_list = [0.5]*2
 				return model_list,kwargs_list,z_list
 
-		self.c.subhalo_class = FakeSuhaloClass()
+		self.c.subhalo_class = FakeSuhaloClass.init_from_sample(self.c.sample)
 		self.c.los_class = None
 		self.c.sample['subhalo_parameters'] = {}
 		sub_image, metadata = self.c._draw_image_standard(self.c.add_noise)
 		np.testing.assert_almost_equal(image,sub_image)
 
 		# Generate image with deflector & lens light
-		self.c.sample['lens_light_parameters'] = {'z_source':0.5,'magnitude':20,
+		self.c.sample['lens_light_parameters'] = {'z_source':0.5,'magnitude':19,
 			'output_ab_zeropoint':25.95,'R_sersic':1.,'n_sersic':1.2,'e1':0.,
 			'e2':0.,'center_x':0.0,'center_y':0.0}
 		self.c.lens_light_class = SingleSersicSource(

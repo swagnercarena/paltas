@@ -273,3 +273,19 @@ class GalaxyCatalog(SourceBase):
 		return (
 			self.cosmo.angularDiameterDistance(z_old)
 			/ self.cosmo.angularDiameterDistance(z_new))
+
+	def draw(self, result, *, sample, lens_light, **kwargs):
+		# For catalog objects we also want to save the catalog index
+		# and the (possibly randomized) additional rotation angle. We will
+		# therefore push these back into the sample object.
+		catalog_i, phi = self.fill_catalog_i_phi_defaults()
+		if lens_light:
+			result.add_lens_light(
+				*self.draw_source(catalog_i=catalog_i, phi=phi))
+			sample['lens_light_parameters']['catalog_i'] = catalog_i
+			sample['lens_light_parameters']['phi'] = phi
+		else:
+			result.add_sources(
+				*self.draw_source(catalog_i=catalog_i, phi=phi))
+			sample['source_parameters']['catalog_i'] = catalog_i
+			sample['source_parameters']['phi'] = phi
