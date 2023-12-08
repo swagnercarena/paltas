@@ -155,7 +155,7 @@ class ConfigUtilsTests(unittest.TestCase):
 			lens_redshift_list=kwargs_model['lens_redshift_list'],
 			cosmo=cosmo.toAstropy(),multi_plane=kwargs_model['multi_plane'])
 		point_source_model = PointSource(
-			kwargs_model['point_source_model_list'],lensModel=lens_model,
+			kwargs_model['point_source_model_list'],lens_model=lens_model,
 			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params)
 
 		# Initialize empty metadata and populate it.

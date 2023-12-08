@@ -582,7 +582,7 @@ class ConfigHandler():
 		if 'lens_equation_solver_parameters' in sample.keys():
 			lens_equation_params = sample['lens_equation_solver_parameters']
 		point_source_model = PointSource(
-			kwargs_model['point_source_model_list'],lensModel=lens_model,
+			kwargs_model['point_source_model_list'],lens_model=lens_model,
 			save_cache=True,kwargs_lens_eqn_solver=lens_equation_params,
             fixed_magnification_list=[True])
 

@@ -7,7 +7,7 @@ This module contains the classes to render main deflectors consisting of simple
 combinations of lenstronomy profiles.
 """
 from .main_deflector_base import MainDeflectorBase
-from lenstronomy.LensModel.profile_list_base import ProfileListBase, lens_class
+from lenstronomy.LensModel.profile_list_base import lens_class
 
 
 class PEMD(MainDeflectorBase):
@@ -67,7 +67,6 @@ class PEMD(MainDeflectorBase):
 			# The list of parameters linked to that lenstronomy model
 			p_names = (
 				lens_class(model).param_names
-				#ProfileListBase._import_class(model,None,None).param_names
 			)
 			model_kwargs = {}
 			for param in p_names:
@@ -137,8 +136,6 @@ class PEMDShear(MainDeflectorBase):
 			# The list of parameters linked to that lenstronomy model
 			p_names = (
 				lens_class(model).param_names
-				#ProfileListBase._import_class(model,None,None).param_names
-				#ProfileListBase._import_class(model,None,None).param_names
 			)
 			model_kwargs = {}
 			for param in p_names:
