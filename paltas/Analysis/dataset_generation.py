@@ -219,11 +219,12 @@ def generate_tf_record(npy_folder,learning_params,metadata_path,
 	with tf.io.TFRecordWriter(tf_record_path) as writer:
 		if h5:
 			f = h5py.File(h5_file, "r")
+			image_array = f['data'][()]
 		# Iteratively retrieves images from list of npy files, or images within the h5 file:  
 		for file_number in tqdm(range(number_of_files)):
 			if h5:
 				index = int(file_number)
-				image = f['data'][()][index]
+				image = image_array[index]
 				image_shape = image.shape
 			else:
 				npy_file = npy_file_list[file_number]
