@@ -10,6 +10,7 @@ from paltas.Analysis import dataset_generation, loss_functions, conv_models
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, CSVLogger
 from tensorflow.keras import optimizers
 import pandas as pd
+import h5py
 
 
 def parse_args():
@@ -27,6 +28,8 @@ def parse_args():
 	parser.add_argument('--tensorboard_dir', default=None, type=str,
 		dest='tensorboard_dir', help='Optional path to save a tensorboard ' +
 		'output to')
+	parser.add_argument('--h5', action='store_true',
+		help='Load images from .h5 files rather than .npy')
 	args = parser.parse_args()
 	return args
 
@@ -72,13 +75,22 @@ def main():
 	# Number of steps per epoch is number of examples over the batch size
 	n_npy_files = 0
 	for npy_folder in npy_folders_train:
-		n_npy_files += len(glob.glob(os.path.join(npy_folder,'image_*.npy')))
+		if not args.h5:
+			n_images += len(glob.glob(os.path.join(npy_folder,'image_*.npy')))
+		# Assumes there is only 1 h5 file per folder
+		else: 
+			with h5py.File(os.path.join(npy_folder,'image_data.h5'),'r') as f0:
+				n_images += f0['data'].shape[0]
 	steps_per_epoch = n_npy_files//batch_size
 	# The path to the fodler containing the npy images
 	# for validation
 	npy_folder_val = config_module.npy_folder_val
 	# Get the number of validation files as well
-	n_val_npy = len(glob.glob(os.path.join(npy_folder_val,'image_*.npy')))
+	if not args.h5:
+		n_val_npy = len(glob.glob(os.path.join(npy_folder_val,'image_*.npy')))
+	else: 
+		with h5py.File(os.path.join(npy_folder_val,'image_data.h5'),'r') as f0:
+			n_val_npy = f0['data'].shape[0]
 	# A list of the paths to the training metadata
 	metadata_paths_train = config_module.metadata_paths_train
 	# The path to the validation metadata
@@ -130,7 +142,7 @@ def main():
 			print('Generating new TFRecord at %s'%(tf_path))
 			dataset_generation.generate_tf_record(npy_folders_train[i],
 				all_params+log_learning_params,metadata_paths_train[i],
-				tf_path)
+				tf_path,h5=args.h5)
 		else:
 			print('TFRecord found at %s'%(tf_path))
 
@@ -138,7 +150,7 @@ def main():
 	if not os.path.exists(tfr_val_path):
 		print('Generating new TFRecord at %s'%(tfr_val_path))
 		dataset_generation.generate_tf_record(npy_folder_val,
-			all_params+log_learning_params,metadata_path_val,tfr_val_path)
+			all_params+log_learning_params,metadata_path_val,tfr_val_path,h5=args.h5)
 	else:
 		print('TFRecord found at %s'%(tfr_val_path))
 
