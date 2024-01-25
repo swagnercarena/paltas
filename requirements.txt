@@ -1,7 +1,7 @@
 astropy>=4.0.0
 colossus
 drizzle>=1.13.3
-lenstronomy>=1.11.5
+lenstronomy>=1.11.6
 numpy>=1.13,<=1.24
 scipy>=1.7
 tqdm>=4.42.1
