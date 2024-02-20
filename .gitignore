@@ -25,7 +25,3 @@ lib64
 
 # COSMOS images
 datasets/cosmos
-/paltas/example/*
-/paltas/example_validation/*
-/paltas/example_network_weights/*
-*.DS_Store
