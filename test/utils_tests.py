@@ -596,7 +596,21 @@ class DistributionUtilsTests(unittest.TestCase):
 		mu_wide = np.array([0.8, 0.0, 0.0, 2.2])
 		sigma_wide = np.array([0.2, 0.1, 0.1, 0.3])
 
-		# Start with both having weigth 1.
+		# Start with one then the other having weight 0.
+		mu_comb, sigma_comb = distribution_utils.geometric_average(
+			mu_narrow, sigma_narrow, mu_wide, sigma_wide,
+			weight_wide=0, weight_narrow=1
+		)
+		np.testing.assert_almost_equal(mu_comb, mu_narrow)
+		np.testing.assert_almost_equal(sigma_comb, sigma_narrow)
+		mu_comb, sigma_comb = distribution_utils.geometric_average(
+			mu_narrow, sigma_narrow, mu_wide, sigma_wide,
+			weight_wide=1, weight_narrow=0
+		)
+		np.testing.assert_almost_equal(mu_comb, mu_wide)
+		np.testing.assert_almost_equal(sigma_comb, sigma_wide)
+
+		# Now with both having weigth 1.
 		mu_comb, sigma_comb = distribution_utils.geometric_average(
 			mu_narrow, sigma_narrow, mu_wide, sigma_wide,
 			weight_wide=1, weight_narrow=1

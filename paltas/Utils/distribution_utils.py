@@ -10,7 +10,7 @@ import numba
 
 @numba.njit()
 def geometric_average(mu_narrow, sigma_narrow, mu_wide, sigma_wide,
-	weight_wide = 1, weight_narrow = 1):
+	weight_narrow = 1, weight_wide = 1):
 	"""Returns the parameters of the geometric average of two Gaussians
 
 	Args:
@@ -19,14 +19,19 @@ def geometric_average(mu_narrow, sigma_narrow, mu_wide, sigma_wide,
 		mu_wide (np.array): Means of the wide distribution.
 		sigma_wide (np.array): Standard deviation of the wide distribution.
 		weight_wide (int): Optional weight for the wide distribution in the
-			geometric average. Default is 1.
+			geometric average. Default is 1. If 0, then the other distribution
+			is returned.
 		weight_narrow (int): Optional weight for the narrow distribution in the
-			geometric average. Default is 1.
+			geometric average. Default is 1. If 0, then the other distribution
+			is returned.
 
 	Returns:
 		(np.array, np.array): Mean and standard deviation of the Gaussian
 			proportional to the geometric average of the input distributions.
 	"""
+	# Cannot be negative
+	assert weight_wide >= 0
+	assert weight_narrow >= 0
 
 	# Function for combining any two distributions.
 	def _combine_dist(mu_one, sigma_one, mu_two, sigma_two):
@@ -37,6 +42,13 @@ def geometric_average(mu_narrow, sigma_narrow, mu_wide, sigma_wide,
 		mu_comb = (sigma_comb ** 2 / sigma_one ** 2) * mu_one
 		mu_comb += (sigma_comb ** 2 / sigma_two ** 2) * mu_two
 		return mu_comb, sigma_comb
+
+	if weight_wide == 0 and weight_narrow == 0:
+		raise ValueError('Both weights cannot be 0.')
+	if weight_wide == 0:
+		return mu_narrow, sigma_narrow
+	if weight_narrow == 0:
+		return mu_wide, sigma_wide
 
 	# Add as many powers of the wide distribution as desired.
 	mu_comb, sigma_comb = mu_wide, sigma_wide
