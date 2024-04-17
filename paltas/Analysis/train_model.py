@@ -273,13 +273,9 @@ def main():
 			update_freq='batch')
 		callbacks.append(tensorboard)
 	# Save model weights at last epoch
-	modelcheckpoint_last = ModelCheckpoint(model_weights[:-3]+'_last.h5',monitor='val_loss',
+	modelcheckpoint_last = ModelCheckpoint(model_weights,monitor='val_loss',
 		save_best_only=False,save_freq='epoch')
 	callbacks.append(modelcheckpoint_last)
-	# Save model weights at best epoch
-	modelcheckpoint_best = ModelCheckpoint(model_weights[:-3]+'_best.h5',monitor='val_loss',
-		save_best_only=True,save_freq='epoch')
-	callbacks.append(modelcheckpoint_best)
 	# Save training results to .csv file
 	if csv_path is not None:
 		csv = CSVLogger(csv_path,separator=',',append=False)
