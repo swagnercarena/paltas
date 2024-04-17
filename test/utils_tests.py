@@ -1,6 +1,6 @@
 import unittest
 from paltas.Utils import power_law, cosmology_utils, hubble_utils
-from paltas.Utils import lenstronomy_utils
+from paltas.Utils import lenstronomy_utils, distribution_utils
 from scipy.integrate import quad
 import numpy as np
 from colossus.cosmology import cosmology
@@ -175,23 +175,23 @@ class CosmologyTests(unittest.TestCase):
 			cosmo)
 		self.assertAlmostEqual(m_apparent_2,m_absolute+40+2.5*np.log(1+z_light),
 			places=2)
-    
+
 	def test_apparent_to_absolute(self):
         # Assumes absolute_to_apparent works correctly (tested above)
-        
+
 		# Set cosmology, object parameters
 		cosmo = cosmology_utils.get_cosmology('planck18')
 		z_light = 1.5
 		m_absolute = 10
-        
+
 		# Convert absolute to apparent
 		m_apparent = cosmology_utils.absolute_to_apparent(m_absolute,z_light,
 			cosmo)
-        
+
 		# Convert apparent back to absolute
 		m_absolute_2 = cosmology_utils.apparent_to_absolute(m_apparent,z_light,
 			cosmo)
-        
+
 		# Check absolute magnitudes are the same
 		self.assertAlmostEqual(m_absolute,m_absolute_2,places=3)
 
@@ -584,3 +584,42 @@ class LenstronomyUtilsTests(unittest.TestCase):
 		# Make sure the helper image is not convolved
 		helper_image = psf_helper.psf_model(image)
 		np.testing.assert_almost_equal(helper_image,image)
+
+class DistributionUtilsTests(unittest.TestCase):
+
+	def test_geometric_average(self):
+		# Test a few possible combinations to make sure the results are
+		# correct.
+		mu_narrow = np.array([0.6, 0.05, -0.07, 2.0])
+		sigma_narrow = np.array([0.02, 0.01, 0.06, 0.2])
+
+		mu_wide = np.array([0.8, 0.0, 0.0, 2.2])
+		sigma_wide = np.array([0.2, 0.1, 0.1, 0.3])
+
+		# Start with both having weigth 1.
+		mu_comb, sigma_comb = distribution_utils.geometric_average(
+			mu_narrow, sigma_narrow, mu_wide, sigma_wide,
+			weight_wide=1, weight_narrow=1
+		)
+		np.testing.assert_almost_equal(
+			mu_comb,
+			np.array([0.6019802, 0.04950495, -0.05147059, 2.06153846])
+		)
+		np.testing.assert_almost_equal(
+			sigma_comb,
+			np.array([0.0281439, 0.01407195, 0.07276069, 0.23533936])
+		)
+
+		# Now with one having a weight of 2 and the other 3.
+		mu_comb, sigma_comb = distribution_utils.geometric_average(
+			mu_narrow, sigma_narrow, mu_wide, sigma_wide,
+			weight_wide=2, weight_narrow=3
+		)
+		np.testing.assert_almost_equal(
+			mu_comb,
+			np.array([0.6013245, 0.04966887, -0.05645161, 2.04571429])
+		)
+		np.testing.assert_almost_equal(
+			sigma_comb,
+			np.array([0.02573425, 0.01286713, 0.06956083, 0.22677868])
+		)
