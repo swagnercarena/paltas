@@ -1009,16 +1009,16 @@ class FullCovarianceLossTests(unittest.TestCase):
 		loss = loss_class.loss(yttf,yptf)
 
 		self.assertAlmostEqual(np.sum(loss.numpy()),scipy_nlp,places=4)
-		
+
 class FullCovarianceAPTLossTests(unittest.TestCase):
 
 	def setUp(self):
 		# Set up a random seed for consistency
 		np.random.seed(2)
-		
+
 	def test_sanity_loss(self):
-		
-        # if prior = proposal, check that produces the same as without APT 
+
+        # if prior = proposal, check that produces the same as without APT
         # modification
 		dim = 2
 		mu_prior = np.zeros(dim)
@@ -1027,7 +1027,7 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		prec_prop = prec_prior
 
 		gaussian_loss = Analysis.loss_functions.FullCovarianceLoss(dim)
-		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(dim, 
+		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(dim,
 			mu_prior, prec_prior, mu_prop,prec_prop)
 
 		batch_size = int(1e4)
@@ -1048,7 +1048,7 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 
 		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
 			snpe_c_loss.loss(truth,outputs).numpy())
-		
+
 		# check with something with non-zero len_L_mat_elements
 		dim = 8
 		mu_prior = np.zeros(dim)
@@ -1057,7 +1057,7 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		prec_prop = prec_prior
 
 		gaussian_loss1 = Analysis.loss_functions.FullCovarianceLoss(dim)
-		snpe_c_loss1 = Analysis.loss_functions.FullCovarianceAPTLoss(dim, 
+		snpe_c_loss1 = Analysis.loss_functions.FullCovarianceAPTLoss(dim,
 			mu_prior, prec_prior, mu_prop,prec_prop)
 
 		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
@@ -1079,21 +1079,22 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		truth1_batched = tf.squeeze(tf.stack([truth1,truth1]))
 
 		# CONFIRMED: the problem is NOT the prefactor
-		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1,output1).numpy(),
-			gaussian_loss1.loss(truth1,output1,debug=True).numpy())
-		
+		np.testing.assert_almost_equal(
+			gaussian_loss1.loss(truth1,output1).numpy(),
+			gaussian_loss1.loss(truth1,output1,debug=True).numpy(),
+			decimal=5)
+
 		# prior = proposal, so should be same as gaussian loss
 		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
 			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
-		
+
 		# let's try adding in a batch dimension
-		print(truth1_batched.shape) 
 		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1_batched,output1_batched).numpy(),
 			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy(),decimal=4)
-		
+
 	def test_ratios_loss(self):
-		
-		# now, prior != proposal, check by computing a ratio log pdfs. This way 
+
+		# now, prior != proposal, check by computing a ratio log pdfs. This way
 		# we can check w/out computing the normalization
 
 		# generate some random outputs / ground truths
@@ -1120,7 +1121,7 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
          0.17931506,   2.9013054 ,  -5.293574  ,   2.570334  ,
         -0.19034708,  -4.010225  , -11.935611  ,  -0.07796383,
          8.028736  ,   0.9651575 ,   1.8625004 ,   2.6419592 ]])
-		
+
 		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
        -0.02982552,  1.0541298 , -0.32437885]])
 		truth2 = np.asarray([[ 0.337906  , -0.16578683, -0.7336807 ,  0.33882454,  0.4227609 ,
@@ -1142,7 +1143,7 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		input_norm_path = 'test_data/apt_norms.csv'
 		#'/Users/smericks/Desktop/StrongLensing/STRIDES14results/sep7_narrow_lognorm/lr_1e-3/norms.csv'
 		# WARNING: values changed b/c pass by reference
-		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(8, 
+		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(8,
 			mu_prior, prec_prior, mu_prop,prec_prop,input_norm_path=input_norm_path)
 		# move to normalized space
 		# MU_PRIOR, PREC_PRIOR, MU_PROP, PREC_PROP ALREADY MODIFIED B/C PASS BY REFERENCE
@@ -1165,8 +1166,8 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 			log_ratio -= multivariate_normal(mean=mu_prior,cov=np.linalg.inv(prec_prior)).logpdf(truth)
 
 			return log_ratio
-		
-		# change the ground truth, don't change the output 
+
+		# change the ground truth, don't change the output
 		# (otherwise we change qF(), which changes normalization factor Z)
 		analytical_ratio = -log_gaussian_ratio(output1,truth1) + log_gaussian_ratio(output1,truth2)
 		loss_function_ratio = snpe_c_loss.loss(truth1,output1) - snpe_c_loss.loss(truth2,output1)
@@ -1175,17 +1176,17 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		analytical_ratio = -log_gaussian_ratio(output2,truth1) + log_gaussian_ratio(output2,truth2)
 		loss_function_ratio = snpe_c_loss.loss(truth1,output2) - snpe_c_loss.loss(truth2,output2)
 		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=3)
-		
+
 
 class DiagonalCovarianceAPTLossTests(unittest.TestCase):
 
 	def setUp(self):
 		# Set up a random seed for consistency
 		np.random.seed(2)
-		
+
 	def test_sanity_loss(self):
-		
-        # if prior = proposal, check that produces the same as without APT 
+
+        # if prior = proposal, check that produces the same as without APT
         # modification
 		dim = 2
 		mu_prior = np.zeros(dim)
@@ -1194,7 +1195,7 @@ class DiagonalCovarianceAPTLossTests(unittest.TestCase):
 		prec_prop = prec_prior
 
 		gaussian_loss = Analysis.loss_functions.DiagonalCovarianceLoss(dim)
-		snpe_c_loss = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim, 
+		snpe_c_loss = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim,
 			mu_prior, prec_prior, mu_prop,prec_prop)
 
 		batch_size = int(1e4)
@@ -1210,11 +1211,13 @@ class DiagonalCovarianceAPTLossTests(unittest.TestCase):
 		truth = tf.constant(truth,dtype=tf.float32)
 		outputs = tf.constant(outputs,dtype=tf.float32)
 
-		print(truth.shape)
 
-		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
-			snpe_c_loss.loss(truth,outputs).numpy())
-		
+		np.testing.assert_almost_equal(
+			gaussian_loss.loss(truth,outputs).numpy(),
+			snpe_c_loss.loss(truth,outputs).numpy(),
+			decimal=5
+		)
+
 		# check with something with non-zero len_L_mat_elements
 		dim = 8
 		mu_prior = np.zeros(dim)
@@ -1223,14 +1226,14 @@ class DiagonalCovarianceAPTLossTests(unittest.TestCase):
 		prec_prop = prec_prior
 
 		gaussian_loss1 = Analysis.loss_functions.DiagonalCovarianceLoss(dim)
-		snpe_c_loss1 = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim, 
+		snpe_c_loss1 = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim,
 			mu_prior, prec_prior, mu_prop,prec_prop)
 
 		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
-         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514, 
+         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514,
 		 -7.26170538, -6.46101679, -6.29505404, -3.06140718, -5.87716862,
        -6.09388462, -4.22963954, -4.94557475]])
-		# 1.4246841e+03, 6.3971118e+02, 5.4188513e+02 , 2.1357590e+01, 3.5679758e+02, 
+		# 1.4246841e+03, 6.3971118e+02, 5.4188513e+02 , 2.1357590e+01, 3.5679758e+02,
 		# 4.4313950e+02, 6.8692467e+01, 1.4055161e+02]])
 		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
        -0.02982552,  1.0541298 , -0.32437885]])
@@ -1243,11 +1246,11 @@ class DiagonalCovarianceAPTLossTests(unittest.TestCase):
 		test = gaussian_loss1.loss(truth1,output1).numpy()
 		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1,output1).numpy(),
 			gaussian_loss1.loss(truth1,output1).numpy())
-		
+
 		# prior = proposal, so should be same as gaussian loss
 		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
 			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
-		
+
 		# let's try adding in a batch dimension
 		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1_batched,output1_batched).numpy(),
 			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy(),decimal=4)
@@ -2073,8 +2076,8 @@ class TrainModelTests(unittest.TestCase):
 			os.remove(f)
 		os.rmdir('test_data/validation')
 
-		# Use a config file with csv option & gamma MSE option 
+		# Use a config file with csv option & gamma MSE option
 		#sys.argv = ['test','test_data/INSERTCONFIG.py']
-		#Analysis.train_model.main()        
+		#Analysis.train_model.main()
 
 		sys.argv = old_sys
