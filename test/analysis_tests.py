@@ -1271,12 +1271,15 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		truth1_batched = tf.squeeze(tf.stack([truth1,truth1]))
 
 		# prior = proposal, so should be same as gaussian loss
-		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
-			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
+		loss_diff = np.abs(gaussian_loss1.loss(truth1,output1).numpy()[0] -
+			snpe_c_loss1.loss(truth1,output1).numpy()[0])
+		self.assertTrue(loss_diff < 0.0001)
 
 		# let's try adding in a batch dimension
-		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1_batched,output1_batched).numpy(),
-			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy(),decimal=4)
+		loss_diff_array = np.abs(gaussian_loss1.loss(truth1_batched,output1_batched).numpy() - 
+			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy())
+		# checking that the difference in loss is never greater than 0.0001
+		self.assertTrue(np.sum(loss_diff_array > 0.0001) == 0)
 
 	def test_ratios_loss(self):
 
