@@ -1270,12 +1270,6 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		truth1 = tf.constant(truth1,dtype=tf.float32)
 		truth1_batched = tf.squeeze(tf.stack([truth1,truth1]))
 
-		# CONFIRMED: the problem is NOT the prefactor
-		np.testing.assert_almost_equal(
-			gaussian_loss1.loss(truth1,output1).numpy(),
-			gaussian_loss1.loss(truth1,output1,debug=True).numpy(),
-			decimal=5)
-
 		# prior = proposal, so should be same as gaussian loss
 		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
 			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
