@@ -42,8 +42,7 @@ class Perturber(MainDeflectorBase):
   	- p_center_y - y-coordinate perturber center in units of arcseconds
 	"""
 	# Define the parameters we expect to find for the DG_19 model
-	required_parameters = ('gamma','theta_E','e1','e2','center_x',
-		'center_y','gamma1','gamma2','ra_0','dec_0','z_lens','p_theta_E','p_center_x','p_center_y')
+	required_parameters = ('gamma','theta_E','e1','e2','center_x','center_y','gamma1','gamma2','ra_0','dec_0','z_lens','p_theta_E','p_center_x','p_center_y')
 
 	def __init__(self,main_deflector_parameters,cosmology_parameters):
 
