@@ -11,7 +11,7 @@ from lenstronomy.LensModel.profile_list_base import lens_class
 
 
 class Perturber(MainDeflectorBase):
-        """Class for rendering a perturber that includes a PEMD profile, an external shear and SIS model.
+	"""Class for rendering a perturber that includes a PEMD profile, an external shear and SIS model.
 
 	Args:
 		main_deflector_parameters (dict): A dictionary containing the type of
