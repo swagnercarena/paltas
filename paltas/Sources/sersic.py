@@ -380,12 +380,12 @@ class SersicPerturber(SourceBase):
 	- output_ab_zeropoint - AB magnitude zeropoint of the detector
 	- R_sersic - Sersic radius of the perturber in units of arcseconds
 	- n_sersic - Sersic index of the perturber
-	- center_x - x-coordinate perturber center in units of arcseconds
-	- center_y - y-coordinate perturber center in units of arcseconds
+	- p_center_x - x-coordinate perturber center in units of arcseconds
+	- p_center_y - y-coordinate perturber center in units of arcseconds
 	- z_source - source redshift
 	"""
 
-	required_parameters = ('amp','output_ab_zeropoint','R_sersic','n_sersic','center_x','center_y','z_source')
+	required_parameters = ('amp','output_ab_zeropoint','R_sersic','n_sersic','p_center_x','p_center_y','z_source')
 
 	def draw_source(self):
 		"""Return lenstronomy LightModel kwargs
@@ -397,16 +397,17 @@ class SersicPerturber(SourceBase):
 			be None.
 		"""
 		# Just extract each of the sersic parameters.
-		sersic_params = { 
-			k: v
-			for k, v in self.source_parameters.items()
-			if k in self.required_parameters}
+		sersic_params = {}
+		params_trunc = ('amp', 'output_ab_zeropoint','R_sersic','n_sersic','z_source')
+		for param in params_trunc:
+                        sersic_params[param] = (self.source_parameters[param])
 		sersic_params.pop('z_source')
 		sersic_params.pop('output_ab_zeropoint')
+		sersic_params['center_x'] = (self.source_parameters['p_center_x'])
+		sersic_params['center_y'] = (self.source_parameters['p_center_y'])
 		return (
 			['SERSIC'],
 			[sersic_params],[self.source_parameters['z_source']])
-
 
 	@staticmethod
 	def mag_to_amplitude(mag_apparent,mag_zeropoint,kwargs_list):
