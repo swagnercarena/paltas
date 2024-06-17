@@ -8,7 +8,8 @@ as the source for paltas.
 from .source_base import SourceBase
 from ..Utils.cosmology_utils import absolute_to_apparent, kpc_per_arcsecond
 from lenstronomy.LightModel.light_model import LightModel
-from lenstronomy.Util.data_util import magnitude2cps
+from lenstronomy.LensModel.profile_list_base import lens_class
+from lenstronomy.Util.data_util import magnitude2cps, cps2magnitude
 import numpy as np
 from lenstronomy.LensModel.Profiles import sersic_utils
 from scipy.special import gammainc, gamma
@@ -40,7 +41,8 @@ class SingleSersicSource(SourceBase):
 	- z_source - source redshift
 	"""
 
-	required_parameters = ('magnitude','output_ab_zeropoint','R_sersic',
+    # additionally requires one of: mag_abs or mag_app
+	required_parameters = ('output_ab_zeropoint','R_sersic',
 		'n_sersic','e1','e2','center_x','center_y','z_source')
 
 	def draw_source(self):
@@ -61,9 +63,14 @@ class SingleSersicSource(SourceBase):
 		sersic_params.pop('output_ab_zeropoint')
 
 		# mag to amp conversion
-		sersic_params.pop('magnitude')
-		mag_apparent = absolute_to_apparent(self.source_parameters['magnitude'],
-			self.source_parameters['z_source'],self.cosmo)
+		if 'mag_abs' in self.source_parameters.keys():
+			mag_apparent = absolute_to_apparent(self.source_parameters['mag_abs'],
+				self.source_parameters['z_source'],self.cosmo)
+		elif 'mag_app' in self.source_parameters.keys():
+			mag_apparent = self.source_parameters['mag_app']
+		else:
+			raise ValueError('Not all of the required parameters for the ' +
+				'parameterization are present: missing mag_abs or mag_app')
 		sersic_params['amp'] = SingleSersicSource.mag_to_amplitude(
 			mag_apparent,self.source_parameters['output_ab_zeropoint'],
 			sersic_params)
@@ -80,7 +87,7 @@ class SingleSersicSource(SourceBase):
 			mag_apparent (float): The desired apparent magnitude
 			mag_zeropoint (float): The magnitude zero-point of the detector
 			kwargs_list (dict): A dict of kwargs for SERSIC_ELLIPSE, amp
-				parameter not included
+				parameter not required
 
 		Returns: 
 			(float): amplitude lenstronomy should use to get desired magnitude
@@ -93,6 +100,25 @@ class SingleSersicSource(SourceBase):
 		flux_true = magnitude2cps(mag_apparent, mag_zeropoint)
 		
 		return flux_true/flux_norm
+	
+	@staticmethod
+	def amplitude_to_mag(amplitude,mag_zeropoint,kwargs_list):
+		""""Converts lenstronomy amplitude to an apparent magnitude
+		
+		Args:
+			amplitude (float): Lenstronomy sersic amplitude
+			mag_zerpoint (float): Magnitude zero-point of the detector
+			kwargs_list (dict): A dict of kwargs for SERSIC_ELLIPSE, amp
+				parameter not required
+
+		Returns: 
+			(float): apparent magnitude corresponding to lenstronomy amplitude
+		"""
+		sersic_model = LightModel(['SERSIC_ELLIPSE'])
+		# norm=True sets amplitude=1
+		flux_norm = sersic_model.total_flux([kwargs_list], norm=True)[0]
+		flux_true = amplitude*flux_norm
+		return cps2magnitude(flux_true,mag_zeropoint)
 
 	@staticmethod
 	def get_total_sersic_flux_r(r,R_sersic,n_sersic,amp_sersic):
@@ -335,3 +361,137 @@ class DoubleSersicData(SingleSersicSource):
 		light_z_list = [self.source_parameters['z_source']]*2
 
 		return light_model_list,light_model_kwargs,light_z_list
+
+class SersicPerturber(SourceBase):
+	"""Class to generate Sersic profile light models of an added perturber
+
+	Args:
+		cosmology_parameters (str,dict, or colossus.cosmology.Cosmology):
+			Either a name of colossus cosmology, a dict with 'cosmology name':
+			name of colossus cosmology, an instance of colussus cosmology, or a
+			dict with H0 and Om0 ( other parameters will be set to defaults).
+		source_parameters: dictionary with source-specific parameters.
+
+	Notes:
+
+	Required Parameters
+
+	- amp - amplitude of the perturber
+	- output_ab_zeropoint - AB magnitude zeropoint of the detector
+	- R_sersic - Sersic radius of the perturber in units of arcseconds
+	- n_sersic - Sersic index of the perturber
+	- center_x - x-coordinate perturber center in units of arcseconds
+	- center_y - y-coordinate perturber center in units of arcseconds
+	- z_source - source redshift
+	"""
+
+	required_parameters = ('amp','output_ab_zeropoint','R_sersic','n_sersic','center_x','center_y','z_source')
+
+	def draw_source(self):
+		"""Return lenstronomy LightModel kwargs
+
+		Returns:
+			(list,list,list) A list containing the model name(s),
+			a list containing the model kwargs dictionaries, and a list
+			containing the redshifts of each model. Redshifts list can
+			be None.
+		"""
+		# Just extract each of the sersic parameters.
+		sersic_params = { 
+			k: v
+			for k, v in self.source_parameters.items()
+			if k in self.required_parameters}
+		sersic_params.pop('z_source')
+		sersic_params.pop('output_ab_zeropoint')
+		return (
+			['SERSIC'],
+			[sersic_params],[self.source_parameters['z_source']])
+
+
+	@staticmethod
+	def mag_to_amplitude(mag_apparent,mag_zeropoint,kwargs_list):
+		"""Converts a user defined magnitude to the corresponding amplitude
+		that lenstronomy will use
+	
+		Args:
+			mag_apparent (float): The desired apparent magnitude
+			mag_zeropoint (float): The magnitude zero-point of the detector
+			kwargs_list (dict): A dict of kwargs for SERSIC_ELLIPSE, amp
+				parameter not required
+
+		Returns: 
+			(float): amplitude lenstronomy should use to get desired magnitude
+			desired magnitude
+		"""
+
+		sersic_model = LightModel(['SERSIC_ELLIPSE'])
+		# norm=True sets amplitude = 1
+		flux_norm = sersic_model.total_flux([kwargs_list], norm=True)[0]
+		flux_true = magnitude2cps(mag_apparent, mag_zeropoint)
+		
+		return flux_true/flux_norm
+	
+	@staticmethod
+	def amplitude_to_mag(amplitude,mag_zeropoint,kwargs_list):
+		""""Converts lenstronomy amplitude to an apparent magnitude
+		
+		Args:
+			amplitude (float): Lenstronomy sersic amplitude
+			mag_zerpoint (float): Magnitude zero-point of the detector
+			kwargs_list (dict): A dict of kwargs for SERSIC_ELLIPSE, amp
+				parameter not required
+
+		Returns: 
+			(float): apparent magnitude corresponding to lenstronomy amplitude
+		"""
+		sersic_model = LightModel(['SERSIC_ELLIPSE'])
+		# norm=True sets amplitude=1
+		flux_norm = sersic_model.total_flux([kwargs_list], norm=True)[0]
+		flux_true = amplitude*flux_norm
+		return cps2magnitude(flux_true,mag_zeropoint)
+
+	@staticmethod
+	def get_total_sersic_flux_r(r,R_sersic,n_sersic,amp_sersic):
+		"""Returns the total sersic flux within a radius r.
+
+		Args:
+			r (float):  The radius to calculate the flux to in the
+				same units as R_sersic.
+			R_sersic (float): The sersic half-light radius in the same
+				units as r.
+			n_sersic (float): The sersic index
+			amp_sersic (float): The amplitude (normalization) of the sersic
+				luminosity. Should have units of flux per units of r^2. So if
+				flux has units of kpc then it should have units flux/kpc^2.
+
+		Returns:
+			(float): The total flux within the radius r in counts per second.
+		"""
+		# Calculate the total flux from the analytic expression
+		b_n = sersic_utils.SersicUtil.b_n(n_sersic)
+		total = R_sersic**2*2*np.pi*n_sersic*np.exp(b_n)/(b_n**(2*n_sersic))
+		total *= gammainc(2*n_sersic,b_n*(r/R_sersic)**(1/n_sersic))
+		total *= gamma(2*n_sersic)
+		total *= amp_sersic
+		return total
+
+	@staticmethod
+	def get_total_sersic_flux(R_sersic,n_sersic,amp_sersic):
+		"""Returns the total sersic flux.
+
+		Args:
+			R_sersic (float): The sersic half-light radius in the same
+				units as r.
+			n_sersic (float): The sersic index
+			amp_sersic (float): The amplitude (normalization) of the sersic
+				luminosity.
+
+		Returns:
+			(float): The total flux in counts per second.
+		"""
+		# Calculate the total flux from the analytic expression
+		b_n = sersic_utils.SersicUtil.b_n(n_sersic)
+		total = R_sersic**2*2*np.pi*n_sersic*np.exp(b_n)/(b_n**(2*n_sersic))
+		total *= gamma(2*n_sersic)
+		total *= amp_sersic
+		return total
