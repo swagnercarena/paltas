@@ -475,9 +475,10 @@ class LOSDG19(LOSBase):
 				interpolation maps.
 
 		Returns:
-			(tuple): A tuple of two lists: the first is the interpolation
+			(tuple): A tuple of three lists: the first is the interpolation
 			profile type for each redshift slice and the second is the
-			lenstronomy kwargs for that profile.
+			lenstronomy kwargs for each profile, and the third is a list of 
+			redshift values for each profile.
 
 		Notes:
 			The average los deflection angles of the lenstronomy objects will
