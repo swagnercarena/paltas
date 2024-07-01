@@ -103,6 +103,12 @@ def main():
 	norm_images = config_module.norm_images
 	# A string with which loss function to use.
 	loss_function = config_module.loss_function
+	# if APT loss, load necessary prior & proposal info
+	if loss_function in  {'fullapt','diagapt'}:
+		prior_means = config_module.prior_means
+		prior_prec = config_module.prior_prec
+		proposal_means = config_module.proposal_means
+		proposal_prec = config_module.proposal_prec
 	# A string specifying which model to use
 	model_type = config_module.model_type
 	# A string specifying which optimizer to use
@@ -189,10 +195,18 @@ def main():
 		num_outputs = num_params*2
 		loss = loss_functions.DiagonalCovarianceLoss(num_params,
 			flip_pairs,weight_terms).loss
+	elif loss_function == 'diagapt':
+		num_outputs = num_params*2
+		loss = loss_functions.DiagonalCovarianceAPTLoss(num_params,prior_means, 
+			prior_prec, proposal_means, proposal_prec, input_norm_path=input_norm_path).loss
 	elif loss_function == 'full':
 		num_outputs = num_params + int(num_params*(num_params+1)/2)
 		loss = loss_functions.FullCovarianceLoss(num_params,flip_pairs,
 			weight_terms).loss
+	elif loss_function == 'fullapt':
+		num_outputs = num_params + int(num_params*(num_params+1)/2)
+		loss = loss_functions.FullCovarianceAPTLoss(num_params, prior_means, 
+			prior_prec, proposal_means, proposal_prec, input_norm_path=input_norm_path).loss
 	else:
 		raise ValueError('%s loss not in the list of supported losses'%(
 			loss_function))
