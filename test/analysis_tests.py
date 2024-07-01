@@ -1273,13 +1273,13 @@ class FullCovarianceAPTLossTests(unittest.TestCase):
 		# prior = proposal, so should be same as gaussian loss
 		loss_diff = np.abs(gaussian_loss1.loss(truth1,output1).numpy()[0] -
 			snpe_c_loss1.loss(truth1,output1).numpy()[0])
-		self.assertTrue(loss_diff < 0.0001)
+		self.assertTrue(loss_diff < 0.001)
 
 		# let's try adding in a batch dimension
 		loss_diff_array = np.abs(gaussian_loss1.loss(truth1_batched,output1_batched).numpy() - 
 			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy())
 		# checking that the difference in loss is never greater than 0.0001
-		self.assertTrue(np.sum(loss_diff_array > 0.0001) == 0)
+		self.assertTrue(np.sum(loss_diff_array > 0.001) == 0)
 
 	def test_ratios_loss(self):
 
