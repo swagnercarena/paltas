@@ -1,11 +1,8 @@
 #!/usr/bin/env python
-try:
-	from setuptools import setup
-except ImportError:
-	from distutils.core import setup
+import os
 
 from setuptools import find_packages
-import os
+from setuptools import setup
 
 readme = open("README.rst").read()
 
