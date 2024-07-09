@@ -1063,7 +1063,7 @@ class ConvModelsTests(unittest.TestCase):
 			if 'dense' in layer.name:
 				self.assertFalse(layer.bias is None)
 			if 'stack4_block3_out' in layer.name:
-				self.assertListEqual(layer.output.shape.as_list(),
+				self.assertListEqual(list(layer.output.shape.as_list),
 					[None,2,2,512])
 		self.assertTupleEqual((None,num_outputs),model.output_shape)
 
