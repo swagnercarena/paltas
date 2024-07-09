@@ -37,7 +37,7 @@ jobs:
       - name: Test with pytest
         run: |
           cd test
-          coverage run --source paltas --omit="*paltas/Configs/paper_2203_00690/*" -m unittest -v *_tests.py
+          coverage run --source paltas --omit "*paltas/Configs/paper_2203_00690/*" -m unittest -v *_tests.py
           coverage lcov
       - name: Coveralls
         uses: coverallsapp/github-action@master
