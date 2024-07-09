@@ -356,9 +356,10 @@ class RedshiftsTruncNorm():
 		clip = (z_lens - self.z_source_mean) / self.z_source_std
 		# number of std. devs away to stop (negative)
 		if(clip > self.z_source_min):
-			self.z_source_min = clip
+			z_source_min = clip
+		else: z_source_min = self.z_source_min
 		# define truncnorm dist for source redshift
-		z_source = truncnorm(self.z_source_min,np.inf,self.z_source_mean,
+		z_source = truncnorm(z_source_min,np.inf,self.z_source_mean,
 			self.z_source_std).rvs()
 
 		return z_lens,z_source
