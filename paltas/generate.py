@@ -79,7 +79,6 @@ def main():
 
 		# Attempt to draw our image
 		image, metadata = config_handler.draw_image(new_sample=True)
-		print('IMAGE',type(image),image)
 		# Failed attempt if there is no image output
 		if image is None:
 			continue
@@ -91,7 +90,6 @@ def main():
 				np.save(filename, image[band])
 				if args.save_png_too:
 					plt.imsave(filename + '.png', image[band])	
-				print('loaded',metadata[band])
 				metadata_list_dict[band].append(metadata[band])
 				# Write out the metadata every 20 images, and on the final write
 				if len(metadata_list_dict[band]) > 20 or successes == args.n - 1:
@@ -105,7 +103,6 @@ def main():
 						mode='w' if first_write else 'a',
 						header=first_write)
 					metadata_list_dict[band] = []
-					print('META',metadata_list_dict[band])
 
 		else:
 			filename = os.path.join(args.save_folder, 'image_%07d' % successes)
