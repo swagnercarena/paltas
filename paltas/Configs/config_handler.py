@@ -89,7 +89,12 @@ class ConfigHandler():
 		# Get the numerical kwargs numpix from the config
 		self.kwargs_numerics = self.config_module.kwargs_numerics
 		self.numpix = self.config_module.numpix
-
+        try:
+            self.multiband = self.config_module.multiband
+			self.N_bands = self.config_module.N_bands
+        except:
+            self.multiband = False
+			self.N_bands = 1
 		# Set up the paltas objects we'll use
 		self.los_class = None
 		self.subhalo_class = None
