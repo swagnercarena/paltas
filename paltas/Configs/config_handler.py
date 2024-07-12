@@ -853,9 +853,6 @@ class ConfigHandler():
 				image[r<=self.config_module.mask_radius] = 0
 		# Save the seed
 		if self.multiband: 
-			print('metadata_dictmetadata_dict',metadata_dict[band])
-			print('')
-			print('')
 			for band in self.filter_list: metadata_dict[band]['seed'] = seed
 			return image_dict,metadata_dict
 		else: 
