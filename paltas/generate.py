@@ -14,6 +14,8 @@ To run this script, pass in the desired config as argument::
 The parameters will be pulled from config.py and the images will be saved in
 save_folder. If save_folder doesn't exist it will be created.
 """
+import sys
+sys.path.append('/Users/hollowayp/paltas/')
 import numpy as np
 import argparse, os
 import shutil
@@ -62,12 +64,12 @@ def main():
 		os.path.abspath(args.config_dict),
 		args.save_folder)
 
-	# Gather metadata in a list, will be written to dataframe later
-	metadata_list = []
-	metadata_path = os.path.join(args.save_folder,'metadata.csv')
-
 	# Initialize our config handler
 	config_handler = ConfigHandler(args.config_dict)
+
+	# Gather metadata in a list, will be written to dataframe later
+	metadata_list = [];metadata_list_dict={band:[] for band in config_handler.filter_list}
+	metadata_path = os.path.join(args.save_folder,'metadata')
 
 	# Generate our images
 	pbar = tqdm(total=args.n)
@@ -79,31 +81,54 @@ def main():
 
 		# Attempt to draw our image
 		image, metadata = config_handler.draw_image(new_sample=True)
-
+		print('IMAGE',type(image),image)
 		# Failed attempt if there is no image output
 		if image is None:
 			continue
 
 		# Save the image and the metadata
-		filename = os.path.join(args.save_folder, 'image_%07d' % successes)
-		np.save(filename, image)
-		if args.save_png_too:
-			plt.imsave(filename + '.png', image)
+		if config_handler.multiband:
+			for band in config_handler.filter_list:
+				filename = os.path.join(args.save_folder, 'image_%07d' % successes)+f'_{band}'
+				np.save(filename, image[band])
+				if args.save_png_too:
+					plt.imsave(filename + '.png', image[band])	
+				print('loaded',metadata[band])
+				metadata_list_dict[band].append(metadata[band])
+				# Write out the metadata every 20 images, and on the final write
+				if len(metadata_list_dict[band]) > 20 or successes == args.n - 1:
+					df = pd.DataFrame(metadata_list_dict[band])
+					# Sort the keys lexographically to ensure consistent writes
+					df = df.reindex(sorted(df.columns), axis=1)
+					first_write = successes <= len(metadata_list_dict[band])
+					df.to_csv(
+						f'{metadata_path}_{band}.csv',
+						index=None,
+						mode='w' if first_write else 'a',
+						header=first_write)
+					metadata_list_dict[band] = []
+					print('META',metadata_list_dict[band])
 
-		metadata_list.append(metadata)
+		else:
+			filename = os.path.join(args.save_folder, 'image_%07d' % successes)
+			np.save(filename, image)
+			if args.save_png_too:
+				plt.imsave(filename + '.png', image)
 
-		# Write out the metadata every 20 images, and on the final write
-		if len(metadata_list) > 20 or successes == args.n - 1:
-			df = pd.DataFrame(metadata_list)
-			# Sort the keys lexographically to ensure consistent writes
-			df = df.reindex(sorted(df.columns), axis=1)
-			first_write = successes <= len(metadata_list)
-			df.to_csv(
-				metadata_path,
-				index=None,
-				mode='w' if first_write else 'a',
-				header=first_write)
-			metadata_list = []
+			metadata_list.append(metadata)
+
+			# Write out the metadata every 20 images, and on the final write
+			if len(metadata_list) > 20 or successes == args.n - 1:
+				df = pd.DataFrame(metadata_list)
+				# Sort the keys lexographically to ensure consistent writes
+				df = df.reindex(sorted(df.columns), axis=1)
+				first_write = successes <= len(metadata_list)
+				df.to_csv(
+					f'{metadata_path}.csv',
+					index=None,
+					mode='w' if first_write else 'a',
+					header=first_write)
+				metadata_list = []
 
 		successes += 1
 		pbar.update()
