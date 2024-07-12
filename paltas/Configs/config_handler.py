@@ -579,7 +579,7 @@ class ConfigHandler():
 			data_api = DataAPI(numpix=self.numpix,**kwargs_detector)
 			single_band = SingleBand(**kwargs_detector)
 
-		def generate_image_and_metadata(sample,kwargs_model,kwargs_params,single_band,data_api,psf_model):
+		def generate_image_and_metadata(sample,kwargs_model,kwargs_params,single_band,data_api,psf_model,band=None):
 			# Pull the cosmology and source redshift
 			cosmo = get_cosmology(sample['cosmology_parameters'])
 
@@ -631,7 +631,10 @@ class ConfigHandler():
 				image += single_band.noise_for_model(image)
 
 			# Extract the metadata from the sample
-			metadata = self.get_metadata()
+			if self.multiband:
+				metadata = self.get_metadata()[band]
+			else: 
+				metadata = self.get_metadata()
 			# If a point source was specified, calculate the time delays
 			# and image positions.
 			if self.multiband:
@@ -654,7 +657,8 @@ class ConfigHandler():
 																	kwargs_params_dict[band],
 																	single_band_dict[band],
 																	data_api_dict[band],
-																	psf_model_dict[band]
+																	psf_model_dict[band],
+																	band
 																	)
 			return image_dict,metadata_dict
 		else: 
@@ -849,6 +853,9 @@ class ConfigHandler():
 				image[r<=self.config_module.mask_radius] = 0
 		# Save the seed
 		if self.multiband: 
+			print('metadata_dictmetadata_dict',metadata_dict[band])
+			print('')
+			print('')
 			for band in self.filter_list: metadata_dict[band]['seed'] = seed
 			return image_dict,metadata_dict
 		else: 
