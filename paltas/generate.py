@@ -14,8 +14,6 @@ To run this script, pass in the desired config as argument::
 The parameters will be pulled from config.py and the images will be saved in
 save_folder. If save_folder doesn't exist it will be created.
 """
-import sys
-sys.path.append('/Users/hollowayp/paltas/')
 import numpy as np
 import argparse, os
 import shutil
