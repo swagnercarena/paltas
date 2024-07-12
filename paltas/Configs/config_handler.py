@@ -296,7 +296,6 @@ class ConfigHandler():
 				lens_light_class.update_parameters(
 					cosmology_parameters=sample['cosmology_parameters'],
 					source_parameters=sample['lens_light_parameters'])
-				print('lens_light_class',lens_light_class)
 				lens_light_model_list, lens_light_kwargs_list, _ = (
 					lens_light_class.draw_source())
 			if point_source_class is not None:
@@ -633,7 +632,6 @@ class ConfigHandler():
 
 			# Extract the metadata from the sample
 			metadata = self.get_metadata()
-			print('extract')
 			# If a point source was specified, calculate the time delays
 			# and image positions.
 			if self.multiband:
@@ -658,8 +656,6 @@ class ConfigHandler():
 																	data_api_dict[band],
 																	psf_model_dict[band]
 																	)
-				print('sss',metadata_dict[band])
-			print('generating',metadata_dict)
 			return image_dict,metadata_dict
 		else: 
 			return generate_image_and_metadata(self,sample,kwargs_model,kwargs_params,single_band,data_api,psf_model)
@@ -841,7 +837,6 @@ class ConfigHandler():
 				kwargs_detector_dict = {}
 				for band in self.filter_list:
 					kwargs_detector_dict[band] = current_sample[band]['detector_parameters']
-					print('DEC',kwargs_detector_dict[band])
 					x_grid,y_grid = util.make_grid(numPix=image_dict[band].shape[0],
 													deltapix=kwargs_detector_dict[band]['pixel_scale'])
 					r = util.array2image(np.sqrt(x_grid**2+y_grid**2))
@@ -854,7 +849,6 @@ class ConfigHandler():
 				image[r<=self.config_module.mask_radius] = 0
 		# Save the seed
 		if self.multiband: 
-			print('In[puttt]',metadata_dict[band])
 			for band in self.filter_list: metadata_dict[band]['seed'] = seed
 			return image_dict,metadata_dict
 		else: 
