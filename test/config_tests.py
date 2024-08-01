@@ -341,9 +341,11 @@ class ConfigUtilsTests(unittest.TestCase):
 		self.assertTrue(np.sum(lens_light_image[90:110,90:110]) >
 			np.sum(image[90:110,90:110]))
 
+		# turn off lens light
+		self.c.lens_light_class = None
 		# Add point source and validate output
-		self.c.sample['point_source_parameters'] = {'x_point_source':0.001,
-			'y_point_source':0.001,'magnitude':22,'output_ab_zeropoint':25.95,
+		self.c.sample['point_source_parameters'] = {'x_point_source':0.0,
+			'y_point_source':0.0,'magnitude':14,'output_ab_zeropoint':25.0,
 			'compute_time_delays':False}
 		self.c.point_source_class = SinglePointSource(
 			self.c.sample['point_source_parameters'])

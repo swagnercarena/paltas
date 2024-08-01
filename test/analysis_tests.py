@@ -158,6 +158,32 @@ class DatasetGenerationTests(unittest.TestCase):
 
 		# Get rid of the file we made
 		os.remove(input_norm_path)
+		
+	def test_normalize_mu_prec(self):
+		# Need to test that the precision matrices output are symmetric!
+		metadata = pd.read_csv(self.fake_test_folder + 'metadata.csv')
+		learning_params = ['main_deflector_parameters_theta_E',
+			'main_deflector_parameters_gamma1','main_deflector_parameters_gamma2',
+			'main_deflector_parameters_gamma']
+		input_norm_path = self.fake_test_folder + 'norms.csv'
+		norm_dict = Analysis.dataset_generation.normalize_outputs(metadata,
+			learning_params,input_norm_path)
+		
+        # Actual mean/precision matrix output by a network for these params
+		proposal_means = np.asarray([ 0.80717194, -0.00500261,  0.13598095,  2.0799267 ]).astype(np.float64)
+		proposal_prec = np.asarray([[135114.03  ,  35584.293 ,  -6538.843 ,  -1039.7645],
+            [ 35584.293 ,  43250.586 ,  -1896.0295, -11420.458 ],
+            [ -6538.843 ,  -1896.0295,  62808.117 ,    947.9287],
+            [ -1039.7645, -11420.458 ,    947.9287,   6692.047 ]]).astype(np.float64)
+		
+		mu,prec = Analysis.dataset_generation.normalize_mu_prec(proposal_means,
+			proposal_prec,input_norm_path)
+		
+		# Testing for symmetry of precision matrix
+		self.assertTrue(np.allclose(prec, prec.T))
+		
+        # Get rid of the file we made
+		os.remove(input_norm_path)
 
 	def test_kwargs_detector_to_tf(self):
 		# Test that pushing numpy images through lenstronomy returns the
@@ -1009,6 +1035,414 @@ class FullCovarianceLossTests(unittest.TestCase):
 		loss = loss_class.loss(yttf,yptf)
 
 		self.assertAlmostEqual(np.sum(loss.numpy()),scipy_nlp,places=4)
+		
+
+class FullCovarianceLossTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+
+	def test_convert_output(self):
+		# Test that the output is converted correctly
+		num_params = 10
+		loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,None)
+		output = tf.ones((1024,65))
+		y_pred, prec_mat, L_diag = loss_class.convert_output(output)
+		np.testing.assert_array_equal(y_pred.numpy(),output.numpy()[:,:10])
+		# Just check the shape for the rest, the hard work here is done by
+		# test_construct_precision_matrix.
+		self.assertTupleEqual(prec_mat.numpy().shape,(1024,10,10))
+		self.assertTupleEqual(L_diag.numpy().shape,(1024,10))
+
+	def test_draw_samples(self):
+		# Test that the prediction is always the same
+		num_params = 10
+		loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,None)
+		output = tf.ones((1024,65))
+		y_pred, prec_mat, L_diag = loss_class.convert_output(output)
+		prec_mat = prec_mat.numpy()
+		cov_mat = np.linalg.inv(prec_mat)
+		n_samps = 10000
+		predict_samps = loss_class.draw_samples(output,n_samps)
+		np.testing.assert_almost_equal(np.mean(predict_samps,axis=0),
+			output.numpy()[:,:10],decimal=1)
+		for i in range(len(output)):
+			np.testing.assert_almost_equal(np.cov(predict_samps[:,i,:].T),
+				cov_mat[i],decimal=1)
+
+	def test_construct_precision_matrix(self):
+		# A couple of test cases to make sure that the generalized precision
+		# matrix code works as expected.
+		num_params = 4
+		flip_pairs = None
+		loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,
+			flip_pairs)
+
+		# Set up a fake l matrix with elements
+		l_mat_elements = np.array([[1,2,3,4,5,6,7,8,9,10]],dtype=float)
+		l_mat = np.array([[np.exp(1),0,0,0],[2,np.exp(3),0,0],[4,5,np.exp(6),0],
+			[7,8,9,np.exp(10)]])
+		prec_mat = np.matmul(l_mat,l_mat.T)
+
+		# Get the tf representation of the prec matrix
+		l_mat_elements_tf = tf.constant(l_mat_elements)
+		p_mat_tf, diag_tf = loss_class.construct_precision_matrix(
+			l_mat_elements_tf)
+
+		# Make sure everything matches
+		np.testing.assert_almost_equal(p_mat_tf.numpy()[0],prec_mat,decimal=5)
+		diag_elements = np.array([1,3,6,10])
+		np.testing.assert_almost_equal(diag_tf.numpy()[0],diag_elements)
+
+		# Rinse and repeat for a different number of elements with batching
+		num_params = 3
+		flip_pairs = None
+		loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,
+			flip_pairs)
+
+		# Set up a fake l matrix with elements
+		l_mat_elements = np.array([[1,2,3,4,5,6],[1,2,3,4,5,6]],dtype=float)
+		l_mat = np.array([[np.exp(1),0,0],[2,np.exp(3),0],[4,5,np.exp(6)]])
+		prec_mat = np.matmul(l_mat,l_mat.T)
+
+		# Get the tf representation of the prec matrix
+		l_mat_elements_tf = tf.constant(l_mat_elements)
+		p_mat_tf, diag_tf = loss_class.construct_precision_matrix(
+			l_mat_elements_tf)
+
+		# Make sure everything matches
+		for p_mat in p_mat_tf.numpy():
+			np.testing.assert_almost_equal(p_mat,prec_mat)
+		diag_elements = np.array([1,3,6])
+		for diag in diag_tf.numpy():
+			np.testing.assert_almost_equal(diag,diag_elements)
+
+	def test_log_gauss_full(self):
+		# Will not be used for this test, but must be passed in.
+		flip_pairs = None
+		for num_params in range(1,10):
+			# Pick a random true, pred, and std and make sure it agrees with the
+			# scipy calculation
+			loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,
+				flip_pairs)
+			y_true = np.random.randn(num_params)
+			y_pred = np.random.randn(num_params)
+
+			l_mat_elements_tf = tf.constant(
+				np.expand_dims(np.random.randn(
+					int(num_params*(num_params+1)/2)),axis=0),dtype=tf.float32)
+
+			p_mat_tf, L_diag = loss_class.construct_precision_matrix(
+				l_mat_elements_tf)
+
+			p_mat = p_mat_tf.numpy()[0]
+
+			nlp_tensor = loss_class.log_gauss_full(tf.constant(np.expand_dims(
+				y_true,axis=0),dtype=float),tf.constant(np.expand_dims(
+					y_pred,axis=0),dtype=float),p_mat_tf,L_diag)
+
+			# Compare to scipy function to be exact. Add 2 pi offset.
+			scipy_nlp = (-multivariate_normal.logpdf(y_true,y_pred,
+				np.linalg.inv(p_mat)) - np.log(2 * np.pi) * num_params/2)
+			# The decimal error can be significant due to inverting the precision
+			# matrix
+			self.assertAlmostEqual(np.sum(nlp_tensor.numpy())/scipy_nlp,1,
+				places=3)
+
+	def test_loss(self):
+		# Test that the diagonal covariance loss gives the correct values
+		flip_pairs = [[1,2],[3,4]]
+		num_params = 6
+		loss_class = Analysis.loss_functions.FullCovarianceLoss(num_params,
+				flip_pairs)
+
+		# Set up a couple of test function to make sure that the minimum loss
+		# is taken
+		y_true = np.ones((4,num_params))
+		y_pred = np.ones((4,num_params))
+		y_pred[1,[1,2]] = -1
+		y_pred[2,[3,4]] = -1
+		y_pred[3,[1,2,3,4]] = -1
+		L_elements_len = int(num_params*(num_params+1)/2)
+		# Have to keep this matrix simple so that we still get a reasonable
+		# answer when we invert it for scipy check
+		L_elements = np.zeros((4,L_elements_len))+1e-2
+
+		# Get out the covariance matrix in numpy
+		l_mat_elements_tf = tf.constant(L_elements,dtype=tf.float32)
+		p_mat_tf, L_diag = loss_class.construct_precision_matrix(
+			l_mat_elements_tf)
+		cov_mats = []
+		for p_mat in p_mat_tf:
+			cov_mats.append(np.linalg.inv(p_mat.numpy()))
+
+		# The correct value of the nlp
+		scipy_nlp = -multivariate_normal.logpdf(y_true[0],y_pred[0],
+			cov_mats[0]) -np.log(2 * np.pi)*num_params/2
+		scipy_nlp *= 4
+
+		yptf = tf.constant(np.concatenate([y_pred,L_elements],axis=-1),
+			dtype=tf.float32)
+		yttf = tf.constant(y_true,dtype=tf.float32)
+		loss = loss_class.loss(yttf,yptf)
+
+		self.assertAlmostEqual(np.sum(loss.numpy()),scipy_nlp,places=4)
+
+		# Repeat this excercise, but introducing error in prediction
+		y_pred[:,0] = 10
+		scipy_nlp = -multivariate_normal.logpdf(y_true[0],y_pred[0],
+			cov_mats[0]) -np.log(2 * np.pi)*num_params/2
+		scipy_nlp *= 4
+
+		yptf = tf.constant(np.concatenate([y_pred,L_elements],axis=-1),
+			dtype=tf.float32)
+		yttf = tf.constant(y_true,dtype=tf.float32)
+		loss = loss_class.loss(yttf,yptf)
+
+		self.assertAlmostEqual(np.sum(loss.numpy()),scipy_nlp,places=4)
+
+class FullCovarianceAPTLossTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+
+	def test_sanity_loss(self):
+
+        # if prior = proposal, check that produces the same as without APT
+        # modification
+		dim = 2
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
+
+		gaussian_loss = Analysis.loss_functions.FullCovarianceLoss(dim)
+		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(dim,
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		batch_size = int(1e4)
+
+		# produce output = y_pred, L_mat_elements in flattened sequence
+		len_L_mat_elements = int(dim*(dim+1)/2)
+		outputs = np.concatenate(
+			[np.random.normal(size=(batch_size, dim)),
+				np.zeros((batch_size, len_L_mat_elements))], axis=-1
+		)
+
+		truth = np.random.normal(size=(batch_size, dim))
+
+		truth = tf.constant(truth,dtype=tf.float32)
+		outputs = tf.constant(outputs,dtype=tf.float32)
+
+		print(truth.shape)
+
+		np.testing.assert_almost_equal(gaussian_loss.loss(truth,outputs).numpy(),
+			snpe_c_loss.loss(truth,outputs).numpy())
+
+		# check with something with non-zero len_L_mat_elements
+		dim = 8
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
+
+		gaussian_loss1 = Analysis.loss_functions.FullCovarianceLoss(dim)
+		snpe_c_loss1 = Analysis.loss_functions.FullCovarianceAPTLoss(dim,
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
+         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514,
+         3.6308527 ,  23.381945  ,   2.2662773 ,  -4.85888   ,
+         3.962213  ,   3.1098747 ,   2.602856  ,   1.3564798 ,
+         3.3465786 ,   0.2168981 , -16.477966  ,  -8.322151  ,
+         2.487496  ,  -0.28127927,   1.1385951 ,   1.959164  ,
+        -4.360259  , -20.258226  ,  -0.56529176,  -0.7079977 ,
+         1.1026397 ,  -2.486014  ,   1.3936588 ,   6.8615203 ,
+         0.1961821 ,  -0.13286208,  -0.3439808 ,   1.2944454 ,
+         7.697075  ,   3.17325   ,  -7.014868  ,   0.30311686,
+         0.46607757,  -0.42691824,  -0.35380697,   1.5319805 ]])
+		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
+       -0.02982552,  1.0541298 , -0.32437885]])
+		output1 = tf.constant(output1,dtype=tf.float32)
+		output1_batched = tf.squeeze(tf.stack([output1,output1]))
+		truth1 = tf.constant(truth1,dtype=tf.float32)
+		truth1_batched = tf.squeeze(tf.stack([truth1,truth1]))
+
+		# prior = proposal, so should be same as gaussian loss
+		loss_diff = np.abs(gaussian_loss1.loss(truth1,output1).numpy()[0] -
+			snpe_c_loss1.loss(truth1,output1).numpy()[0])
+		self.assertTrue(loss_diff < 0.001)
+
+		# let's try adding in a batch dimension
+		loss_diff_array = np.abs(gaussian_loss1.loss(truth1_batched,output1_batched).numpy() - 
+			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy())
+		# checking that the difference in loss is never greater than 0.0001
+		self.assertTrue(np.sum(loss_diff_array > 0.001) == 0)
+
+	def test_ratios_loss(self):
+
+		# now, prior != proposal, check by computing a ratio log pdfs. This way
+		# we can check w/out computing the normalization
+
+		# generate some random outputs / ground truths
+		# scraped from a random training run, 8 parameters w/ full covariance matrix
+		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
+         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514,
+         3.6308527 ,  23.381945  ,   2.2662773 ,  -4.85888   ,
+         3.962213  ,   3.1098747 ,   2.602856  ,   1.3564798 ,
+         3.3465786 ,   0.2168981 , -16.477966  ,  -8.322151  ,
+         2.487496  ,  -0.28127927,   1.1385951 ,   1.959164  ,
+        -4.360259  , -20.258226  ,  -0.56529176,  -0.7079977 ,
+         1.1026397 ,  -2.486014  ,   1.3936588 ,   6.8615203 ,
+         0.1961821 ,  -0.13286208,  -0.3439808 ,   1.2944454 ,
+         7.697075  ,   3.17325   ,  -7.014868  ,   0.30311686,
+         0.46607757,  -0.42691824,  -0.35380697,   1.5319805 ]])
+		output2 = np.asarray([[  0.3107585 ,  -0.3553329 ,  -0.845628  ,   0.8184399 ,
+         0.24346961,  -0.39209208,   1.0816696 ,  -0.31599775,
+         4.3396106 ,  -9.533168  ,   3.868934  , -26.110418  ,
+        -8.924578  ,   3.5657575 ,  -1.2604252 ,   3.125827  ,
+         1.2062862 ,   0.05078796,  -1.217353  , -33.451992  ,
+        -2.206342  ,  -1.0993657 ,   2.2162561 ,  11.339959  ,
+         5.2832913 , -28.392292  ,   1.8539209 ,  -1.8465352 ,
+         1.8801868 ,   2.9308507 ,   7.9488215 ,  -0.08610094,
+         0.17931506,   2.9013054 ,  -5.293574  ,   2.570334  ,
+        -0.19034708,  -4.010225  , -11.935611  ,  -0.07796383,
+         8.028736  ,   0.9651575 ,   1.8625004 ,   2.6419592 ]])
+
+		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
+       -0.02982552,  1.0541298 , -0.32437885]])
+		truth2 = np.asarray([[ 0.337906  , -0.16578683, -0.7336807 ,  0.33882454,  0.4227609 ,
+       -0.2745057 ,  0.98757386, -0.28335238]])
+
+		output1 = tf.constant(output1,dtype=tf.float32)
+		truth1 = tf.constant(truth1,dtype=tf.float32)
+		output2 = tf.constant(output2,dtype=tf.float32)
+		truth2 = tf.constant(truth2,dtype=tf.float32)
+
+		# APT prior
+		mu_prior = np.asarray([0.8,0.,0.,2.0,0.,0.,0.,0.])
+		prec_prior = np.linalg.inv(np.diag(np.asarray([0.2,0.12,0.12,0.12,0.18,0.18,0.07,0.07])**2))
+		# APT proposal
+		mu_prop = np.asarray([0.85,-0.01,-0.09,2.07,0.08,-0.02,0.07,-0.02])
+		prec_prop = np.linalg.inv(np.diag(np.asarray([0.001,0.01,0.01,0.11,0.01,0.02,0.003,0.003])**2))
+
+		# create APT loss object
+		input_norm_path = 'test_data/apt_norms.csv'
+		#'/Users/smericks/Desktop/StrongLensing/STRIDES14results/sep7_narrow_lognorm/lr_1e-3/norms.csv'
+		# WARNING: values changed b/c pass by reference
+		snpe_c_loss = Analysis.loss_functions.FullCovarianceAPTLoss(8,
+			mu_prior, prec_prior, mu_prop,prec_prop,input_norm_path=input_norm_path)
+		# move to normalized space
+		# MU_PRIOR, PREC_PRIOR, MU_PROP, PREC_PROP ALREADY MODIFIED B/C PASS BY REFERENCE
+		# (TODO: change how this is handled to avoid further issues)
+		mu_prior, prec_prior = Analysis.dataset_generation.normalize_mu_prec(
+			mu_prior,prec_prior,input_norm_path)
+		mu_prop, prec_prop = Analysis.dataset_generation.normalize_mu_prec(
+			mu_prop,prec_prop,input_norm_path)
+
+		# function to evaluate ratio of 3 gaussians analytically
+		def log_gaussian_ratio(output,truth):
+			y_pred, prec_mat, _ = snpe_c_loss.convert_output(output)
+
+			y_pred = y_pred[0]
+			prec_mat = prec_mat[0]
+			truth = truth[0]
+
+			log_ratio = multivariate_normal(mean=y_pred,cov=np.linalg.inv(prec_mat)).logpdf(truth)
+			log_ratio += multivariate_normal(mean=mu_prop,cov=np.linalg.inv(prec_prop)).logpdf(truth)
+			log_ratio -= multivariate_normal(mean=mu_prior,cov=np.linalg.inv(prec_prior)).logpdf(truth)
+
+			return log_ratio
+
+		# change the ground truth, don't change the output
+		# (otherwise we change qF(), which changes normalization factor Z)
+		analytical_ratio = -log_gaussian_ratio(output1,truth1) + log_gaussian_ratio(output1,truth2)
+		loss_function_ratio = snpe_c_loss.loss(truth1,output1) - snpe_c_loss.loss(truth2,output1)
+		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=3)
+
+		analytical_ratio = -log_gaussian_ratio(output2,truth1) + log_gaussian_ratio(output2,truth2)
+		loss_function_ratio = snpe_c_loss.loss(truth1,output2) - snpe_c_loss.loss(truth2,output2)
+		self.assertAlmostEqual(analytical_ratio,loss_function_ratio.numpy()[0],places=3)
+
+
+class DiagonalCovarianceAPTLossTests(unittest.TestCase):
+
+	def setUp(self):
+		# Set up a random seed for consistency
+		np.random.seed(2)
+
+	def test_sanity_loss(self):
+
+        # if prior = proposal, check that produces the same as without APT
+        # modification
+		dim = 2
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
+
+		gaussian_loss = Analysis.loss_functions.DiagonalCovarianceLoss(dim)
+		snpe_c_loss = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim,
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		batch_size = int(1e4)
+
+		# produce output = y_pred, log_var_pred in flattened sequence
+		outputs = np.concatenate(
+			[np.random.normal(size=(batch_size, dim)),
+				np.zeros((batch_size, dim))], axis=-1
+		)
+
+		truth = np.random.normal(size=(batch_size, dim))
+
+		truth = tf.constant(truth,dtype=tf.float32)
+		outputs = tf.constant(outputs,dtype=tf.float32)
+
+
+		np.testing.assert_almost_equal(
+			gaussian_loss.loss(truth,outputs).numpy(),
+			snpe_c_loss.loss(truth,outputs).numpy(),
+			decimal=5
+		)
+
+		# check with something with non-zero len_L_mat_elements
+		dim = 8
+		mu_prior = np.zeros(dim)
+		prec_prior = np.diag(np.ones(dim) * 4)
+		mu_prop = mu_prior
+		prec_prop = prec_prior
+
+		gaussian_loss1 = Analysis.loss_functions.DiagonalCovarianceLoss(dim)
+		snpe_c_loss1 = Analysis.loss_functions.DiagonalCovarianceAPTLoss(dim,
+			mu_prior, prec_prior, mu_prop,prec_prop)
+
+		output1 = np.asarray([[  0.20284523,   0.29238915,  -0.7393373 ,  -0.03214657,
+         0.6250517 ,   0.2523826 ,   1.077436  ,  -0.69989514,
+		 -7.26170538, -6.46101679, -6.29505404, -3.06140718, -5.87716862,
+       -6.09388462, -4.22963954, -4.94557475]])
+		# 1.4246841e+03, 6.3971118e+02, 5.4188513e+02 , 2.1357590e+01, 3.5679758e+02,
+		# 4.4313950e+02, 6.8692467e+01, 1.4055161e+02]])
+		truth1 = np.asarray([[ 0.33084044, -0.07505693, -0.7572751 , -0.90663636,  0.34479252,
+       -0.02982552,  1.0541298 , -0.32437885]])
+		output1 = tf.constant(output1,dtype=tf.float32)
+		output1_batched = tf.squeeze(tf.stack([output1,output1]))
+		truth1 = tf.constant(truth1,dtype=tf.float32)
+		truth1_batched = tf.squeeze(tf.stack([truth1,truth1]))
+
+		# CONFIRMED: the problem is NOT the prefactor
+		test = gaussian_loss1.loss(truth1,output1).numpy()
+		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1,output1).numpy(),
+			gaussian_loss1.loss(truth1,output1).numpy())
+
+		# prior = proposal, so should be same as gaussian loss
+		self.assertAlmostEqual(gaussian_loss1.loss(truth1,output1).numpy()[0],
+			snpe_c_loss1.loss(truth1,output1).numpy()[0],places=4)
+
+		# let's try adding in a batch dimension
+		np.testing.assert_almost_equal(gaussian_loss1.loss(truth1_batched,output1_batched).numpy(),
+			snpe_c_loss1.loss(truth1_batched,output1_batched).numpy(),decimal=4)
 
 
 class ConvModelsTests(unittest.TestCase):
