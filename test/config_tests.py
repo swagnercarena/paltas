@@ -344,8 +344,8 @@ class ConfigUtilsTests(unittest.TestCase):
 		# turn off lens light
 		self.c.lens_light_class = None
 		# Add point source and validate output
-		self.c.sample['point_source_parameters'] = {'x_point_source':0.001,
-			'y_point_source':0.001,'magnitude':16,'output_ab_zeropoint':25.0,
+		self.c.sample['point_source_parameters'] = {'x_point_source':0.0,
+			'y_point_source':0.0,'magnitude':14,'output_ab_zeropoint':25.0,
 			'compute_time_delays':False}
 		self.c.point_source_class = SinglePointSource(
 			self.c.sample['point_source_parameters'])
