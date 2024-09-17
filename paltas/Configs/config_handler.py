@@ -506,8 +506,16 @@ class ConfigHandler():
 			if mag < self.mag_cut:
 				raise MagnificationError(self.mag_cut)
 
+		# Add constant sky brightness
+		# Note lenstronomy's sky brightness is in counts/square arcsec, 
+		# so to get the value per pixel, we have to multiply by resolution^2
+		image += single_band._sky_brightness_cps * kwargs_detector['pixel_scale']**2
+
 		# If noise is specified, add it.
 		if add_noise:
+			# We added the sky brightness to the image, so don't let lenstronomy
+			# consider it as an additional light source
+			single_band._sky_brightness_cps = 0
 			image += single_band.noise_for_model(image)
 
 		# Extract the metadata from the sample
