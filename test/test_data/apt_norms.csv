@@ -1,0 +1,9 @@
+parameter,mean,std
+main_deflector_parameters_theta_E,0.8,0.15
+main_deflector_parameters_gamma1,0.,0.12
+main_deflector_parameters_gamma2,0.,0.12
+main_deflector_parameters_gamma,2.0,0.12
+main_deflector_parameters_e1,0.,0.18
+main_deflector_parameters_e2,0.,0.18
+main_deflector_parameters_center_x,0.,0.07
+main_deflector_parameters_center_y,0.,0.07

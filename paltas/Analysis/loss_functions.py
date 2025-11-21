@@ -9,6 +9,7 @@ functions for NN training on the strong lensing problem.
 import tensorflow as tf
 import numpy as np
 import itertools
+from paltas.Analysis.dataset_generation import normalize_mu_prec
 
 
 class BaseLoss():
@@ -423,5 +424,159 @@ class FullCovarianceLoss(BaseLoss):
 		for flip_mat in self.flip_mat_list:
 			loss_list.append(self.log_gauss_full(y_true,
 				tf.matmul(y_pred,flip_mat),prec_mat,L_diag))
+		loss_stack = tf.stack(loss_list,axis=-1)
+		return tf.reduce_min(loss_stack,axis=-1)
+	
+
+class FullCovarianceAPTLoss(FullCovarianceLoss):
+	""" Automatic Posterior Transformation (APT) Loss w/ full covariance matrix
+
+	Args:
+		num_params (int): The number of parameters to predict.
+		prior_means ([float]): Means of initial Gaussian training prior
+		prior_scatters ([float]): Standard deviations of initial Gaussian training prior
+		proposal_means ([float]): Means of updated proposal Gaussian training prior
+		proposal_scatters ([float]): Standard deviations of updated proposal Gaussian training prior
+		flip_pairs ([[int,...],...]): A list of lists. Each list contains
+			the index of parameters that when flipped together return an
+			equivalent lens model.
+
+		Notes:
+			If multiple lists are provided, all possible combinations of
+			flips will be considered. For example, if flip_pairs is
+			[[0,1],[2,3]] then flipping 0,1,2,3 all at the same time will
+			also be considered.
+	"""
+
+	def __init__(self, num_params, prior_means, prior_prec, proposal_means,
+		proposal_prec,input_norm_path=None,flip_pairs=None, weight_terms=None):
+
+		super().__init__(num_params,flip_pairs=flip_pairs,
+			weight_terms=weight_terms)
+
+		# IF NORMALIZING PARAMETERS WITH NORMS.CSV, MUST ACCOUNT FOR THAT
+		if input_norm_path is not None:
+			print('normalizing prior/proposal')
+			prior_means,prior_prec = normalize_mu_prec(prior_means,
+				prior_prec,input_norm_path)
+			proposal_means,proposal_prec = normalize_mu_prec(proposal_means,
+				proposal_prec,input_norm_path)
+
+		# store prior & proposal info which we will need to compute loss
+		self.prior_mu = tf.constant(prior_means,dtype=tf.float32)
+		self.prior_prec = tf.constant(prior_prec,dtype=tf.float32)
+		self.proposal_mu = tf.constant(proposal_means,dtype=tf.float32)
+		self.proposal_prec = tf.constant(proposal_prec,dtype=tf.float32)
+
+	@staticmethod
+	def log_gauss_full(y_true,y_pred,prec_mat):
+		""" Return the negative log posterior of a Gaussian with full
+		covariance matrix
+
+		Args:
+			y_true (tf.Tensor): The true values of the parameters
+			y_pred (tf.Tensor): The predicted value of the parameters
+			prec_mat: The precision matrix
+
+		Returns:
+			(tf.Tensor): The TF graph for calculating the nlp
+
+		Notes:
+			This loss does not include the constant factor of 1/(2*pi)^(d/2).
+		"""
+		y_dif = y_true - y_pred
+		# TODO: check that this is correct (reducing along right axes, etc.)
+		# A/B test: FullCovariance w/ this prefactor vs. FullCovariance w/ original prefactor
+		prefactor = -0.5*tf.math.log(tf.linalg.det(prec_mat))
+		return prefactor + 0.5 * tf.reduce_sum(
+			tf.multiply(y_dif,tf.reduce_sum(tf.multiply(tf.expand_dims(
+				y_dif,-1),prec_mat),axis=-2)),-1)
+
+	def loss(self,y_true,output):
+
+		# Extract the outputs
+		y_pred, prec_mat, _ = self.convert_output(output)
+
+		prec_comb = prec_mat + self.proposal_prec - self.prior_prec
+
+		# Add each possible flip to the loss list. We will then take the
+		# minimum.
+		loss_list = []
+		for flip_mat in self.flip_mat_list:
+			y_pred_flip = tf.matmul(y_pred,flip_mat)
+			# have to add dimension to y_pred to facilitate matmul
+			rhs = (tf.matmul(prec_mat,tf.expand_dims(y_pred_flip,-1)) + 
+	 			tf.matmul(self.proposal_prec,tf.expand_dims(self.proposal_mu,-1)) - 
+	 			tf.matmul(self.prior_prec,tf.expand_dims(self.prior_mu,-1)) )
+			mu_comb = tf.matmul(tf.linalg.inv(prec_comb),rhs)
+			# remove extra dimension 
+			mu_comb = tf.squeeze(mu_comb,axis=-1)
+			loss_list.append(self.log_gauss_full(y_true,mu_comb,prec_comb))
+		loss_stack = tf.stack(loss_list,axis=-1)
+		return tf.reduce_min(loss_stack,axis=-1)
+	
+
+class DiagonalCovarianceAPTLoss(DiagonalCovarianceLoss):
+	""" Automatic Posterior Transformation (APT) Loss w/ diagonal covariance matrix
+
+	Args:
+		num_params (int): The number of parameters to predict.
+		prior_means ([float]): Means of initial Gaussian training prior
+		prior_scatters ([float]): Standard deviations of initial Gaussian training prior
+		proposal_means ([float]): Means of updated proposal Gaussian training prior
+		proposal_scatters ([float]): Standard deviations of updated proposal Gaussian training prior
+		flip_pairs ([[int,...],...]): A list of lists. Each list contains
+			the index of parameters that when flipped together return an
+			equivalent lens model.
+
+		Notes:
+			If multiple lists are provided, all possible combinations of
+			flips will be considered. For example, if flip_pairs is
+			[[0,1],[2,3]] then flipping 0,1,2,3 all at the same time will
+			also be considered.
+	"""
+
+	def __init__(self, num_params, prior_means, prior_prec, proposal_means,
+		proposal_prec,input_norm_path=None,flip_pairs=None, weight_terms=None):
+
+		super().__init__(num_params,flip_pairs=flip_pairs,
+			weight_terms=weight_terms)
+
+		# IF NORMALIZING PARAMETERS WITH NORMS.CSV, MUST ACCOUNT FOR THAT
+		if input_norm_path is not None:
+			print('normalizing prior/proposal')
+			prior_means,prior_prec = normalize_mu_prec(prior_means,
+				prior_prec,input_norm_path)
+			proposal_means,proposal_prec = normalize_mu_prec(proposal_means,
+				proposal_prec,input_norm_path)
+
+		# store prior & proposal info which we will need to compute loss
+		self.prior_mu = tf.constant(prior_means,dtype=tf.float32)
+		self.prior_prec = tf.constant(prior_prec,dtype=tf.float32)
+		self.proposal_mu = tf.constant(proposal_means,dtype=tf.float32)
+		self.proposal_prec = tf.constant(proposal_prec,dtype=tf.float32)
+		
+
+	def loss(self,y_true,output):
+
+		# Extract the outputs
+		y_pred, log_var_pred = self.convert_output(output)
+
+		prec_mat = tf.linalg.diag(tf.math.reciprocal(tf.exp(log_var_pred)))
+		prec_comb = prec_mat + self.proposal_prec - self.prior_prec
+
+		# Add each possible flip to the loss list. We will then take the
+		# minimum.
+		loss_list = []
+		for flip_mat in self.flip_mat_list:
+			y_pred_flip = tf.matmul(y_pred,flip_mat)
+			# have to add dimension to y_pred to facilitate matmul
+			rhs = (tf.matmul(prec_mat,tf.expand_dims(y_pred_flip,-1)) + 
+				tf.matmul(self.proposal_prec,tf.expand_dims(self.proposal_mu,-1)) - 
+				tf.matmul(self.prior_prec,tf.expand_dims(self.prior_mu,-1)) )
+			mu_comb = tf.matmul(tf.linalg.inv(prec_comb),rhs)
+			# remove extra dimension 
+			mu_comb = tf.squeeze(mu_comb,axis=-1)
+			loss_list.append(FullCovarianceAPTLoss.log_gauss_full(y_true,mu_comb,prec_comb))
 		loss_stack = tf.stack(loss_list,axis=-1)
 		return tf.reduce_min(loss_stack,axis=-1)
